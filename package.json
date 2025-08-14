@@ -24,10 +24,8 @@
     "deploy": "npm run clean && npm run build:prod"
   },
   "dependencies": {
-    "@googlemaps/js-api-loader": "^1.16.10",
     "@stripe/stripe-js": "^7.7.0",
     "@supabase/supabase-js": "^2.38.4",
-    "@types/google.maps": "^3.58.1",
     "@types/qrcode": "^1.5.5",
     "lucide-react": "^0.344.0",
     "qrcode": "^1.5.4",

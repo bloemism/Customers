@@ -1,6 +1,6 @@
-# 87アプリ
+# 87app - 花屋向け店舗管理システム
 
-最新のテクノロジーとデザインを融合させた、次世代のウェブアプリケーション。
+花屋向けの包括的な店舗管理システム。商品管理、QR決済、売上管理、顧客管理、全国フローリストマップ機能を提供します。
 
 ## 🚀 技術スタック
 
@@ -10,6 +10,8 @@
 - **デプロイ**: Vercel
 - **アイコン**: Lucide React
 - **ルーティング**: React Router DOM
+- **地図**: Google Maps Static API
+- **QRコード**: qrcode
 
 ## 📦 インストール
 
@@ -40,7 +42,15 @@ cp env.example .env
 ```env
 VITE_SUPABASE_URL=your_supabase_url_here
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_static_api_key_here
 ```
+
+### Google Maps Static API設定
+
+1. [Google Cloud Console](https://console.cloud.google.com/)でプロジェクトを作成
+2. Maps Static APIを有効化
+3. APIキーを作成
+4. `.env`ファイルに`VITE_GOOGLE_MAPS_API_KEY`として設定
 
 ## 🏗️ プロジェクト構造
 
@@ -54,7 +64,17 @@ src/
 ├── lib/               # ライブラリ設定
 │   └── supabase.ts
 ├── pages/             # ページコンポーネント
-│   └── Home.tsx
+│   ├── MenuScreen.tsx      # メニュー画面
+│   ├── CheckoutScreen.tsx  # お客様会計
+│   ├── CustomerManagement.tsx # 顧客管理
+│   ├── FloristMap.tsx      # 全国フローリストマップ
+│   ├── StoreRegistration.tsx # 店舗データ管理
+│   └── CustomerRegistration.tsx # 顧客登録
+├── services/          # サービス層
+│   ├── storeService.ts      # 店舗管理サービス
+│   ├── customerService.ts   # 顧客管理サービス
+│   ├── pointService.ts      # ポイント管理サービス
+│   └── storeOwnerService.ts # 店舗オーナー認証サービス
 ├── types/             # TypeScript型定義
 │   └── index.ts
 ├── App.tsx            # メインアプリケーション
@@ -63,10 +83,28 @@ src/
 
 ## 🔐 認証機能
 
-- メール/パスワード認証
-- Google OAuth認証
+- 店舗オーナー認証（メール/パスワード）
+- 顧客登録・認証
 - セッション管理
 - 保護されたルート
+
+## 🌸 主要機能
+
+### 店舗管理
+- **お客様会計**: 品目入力、合計計算、ポイント管理、QRコード生成
+- **顧客管理**: 顧客検索、購入履歴、ポイント管理
+- **店舗データ管理**: 店舗情報登録・編集、営業時間、サービス、写真
+
+### 全国フローリストマップ
+- **Static Maps API**: 軽量で高速な地図表示
+- **店舗検索**: 位置情報による店舗検索
+- **詳細表示**: 店舗情報、営業時間、サービス、おすすめの花
+- **掲示板**: バイト募集、レッスン募集などの情報
+
+### データベース
+- **20店舗のサンプルデータ**: 全国各地の花屋情報
+- **顧客管理**: 購入履歴、ポイントシステム
+- **店舗オーナー管理**: 認証、プロフィール管理
 
 ## 🎨 デザインシステム
 
