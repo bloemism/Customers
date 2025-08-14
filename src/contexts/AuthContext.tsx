@@ -99,13 +99,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, userData: any) => {
+  const signUp = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData
+          data: {
+            preferred_language: globalLanguage,
+            user_type: 'florist',
+            created_at: new Date().toISOString()
+          }
         }
       });
       

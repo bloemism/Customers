@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Home } from './pages/Home';
+import { MenuScreen } from './pages/MenuScreen';
+import { CheckoutScreen } from './pages/CheckoutScreen';
 import { LoginForm } from './components/auth/LoginForm';
 import './index.css';
 
@@ -47,19 +48,45 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<LoginForm />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold mb-4">ダッシュボード</h1>
-                  <p>認証済みユーザーのみアクセス可能なページです。</p>
-                </div>
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+                  <Routes>
+          <Route path="/" element={<Navigate to="/menu" replace />} />
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/menu" element={
+            <ProtectedRoute>
+              <MenuScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/checkout" element={
+            <ProtectedRoute>
+              <CheckoutScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/florist-map" element={
+            <ProtectedRoute>
+              <div className="p-8">
+                <h1 className="text-2xl font-bold mb-4">全国フローリストマップ</h1>
+                <p>GPS位置情報で花屋を検索します。</p>
+              </div>
+            </ProtectedRoute>
+          } />
+          <Route path="/customer-management" element={
+            <ProtectedRoute>
+              <div className="p-8">
+                <h1 className="text-2xl font-bold mb-4">顧客管理</h1>
+                <p>お客様データ・ポイント・販売履歴を管理します。</p>
+              </div>
+            </ProtectedRoute>
+          } />
+          <Route path="/store-management" element={
+            <ProtectedRoute>
+              <div className="p-8">
+                <h1 className="text-2xl font-bold mb-4">店舗データ管理</h1>
+                <p>GPS位置・店舗情報のカスタマイズを行います。</p>
+              </div>
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<Navigate to="/menu" replace />} />
+        </Routes>
         </div>
       </Router>
     </AuthProvider>
