@@ -58,7 +58,7 @@ export const MenuScreen: React.FC = () => {
       description: 'GPS位置・店舗情報のカスタマイズ',
       icon: Store,
       color: 'from-orange-500 to-red-600',
-      route: '/store-management'
+      route: '/store-registration'
     }
   ];
 
@@ -187,3 +187,4 @@ export const MenuScreen: React.FC = () => {
     </div>
   );
 };
+

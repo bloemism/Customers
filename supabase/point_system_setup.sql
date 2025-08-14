@@ -95,3 +95,4 @@ BEGIN
   RETURN (SELECT current_points + increment_amount FROM customer_points WHERE id = row_id);
 END;
 $$ LANGUAGE plpgsql;
+

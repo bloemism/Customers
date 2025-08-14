@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { SupportedLanguage } from '../types';
+import { StoreOwnerService, StoreOwnerProfile } from '../services/storeOwnerService';
 
 interface AuthContextType {
   user: User | null;
@@ -9,8 +10,11 @@ interface AuthContextType {
   loading: boolean;
   globalLanguage: SupportedLanguage;
   setGlobalLanguage: (language: SupportedLanguage) => void;
+  storeOwnerProfile: StoreOwnerProfile | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signUpStoreOwner: (email: string, password: string, profileData: any) => Promise<{ error: any }>;
+  signInStoreOwner: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: any }>;
 }
@@ -34,6 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [globalLanguage, setGlobalLanguage] = useState<SupportedLanguage>('ja');
+  const [storeOwnerProfile, setStoreOwnerProfile] = useState<StoreOwnerProfile | null>(null);
 
   useEffect(() => {
     // 初期セッションを取得
@@ -70,6 +75,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userLanguage = session.user.user_metadata?.preferred_language;
           if (userLanguage && ['ja', 'en', 'ko', 'zh'].includes(userLanguage)) {
             setGlobalLanguage(userLanguage as SupportedLanguage);
+          }
+          
+          // 店舗オーナープロフィールを取得
+          try {
+            const profile = await StoreOwnerService.getCurrentStoreOwner();
+            setStoreOwnerProfile(profile);
+          } catch (error) {
+            console.log('Not a store owner or profile not found');
           }
         }
         
@@ -125,12 +138,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signUpStoreOwner = async (email: string, password: string, profileData: any) => {
+    try {
+      const { user, profile } = await StoreOwnerService.registerStoreOwner(email, password, profileData);
+      setStoreOwnerProfile(profile);
+      return { error: null };
+    } catch (error) {
+      console.error('Store owner sign up error:', error);
+      return { error };
+    }
+  };
+
+  const signInStoreOwner = async (email: string, password: string) => {
+    try {
+      const { user, profile } = await StoreOwnerService.loginStoreOwner(email, password);
+      setStoreOwnerProfile(profile);
+      return { error: null };
+    } catch (error) {
+      console.error('Store owner sign in error:', error);
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-      }
+      await StoreOwnerService.logout();
+      setStoreOwnerProfile(null);
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -163,8 +196,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     globalLanguage,
     setGlobalLanguage,
+    storeOwnerProfile,
     signIn,
     signUp,
+    signUpStoreOwner,
+    signInStoreOwner,
     signOut,
     signInWithGoogle,
   };

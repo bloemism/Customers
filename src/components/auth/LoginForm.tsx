@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Flower } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -142,15 +142,38 @@ export const LoginForm: React.FC = () => {
       </form>
 
         {/* モード切り替え */}
-        <div className="text-center">
-        <button
+        <div className="text-center space-y-4">
+          <button
             type="button"
             onClick={toggleMode}
             className="text-pink-600 hover:text-pink-700 font-medium transition-colors duration-200"
           >
-            {isSignUp ? '既存のアカウントでログイン' : '新しいアカウントを作成'}
-        </button>
-      </div>
+            {isSignUp ? '既存のアカウントでログイン' : '店舗管理者アカウント作成'}
+          </button>
+          
+          {!isSignUp && (
+            <div className="pt-4 border-t border-gray-200 space-y-3">
+              <div>
+                <p className="text-sm text-gray-600 mb-2">店舗オーナーとして登録しますか？</p>
+                <Link
+                  to="/store-owner-registration"
+                  className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
+                >
+                  店舗オーナー登録
+                </Link>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-2">顧客として登録しますか？</p>
+                <Link
+                  to="/customer-registration"
+                  className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
+                >
+                  顧客アカウント作成
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* フッター */}
         <div className="text-center text-sm text-gray-500">
