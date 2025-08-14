@@ -15,7 +15,22 @@ import {
   CreditCard
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { PointService, CustomerPoint } from '../services/pointService';
+import { PointService } from '../services/pointService';
+
+// CustomerPoint型を直接定義
+interface CustomerPoint {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_phone?: string;
+  customer_email?: string;
+  current_points: number;
+  total_earned_points: number;
+  total_used_points: number;
+  last_transaction_date?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface CheckoutItem {
   id: string;

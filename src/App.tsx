@@ -8,6 +8,8 @@ import { CustomerRegistration } from './pages/CustomerRegistration';
 import { FloristMap } from './pages/FloristMap';
 import { StoreRegistration } from './pages/StoreRegistration';
 import { StoreOwnerRegistration } from './pages/StoreOwnerRegistration';
+import { AuthCallback } from './pages/auth/callback';
+import { SupabaseTest } from './components/SupabaseTest';
 import { LoginForm } from './components/auth/LoginForm';
 import './index.css';
 
@@ -68,6 +70,8 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/store-owner-registration" element={<StoreOwnerRegistration />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/test" element={<SupabaseTest />} />
           <Route path="/menu" element={
             <ProtectedRoute>
               <MenuScreen />

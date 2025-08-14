@@ -1,8 +1,35 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { SupportedLanguage } from '../types';
-import { StoreOwnerService, StoreOwnerProfile } from '../services/storeOwnerService';
+import { StoreOwnerService } from '../services/storeOwnerService';
+
+// SupportedLanguage型を直接定義
+type SupportedLanguage = 'ja' | 'en' | 'ko' | 'zh';
+
+// User型を定義
+type User = any;
+
+// StoreOwnerProfile型を直接定義
+interface StoreOwnerProfile {
+  id: string;
+  user_id: string;
+  email: string;
+  store_name: string | null;
+  owner_name: string | null;
+  phone: string | null;
+  address: string | null;
+  business_license_number: string | null;
+  business_type: string;
+  is_verified: boolean;
+  is_active: boolean;
+  subscription_plan: string;
+  subscription_expires_at: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Session型を定義
+type Session = any;
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +39,7 @@ interface AuthContextType {
   setGlobalLanguage: (language: SupportedLanguage) => void;
   storeOwnerProfile: StoreOwnerProfile | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signUp: (email: string, password: string) => Promise<{ error: any; user?: any }>;
   signUpStoreOwner: (email: string, password: string, profileData: any) => Promise<{ error: any }>;
   signInStoreOwner: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -114,24 +141,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string) => {
     try {
+      console.log('Starting sign up process for:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             preferred_language: globalLanguage,
-            user_type: 'florist',
+            user_type: 'customer',
             created_at: new Date().toISOString()
           }
         }
       });
+      
+      console.log('Sign up response:', { data, error });
       
       if (error) {
         console.error('Sign up error:', error);
         return { error };
       }
       
-      return { error: null };
+      // 登録成功時は自動的にログイン状態になる
+      if (data.user) {
+        console.log('User created successfully:', data.user);
+        setUser(data.user);
+        setSession(data.session);
+        
+        // 顧客テーブルにも登録（非同期で実行）
+        setTimeout(async () => {
+          try {
+            const { error: customerError } = await supabase
+              .from('customers')
+              .insert([
+                {
+                  user_id: data.user.id,
+                  customer_name: email.split('@')[0], // 一時的な名前
+                  customer_email: email,
+                  current_points: 0,
+                  total_earned_points: 0,
+                  total_used_points: 0
+                }
+              ]);
+            
+            if (customerError) {
+              console.error('Customer table insert error:', customerError);
+            } else {
+              console.log('Customer record created successfully');
+            }
+          } catch (customerError) {
+            console.error('Customer creation error:', customerError);
+          }
+        }, 1000);
+      }
+      
+      return { error: null, user: data.user };
     } catch (error) {
       console.error('Sign up error:', error);
       return { error };
@@ -174,7 +238,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: 'http://localhost:5173/auth/callback',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       

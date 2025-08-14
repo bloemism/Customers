@@ -15,7 +15,56 @@ import {
   Star,
   Navigation
 } from 'lucide-react';
-import { StoreService, Store, StoreDetails } from '../services/storeService';
+import { StoreService } from '../services/storeService';
+
+// Store型を直接定義
+interface Store {
+  id: string;
+  user_id: string;
+  store_name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  commerce_url: string | null;
+  business_hours: string | null;
+  holiday_info: string | null;
+  parking_available: boolean;
+  parking_info: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// StoreDetails型を直接定義
+interface StoreDetails {
+  id: string;
+  user_id: string;
+  store_name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  commerce_url: string | null;
+  business_hours: string | null;
+  holiday_info: string | null;
+  parking_available: boolean;
+  parking_info: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  business_hours_details: any[];
+  services: any[];
+  photos: any[];
+  recommended_flowers: any[];
+  active_posts: any[];
+}
 
 export const FloristMap: React.FC = () => {
   const navigate = useNavigate();
@@ -400,11 +449,11 @@ export const FloristMap: React.FC = () => {
                   )}
 
                   {/* 掲示板 */}
-                  {selectedStore.posts && selectedStore.posts.length > 0 && (
+                  {selectedStore.active_posts && selectedStore.active_posts.length > 0 && (
                     <div>
                       <h5 className="font-semibold text-gray-900 mb-3">掲示板</h5>
                       <div className="space-y-2">
-                        {selectedStore.posts.slice(0, 2).map((post, index) => (
+                        {selectedStore.active_posts.slice(0, 2).map((post: any, index: number) => (
                           <div key={index} className="p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">

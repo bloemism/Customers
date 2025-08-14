@@ -137,9 +137,9 @@ export const CustomerRegistration: React.FC = () => {
 
     try {
       // 1. Supabaseでアカウント作成
-      const { user } = await signUp(formData.email, formData.password);
+      const { error } = await signUp(formData.email, formData.password);
       
-      if (user) {
+      if (!error) {
         // 2. 顧客情報をデータベースに保存
         await CustomerService.createCustomer({
           name: formData.name,

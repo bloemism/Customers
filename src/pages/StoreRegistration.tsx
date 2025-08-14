@@ -18,7 +18,56 @@ import {
   ShoppingCart,
   Car
 } from 'lucide-react';
-import { StoreService, Store, StoreDetails } from '../services/storeService';
+import { StoreService } from '../services/storeService';
+
+// Store型を直接定義
+interface Store {
+  id: string;
+  user_id: string;
+  store_name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  commerce_url: string | null;
+  business_hours: string | null;
+  holiday_info: string | null;
+  parking_available: boolean;
+  parking_info: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// StoreDetails型を直接定義
+interface StoreDetails {
+  id: string;
+  user_id: string;
+  store_name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  commerce_url: string | null;
+  business_hours: string | null;
+  holiday_info: string | null;
+  parking_available: boolean;
+  parking_info: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  business_hours_details: any[];
+  services: any[];
+  photos: any[];
+  recommended_flowers: any[];
+  active_posts: any[];
+}
 
 interface StoreFormData {
   store_name: string;
