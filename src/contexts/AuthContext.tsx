@@ -1,276 +1,340 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { StoreOwnerService } from '../services/storeOwnerService';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 
-// SupportedLanguage型を直接定義
-type SupportedLanguage = 'ja' | 'en' | 'ko' | 'zh';
-
-// User型を定義
-type User = any;
-
-// StoreOwnerProfile型を直接定義
-interface StoreOwnerProfile {
+// 型定義
+interface UserProfile {
   id: string;
-  user_id: string;
   email: string;
-  store_name: string | null;
-  owner_name: string | null;
-  phone: string | null;
-  address: string | null;
-  business_license_number: string | null;
-  business_type: string;
-  is_verified: boolean;
-  is_active: boolean;
-  subscription_plan: string;
-  subscription_expires_at: string | null;
-  last_login_at: string | null;
+  name?: string;
+  user_type: 'customer' | 'store_owner';
   created_at: string;
-  updated_at: string;
 }
-
-// Session型を定義
-type Session = any;
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   session: Session | null;
   loading: boolean;
-  globalLanguage: SupportedLanguage;
-  setGlobalLanguage: (language: SupportedLanguage) => void;
-  storeOwnerProfile: StoreOwnerProfile | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any; user?: any }>;
-  signUpStoreOwner: (email: string, password: string, profileData: any) => Promise<{ error: any }>;
-  signInStoreOwner: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userType: 'customer' | 'store_owner') => Promise<{ error: any; user?: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; user?: any }>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<{ error: any }>;
+  signUpStoreOwner: (email: string, password: string, storeData: any) => Promise<{ error: any; user?: any }>;
+  signInStoreOwner: (email: string, password: string) => Promise<{ error: any; user?: any }>;
 }
 
+// Supabaseクライアントの作成
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5OTY2NTAsImV4cCI6MjA3MDU3MjY1MH0.jPQ4jGvuLDDZ4sFU1sbakWJIRyBKbEkaXsTnirQR4PY';
+
+console.log('🔧 環境変数チェック:');
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? '設定済み' : '未設定 (デフォルト使用)');
+console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '設定済み' : '未設定 (デフォルト使用)');
+console.log('実際のURL:', supabaseUrl);
+console.log('実際のKey:', supabaseKey ? '***' : '未設定');
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Supabase環境変数エラー:');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl);
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseKey ? '***' : '未設定');
+  throw new Error(`Supabase環境変数が設定されていません。URL: ${supabaseUrl ? 'OK' : 'NG'}, Key: ${supabaseKey ? 'OK' : 'NG'}`);
+}
+
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+
+// コンテキストの作成
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+// プロバイダーコンポーネント
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [globalLanguage, setGlobalLanguage] = useState<SupportedLanguage>('ja');
-  const [storeOwnerProfile, setStoreOwnerProfile] = useState<StoreOwnerProfile | null>(null);
 
+  // セッションの監視
   useEffect(() => {
-    // 初期セッションを取得
-    const getInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
-      } else {
+    // 現在のセッションを取得
+    const getSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔧 初期セッション取得:', session ? 'あり' : 'なし');
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // ユーザーの言語設定を取得
+        setLoading(false);
+
         if (session?.user) {
-          const userLanguage = session.user.user_metadata?.preferred_language;
-          if (userLanguage && ['ja', 'en', 'ko', 'zh'].includes(userLanguage)) {
-            setGlobalLanguage(userLanguage as SupportedLanguage);
-          }
+          await fetchUserProfile(session.user.id);
         }
+      } catch (error) {
+        console.error('❌ セッション取得エラー:', error);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    getInitialSession();
+    getSession();
 
     // 認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session);
+        console.log('🔧 認証状態変更:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // ユーザーの言語設定を取得
-        if (session?.user) {
-          const userLanguage = session.user.user_metadata?.preferred_language;
-          if (userLanguage && ['ja', 'en', 'ko', 'zh'].includes(userLanguage)) {
-            setGlobalLanguage(userLanguage as SupportedLanguage);
-          }
-          
-          // 店舗オーナープロフィールを取得
-          try {
-            const profile = await StoreOwnerService.getCurrentStoreOwner();
-            setStoreOwnerProfile(profile);
-          } catch (error) {
-            console.log('Not a store owner or profile not found');
-          }
-        }
-        
         setLoading(false);
+
+        if (session?.user) {
+          // ユーザープロフィールを取得
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUserProfile(null);
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  // ユーザープロフィールの取得
+  const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log('🔧 ユーザープロフィール取得開始:', userId);
       
-      if (error) {
-        console.error('Sign in error:', error);
-        return { error };
+      // まず顧客テーブルを確認
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (customerData) {
+        console.log('✅ 顧客プロフィール取得成功');
+        setUserProfile({
+          id: customerData.user_id,
+          email: customerData.email,
+          name: customerData.name,
+          user_type: 'customer',
+          created_at: customerData.created_at
+        });
+        return;
       }
-      
-      return { error: null };
+
+      // 顧客テーブルにない場合、店舗オーナーを確認
+      const { data: storeOwnerData, error: storeOwnerError } = await supabase
+        .from('store_owner_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (storeOwnerData) {
+        console.log('✅ 店舗オーナープロフィール取得成功');
+        setUserProfile({
+          id: storeOwnerData.user_id,
+          email: storeOwnerData.email,
+          name: storeOwnerData.owner_name,
+          user_type: 'store_owner',
+          created_at: storeOwnerData.created_at
+        });
+        return;
+      }
+
+      console.log('⚠️ プロフィールが見つかりませんでした');
+      setUserProfile(null);
     } catch (error) {
-      console.error('Sign in error:', error);
-      return { error };
+      console.error('❌ ユーザープロフィール取得エラー:', error);
+      setUserProfile(null);
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  // ユーザー登録
+  const signUp = async (email: string, password: string, userType: 'customer' | 'store_owner') => {
     try {
-      console.log('Starting sign up process for:', email);
+      console.log('🔧 ユーザー登録開始:', email, userType);
+      
+      console.log('🔧 登録データ:', { email, userType });
       
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            preferred_language: globalLanguage,
-            user_type: 'customer',
-            created_at: new Date().toISOString()
+            user_type: userType
           }
         }
       });
-      
-      console.log('Sign up response:', { data, error });
-      
+
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('❌ ユーザー登録エラー:', error);
+        console.error('❌ エラー詳細:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         return { error };
       }
-      
-      // 登録成功時は自動的にログイン状態になる
+
+      console.log('✅ ユーザー登録成功:', data.user?.id);
+
+      // 手動でプロフィールを作成
       if (data.user) {
-        console.log('User created successfully:', data.user);
-        setUser(data.user);
-        setSession(data.session);
-        
-        // 顧客テーブルにも登録（非同期で実行）
-        setTimeout(async () => {
-          try {
-            const { error: customerError } = await supabase
+        try {
+          if (userType === 'store_owner') {
+            const { error: profileError } = await supabase
+              .from('store_owner_profiles')
+              .insert([
+                {
+                  user_id: data.user.id,
+                  email: email,
+                  owner_name: '',
+                  phone: '',
+                  created_at: new Date().toISOString()
+                }
+              ]);
+
+            if (profileError) {
+              console.error('❌ 店舗オーナープロフィール作成エラー:', profileError);
+              // プロフィール作成に失敗してもユーザー登録は成功とする
+            } else {
+              console.log('✅ 店舗オーナープロフィール作成成功');
+            }
+          } else if (userType === 'customer') {
+            const { error: profileError } = await supabase
               .from('customers')
               .insert([
                 {
                   user_id: data.user.id,
-                  customer_name: email.split('@')[0], // 一時的な名前
-                  customer_email: email,
-                  current_points: 0,
-                  total_earned_points: 0,
-                  total_used_points: 0
+                  email: email,
+                  name: '',
+                  phone: '',
+                  address: '',
+                  birth_date: null,
+                  total_points: 0,
+                  created_at: new Date().toISOString()
                 }
               ]);
-            
-            if (customerError) {
-              console.error('Customer table insert error:', customerError);
+
+            if (profileError) {
+              console.error('❌ 顧客プロフィール作成エラー:', profileError);
+              // プロフィール作成に失敗してもユーザー登録は成功とする
             } else {
-              console.log('Customer record created successfully');
+              console.log('✅ 顧客プロフィール作成成功');
             }
-          } catch (customerError) {
-            console.error('Customer creation error:', customerError);
           }
-        }, 1000);
+        } catch (profileError) {
+          console.error('❌ プロフィール作成例外:', profileError);
+          // プロフィール作成に失敗してもユーザー登録は成功とする
+        }
       }
+
+      return { user: data.user, error: null };
+    } catch (error) {
+      console.error('❌ ユーザー登録例外:', error);
+      return { error };
+    }
+  };
+
+  // ログイン
+  const signIn = async (email: string, password: string) => {
+    try {
+      console.log('🔧 ログイン開始:', email);
       
-      return { error: null, user: data.user };
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.error('❌ ログインエラー:', error);
+        return { error };
+      }
+
+      console.log('✅ ログイン成功:', data.user?.id);
+      return { user: data.user, error: null };
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('❌ ログイン例外:', error);
       return { error };
     }
   };
 
-  const signUpStoreOwner = async (email: string, password: string, profileData: any) => {
-    try {
-      const { user, profile } = await StoreOwnerService.registerStoreOwner(email, password, profileData);
-      setStoreOwnerProfile(profile);
-      return { error: null };
-    } catch (error) {
-      console.error('Store owner sign up error:', error);
-      return { error };
-    }
-  };
-
-  const signInStoreOwner = async (email: string, password: string) => {
-    try {
-      const { user, profile } = await StoreOwnerService.loginStoreOwner(email, password);
-      setStoreOwnerProfile(profile);
-      return { error: null };
-    } catch (error) {
-      console.error('Store owner sign in error:', error);
-      return { error };
-    }
-  };
-
+  // ログアウト
   const signOut = async () => {
     try {
-      await StoreOwnerService.logout();
-      setStoreOwnerProfile(null);
+      console.log('🔧 ログアウト開始');
+      await supabase.auth.signOut();
+      console.log('✅ ログアウト成功');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('❌ ログアウトエラー:', error);
     }
   };
 
-  const signInWithGoogle = async () => {
+  // 店舗オーナー登録
+  const signUpStoreOwner = async (email: string, password: string, storeData: any) => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      console.log('🔧 店舗オーナー登録開始:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          redirectTo: 'http://localhost:5173/auth/callback',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+          data: {
+            user_type: 'store_owner'
           }
         }
       });
-      
+
       if (error) {
-        console.error('Google sign in error:', error);
+        console.error('❌ 店舗オーナー登録エラー:', error);
         return { error };
       }
-      
-      return { error: null };
+
+      console.log('✅ 店舗オーナー登録成功:', data.user?.id);
+
+      if (data.user) {
+        // 店舗オーナープロフィールを作成
+        const { error: profileError } = await supabase
+          .from('store_owner_profiles')
+          .insert([
+            {
+              user_id: data.user.id,
+              email: email,
+              store_name: storeData.storeName,
+              owner_name: storeData.ownerName,
+              phone: storeData.phone,
+              address: storeData.address,
+              business_license_number: storeData.businessLicenseNumber,
+              is_verified: false,
+              subscription_plan: 'free',
+              created_at: new Date().toISOString()
+            }
+          ]);
+
+        if (profileError) {
+          console.error('❌ 店舗オーナープロフィール作成エラー:', profileError);
+        } else {
+          console.log('✅ 店舗オーナープロフィール作成成功');
+        }
+      }
+
+      return { user: data.user, error: null };
     } catch (error) {
-      console.error('Google sign in error:', error);
+      console.error('❌ 店舗オーナー登録例外:', error);
       return { error };
     }
   };
 
-  const value = {
+  // 店舗オーナーログイン
+  const signInStoreOwner = async (email: string, password: string) => {
+    return signIn(email, password);
+  };
+
+  const value: AuthContextType = {
     user,
+    userProfile,
     session,
     loading,
-    globalLanguage,
-    setGlobalLanguage,
-    storeOwnerProfile,
-    signIn,
     signUp,
-    signUpStoreOwner,
-    signInStoreOwner,
+    signIn,
     signOut,
-    signInWithGoogle,
+    signUpStoreOwner,
+    signInStoreOwner
   };
 
   return (
@@ -279,3 +343,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+// カスタムフック
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 
