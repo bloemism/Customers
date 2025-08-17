@@ -445,3 +445,6 @@ export const StoreOwnerRegistration: React.FC = () => {
     </div>
   );
 };
+
+
+
