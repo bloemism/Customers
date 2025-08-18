@@ -16,9 +16,12 @@ import {
   Edit,
   Plus,
   Filter,
-  Download
+  Download,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { AddCustomerModal } from '../components/AddCustomerModal';
+import { EditCustomerModal } from '../components/EditCustomerModal';
 
 interface Customer {
   id: string;
@@ -67,10 +70,35 @@ export const CustomerManagement: React.FC = () => {
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showEditCustomer, setShowEditCustomer] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
   // 顧客検索
   const searchCustomers = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      // 検索クエリが空の場合は全顧客を取得
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('customer_statistics')
+          .select('*')
+          .order('last_purchase_date', { ascending: false })
+          .limit(50);
+        
+        if (error) throw error;
+        
+        setCustomers(data || []);
+      } catch (error) {
+        console.error('顧客取得エラー:', error);
+        setMessage('顧客データの取得中にエラーが発生しました。');
+        setMessageType('error');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     
     setLoading(true);
     try {
@@ -89,9 +117,15 @@ export const CustomerManagement: React.FC = () => {
       if (error) throw error;
       
       setCustomers(data || []);
+      
+      if (data && data.length === 0) {
+        setMessage('該当する顧客が見つかりませんでした。');
+        setMessageType('error');
+      }
     } catch (error) {
       console.error('顧客検索エラー:', error);
-      alert('顧客検索中にエラーが発生しました。');
+      setMessage('顧客検索中にエラーが発生しました。');
+      setMessageType('error');
     } finally {
       setLoading(false);
     }
@@ -117,7 +151,8 @@ export const CustomerManagement: React.FC = () => {
       setPurchaseHistory(historyData || []);
     } catch (error) {
       console.error('顧客詳細取得エラー:', error);
-      alert('顧客詳細の取得中にエラーが発生しました。');
+      setMessage('顧客詳細の取得中にエラーが発生しました。');
+      setMessageType('error');
     } finally {
       setLoading(false);
     }
@@ -136,9 +171,48 @@ export const CustomerManagement: React.FC = () => {
 
   // 顧客編集
   const handleEditCustomer = (customer: Customer) => {
-    // TODO: 顧客編集モーダルを実装
-    console.log('顧客編集:', customer);
+    setEditingCustomer(customer);
+    setShowEditCustomer(true);
   };
+
+  // 顧客追加後の処理
+  const handleCustomerAdded = () => {
+    setMessage('顧客が正常に追加されました');
+    setMessageType('success');
+    // 検索結果を更新
+    if (searchQuery.trim()) {
+      searchCustomers();
+    }
+  };
+
+  // 顧客更新後の処理
+  const handleCustomerUpdated = () => {
+    setMessage('顧客情報が正常に更新されました');
+    setMessageType('success');
+    // 選択中の顧客情報を更新
+    if (selectedCustomer && editingCustomer) {
+      setSelectedCustomer({ ...selectedCustomer, ...editingCustomer });
+    }
+    // 検索結果を更新
+    if (searchQuery.trim()) {
+      searchCustomers();
+    }
+  };
+
+  // ページ読み込み時に全顧客を取得
+  useEffect(() => {
+    searchCustomers();
+  }, []);
+
+  // メッセージをクリア
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   // データエクスポート
   const exportCustomerData = () => {
@@ -192,6 +266,34 @@ export const CustomerManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* メッセージ表示 */}
+      {message && (
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4`}>
+          <div className={`rounded-md p-4 ${
+            messageType === 'success' 
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className="flex">
+              <div className="flex-shrink-0">
+                {messageType === 'success' ? (
+                  <div className="h-5 w-5 text-green-400">✓</div>
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                )}
+              </div>
+              <div className="ml-3">
+                <p className={`text-sm ${
+                  messageType === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {message}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 検索セクション */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
@@ -230,18 +332,31 @@ export const CustomerManagement: React.FC = () => {
               </div>
             </div>
             
-            <button
-              onClick={searchCustomers}
-              disabled={loading}
-              className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Search className="h-4 w-4 mr-2" />
-              )}
-              検索
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={searchCustomers}
+                disabled={loading}
+                className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                検索
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  searchCustomers();
+                }}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                全件表示
+              </button>
+            </div>
           </div>
         </div>
 
@@ -510,6 +625,23 @@ export const CustomerManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* モーダル */}
+      <AddCustomerModal
+        isOpen={showAddCustomer}
+        onClose={() => setShowAddCustomer(false)}
+        onCustomerAdded={handleCustomerAdded}
+      />
+      
+      <EditCustomerModal
+        isOpen={showEditCustomer}
+        onClose={() => {
+          setShowEditCustomer(false);
+          setEditingCustomer(null);
+        }}
+        customer={editingCustomer}
+        onCustomerUpdated={handleCustomerUpdated}
+      />
     </div>
   );
 };
