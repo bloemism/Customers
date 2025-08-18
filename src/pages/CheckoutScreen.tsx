@@ -12,9 +12,12 @@ import {
   Phone,
   Mail,
   Gift,
-  CreditCard
+  CreditCard,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
-import QRCode from 'qrcode';
+import { QRCodeGenerator } from '../components/QRCodeGenerator';
+import { paymentNotificationService, TransactionData } from '../services/paymentNotificationService';
 import { PointService } from '../services/pointService';
 
 // CustomerPoint型を直接定義
@@ -43,9 +46,9 @@ interface CheckoutItem {
 export const CheckoutScreen: React.FC = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState<CheckoutItem[]>([]);
-  const [qrCodeData, setQrCodeData] = useState<string>('');
   const [showQR, setShowQR] = useState(false);
-  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+  const [currentTransaction, setCurrentTransaction] = useState<TransactionData | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed'>('pending');
   
   // 顧客情報とポイント関連
   const [customerPhone, setCustomerPhone] = useState('');
@@ -123,35 +126,67 @@ export const CheckoutScreen: React.FC = () => {
   // 今回獲得予定ポイント（売上の5%）
   const earnedPoints = Math.round(subtotal * 0.05);
 
-  // QRコードを生成
-  const generateQRCode = async () => {
-    setIsGeneratingQR(true);
+  // 取引を開始してQRコードを生成
+  const startTransaction = async () => {
+    if (items.filter(item => item.itemName && item.unitPrice > 0).length === 0) {
+      alert('商品を追加してください');
+      return;
+    }
+
     try {
-      const qrData = {
-        items: items.filter(item => item.itemName && item.unitPrice > 0),
-        subtotal,
-        tax,
-        grandTotal,
-        timestamp: new Date().toISOString(),
-        store: '87app花屋'
+      // 取引IDを生成
+      const transactionId = `TXN${Date.now()}`;
+      
+      // 取引データを作成
+      const transactionData: TransactionData = {
+        transactionId,
+        totalAmount: grandTotal,
+        items: items.filter(item => item.itemName && item.unitPrice > 0).map(item => ({
+          name: item.itemName,
+          price: item.unitPrice,
+          quantity: item.quantity
+        })),
+        customerId: customerPoints?.customer_id,
+        storeId: 'store-001', // 実際の実装では店舗IDを取得
+        timestamp: new Date().toISOString()
       };
-      
-      const qrString = JSON.stringify(qrData);
-      const qrCodeDataURL = await QRCode.toDataURL(qrString, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
-      
-      setQrCodeData(qrCodeDataURL);
+
+      // 取引データをSupabaseに保存
+      const saved = await paymentNotificationService.saveTransaction(transactionData);
+      if (!saved) {
+        alert('取引データの保存に失敗しました');
+        return;
+      }
+
+      setCurrentTransaction(transactionData);
       setShowQR(true);
+      setPaymentStatus('pending');
+
+      // 決済完了通知の監視を開始
+      const stopPolling = paymentNotificationService.startPolling(
+        transactionId,
+        (notification) => {
+          if (notification) {
+            setPaymentStatus('completed');
+            // 顧客データを更新
+            paymentNotificationService.updateCustomerData(notification);
+            // 成功メッセージを表示
+            setTimeout(() => {
+              alert('決済が完了しました！');
+              setShowQR(false);
+              setCurrentTransaction(null);
+              setPaymentStatus('pending');
+            }, 1000);
+          }
+        },
+        3000 // 3秒ごとにチェック
+      );
+
+      // コンポーネントのアンマウント時にポーリングを停止
+      return () => stopPolling();
     } catch (error) {
-      console.error('QRコード生成エラー:', error);
-    } finally {
-      setIsGeneratingQR(false);
+      console.error('取引開始エラー:', error);
+      alert('取引の開始に失敗しました');
     }
   };
 
@@ -204,45 +239,7 @@ export const CheckoutScreen: React.FC = () => {
     setUsePoints(Math.max(0, maxPoints));
   };
 
-  // 取引完了処理
-  const completeTransaction = async () => {
-    if (!customerPoints) return;
-    
-    try {
-      // ポイント使用処理
-      if (usePoints > 0) {
-        await PointService.usePoints(
-          customerPoints.id,
-          usePoints,
-          grandTotal,
-          '購入時のポイント使用'
-        );
-      }
-      
-      // ポイント付与処理
-      await PointService.earnPoints(
-        customerPoints.id,
-        subtotal,
-        '購入時のポイント付与'
-      );
-      
-      // 成功メッセージ
-      alert('取引が完了しました！');
-    } catch (error) {
-      console.error('取引完了エラー:', error);
-      alert('取引完了時にエラーが発生しました');
-    }
-  };
 
-  // QRコードをダウンロード
-  const downloadQRCode = () => {
-    if (qrCodeData) {
-      const link = document.createElement('a');
-      link.download = `checkout-qr-${Date.now()}.png`;
-      link.href = qrCodeData;
-      link.click();
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
@@ -541,52 +538,46 @@ export const CheckoutScreen: React.FC = () => {
               QRコード発行
             </h3>
             <div className="flex space-x-3">
-              {customerPoints && (
-                <button
-                  onClick={completeTransaction}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  取引完了
-                </button>
-              )}
-              {showQR && (
-                <button
-                  onClick={downloadQRCode}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  ダウンロード
-                </button>
-              )}
+              <button
+                onClick={startTransaction}
+                disabled={showQR}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                {showQR ? '取引中...' : '取引開始'}
+              </button>
             </div>
           </div>
           
-          <div className="text-center">
-            {!showQR ? (
-              <button
-                onClick={generateQRCode}
-                disabled={isGeneratingQR || grandTotal === 0}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                {isGeneratingQR ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <QrCode className="h-5 w-5 mr-2" />
-                )}
-                {isGeneratingQR ? '生成中...' : 'QRコードを発行'}
-              </button>
-            ) : (
-              <div className="space-y-4">
-                <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-lg">
-                  <img src={qrCodeData} alt="QRコード" className="w-64 h-64" />
-                </div>
-                <p className="text-sm text-gray-600">
-                  総合計: ¥{grandTotal.toLocaleString()} のQRコードが生成されました
+          {/* QRコード表示 */}
+          {showQR && currentTransaction && (
+            <div className="text-center">
+              <QRCodeGenerator
+                transactionData={currentTransaction}
+                onPaymentComplete={(transactionId) => {
+                  console.log('決済完了:', transactionId);
+                  setPaymentStatus('completed');
+                }}
+              />
+            </div>
+          )}
+          
+          {/* 取引開始前の説明 */}
+          {!showQR && (
+            <div className="text-center p-6 bg-gray-50 rounded-lg">
+              <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">取引を開始してください</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                商品を追加して「取引開始」ボタンを押すと、87app-customers用のQRコードが生成されます
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  💡 お客様に87app-customersアプリでQRコードを読み取ってもらい、決済を完了してください。
+                  決済が完了すると自動的に顧客管理に反映されます。
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
