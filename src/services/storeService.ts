@@ -2,47 +2,54 @@ import { supabase } from '../lib/supabase';
 
 export interface Store {
   id: string;
-  user_id: string;
   store_name: string;
+  owner_name: string;
   address: string;
-  latitude: number | null;
-  longitude: number | null;
+  latitude: number;
+  longitude: number;
   phone: string | null;
   email: string | null;
-  website_url: string | null;
-  instagram_url: string | null;
-  commerce_url: string | null;
-  business_hours: string | null;
-  holiday_info: string | null;
-  parking_available: boolean;
-  parking_info: string | null;
+  website: string | null;
+  instagram: string | null;
+  online_shop: string | null;
   description: string | null;
+  business_hours: string | null;
+  business_type: string | null;
+  tags: string[] | null;
+  has_parking: boolean;
+  photos: string[] | null;
+  is_verified: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  bulletin_board: string | null;
 }
 
 export interface StoreDetails {
   id: string;
-  user_id: string;
   store_name: string;
+  owner_name: string;
   address: string;
-  latitude: number | null;
-  longitude: number | null;
+  latitude: number;
+  longitude: number;
   phone: string | null;
   email: string | null;
-  website_url: string | null;
-  instagram_url: string | null;
-  commerce_url: string | null;
-  business_hours: string | null;
-  holiday_info: string | null;
-  parking_available: boolean;
-  parking_info: string | null;
+  website: string | null;
+  instagram: string | null;
+  online_shop: string | null;
   description: string | null;
+  business_hours: string | null;
+  business_type: string | null;
+  tags: string[] | null;
+  has_parking: boolean;
+  photos: string[] | null;
+  is_verified: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  bulletin_board: string | null;
   business_hours_details: any[];
   services: any[];
-  photos: any[];
   recommended_flowers: any[];
   active_posts: any[];
 }
@@ -54,6 +61,7 @@ export class StoreService {
       const { data, error } = await supabase
         .from('stores')
         .select('*')
+        .eq('is_active', true)
         .order('store_name');
 
       if (error) throw error;
@@ -69,7 +77,7 @@ export class StoreService {
   static async getStoreDetails(storeId: string): Promise<StoreDetails | null> {
     try {
       const { data, error } = await supabase
-        .from('store_details')
+        .from('stores')
         .select('*')
         .eq('id', storeId)
         .single();
@@ -95,7 +103,7 @@ export class StoreService {
       const { data, error } = await supabase
         .from('stores')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('owner_name', user.email)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface User {
   id: string;
@@ -10,6 +11,7 @@ interface SimpleAuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -28,41 +30,105 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ローカルストレージからユーザー情報を復元
-    const savedUser = localStorage.getItem('simpleAuthUser');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error('ユーザー情報の復元に失敗:', error);
-        localStorage.removeItem('simpleAuthUser');
+    // Supabaseのセッション状態を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        
+        if (session?.user) {
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0]
+          };
+          setUser(userData);
+          localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        } else {
+          setUser(null);
+          localStorage.removeItem('simpleAuthUser');
+        }
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    );
+
+    // 初期セッションを取得
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0]
+        };
+        setUser(userData);
+        localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // 簡単な認証（実際のプロジェクトではSupabaseを使用）
-    if (email && password) {
-      const userData: User = {
-        id: '1',
-        email: email,
-        name: email.split('@')[0]
-      };
-      setUser(userData);
-      localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
-      return { error: undefined };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      if (data.user) {
+        const userData: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0]
+        };
+        setUser(userData);
+        localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        return { error: undefined };
+      }
+
+      return { error: 'ログインに失敗しました' };
+    } catch (error) {
+      console.error('ログインエラー:', error);
+      return { error: 'ログインに失敗しました' };
     }
-    return { error: 'メールアドレスとパスワードを入力してください' };
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('Googleログインエラー:', error);
+      return { error: 'Googleログインに失敗しました' };
+    }
   };
 
   const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('ログアウトエラー:', error);
+    }
     setUser(null);
     localStorage.removeItem('simpleAuthUser');
   };
 
   return (
-    <SimpleAuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <SimpleAuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>
       {children}
     </SimpleAuthContext.Provider>
   );

@@ -61,7 +61,7 @@ export const AuthCallback: React.FC = () => {
         
         // 3秒後にメニュー画面にリダイレクト
         setTimeout(() => {
-          navigate('/menu');
+          navigate('/simple-menu');
         }, 3000);
       } else {
         setStatus('error');
@@ -122,7 +122,7 @@ export const AuthCallback: React.FC = () => {
         {status === 'error' && (
           <div className="space-y-4">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/simple-login')}
               className="w-full bg-pink-500 hover:bg-pink-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
             >
               ログイン画面に戻る

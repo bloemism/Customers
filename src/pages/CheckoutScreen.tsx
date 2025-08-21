@@ -17,23 +17,12 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { QRCodeGenerator } from '../components/QRCodeGenerator';
-import { paymentNotificationService, TransactionData } from '../services/paymentNotificationService';
+import { paymentNotificationService } from '../services/paymentNotificationService';
+import type { TransactionData } from '../services/paymentNotificationService';
 import { PointService } from '../services/pointService';
+import type { CustomerPoint } from '../services/pointService';
 
-// CustomerPoint型を直接定義
-interface CustomerPoint {
-  id: string;
-  customer_id: string;
-  customer_name: string;
-  customer_phone?: string;
-  customer_email?: string;
-  current_points: number;
-  total_earned_points: number;
-  total_used_points: number;
-  last_transaction_date?: string;
-  created_at: string;
-  updated_at: string;
-}
+// CustomerPoint型はpointServiceからインポート済み
 
 interface CheckoutItem {
   id: string;
@@ -49,6 +38,7 @@ export const CheckoutScreen: React.FC = () => {
   const [showQR, setShowQR] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState<TransactionData | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed'>('pending');
+  const [shareUrl, setShareUrl] = useState('');
   
   // 顧客情報とポイント関連
   const [customerPhone, setCustomerPhone] = useState('');
@@ -125,6 +115,15 @@ export const CheckoutScreen: React.FC = () => {
   
   // 今回獲得予定ポイント（売上の5%）
   const earnedPoints = Math.round(subtotal * 0.05);
+  
+  // ポイント使用可能上限（小計の50%まで）
+  const maxUsablePoints = Math.min(customerPoints?.current_points || 0, Math.round(subtotal * 0.5));
+  
+  // ポイント使用後の最終合計
+  const finalTotal = grandTotal;
+  
+  // ポイント使用後の獲得ポイント（ポイント使用分は除外）
+  const finalEarnedPoints = Math.round((subtotal - pointsDiscount) * 0.05);
 
   // 取引を開始してQRコードを生成
   const startTransaction = async () => {
@@ -140,7 +139,7 @@ export const CheckoutScreen: React.FC = () => {
       // 取引データを作成
       const transactionData: TransactionData = {
         transactionId,
-        totalAmount: grandTotal,
+        totalAmount: finalTotal,
         items: items.filter(item => item.itemName && item.unitPrice > 0).map(item => ({
           name: item.itemName,
           price: item.unitPrice,
@@ -148,7 +147,11 @@ export const CheckoutScreen: React.FC = () => {
         })),
         customerId: customerPoints?.customer_id,
         storeId: 'store-001', // 実際の実装では店舗IDを取得
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // ポイント情報を追加
+        pointsUsed: usePoints,
+        pointsEarned: finalEarnedPoints,
+        customerName: customerPoints?.customer_name || customerName
       };
 
       // 取引データをSupabaseに保存
@@ -161,6 +164,11 @@ export const CheckoutScreen: React.FC = () => {
       setCurrentTransaction(transactionData);
       setShowQR(true);
       setPaymentStatus('pending');
+      
+      // 共有URLを生成
+      const baseUrl = window.location.origin;
+      const shareUrl = `${baseUrl}/checkout?transaction=${transactionId}&amount=${finalTotal}&points=${usePoints}&earned=${finalEarnedPoints}`;
+      setShareUrl(shareUrl);
 
       // 決済完了通知の監視を開始
       const stopPolling = paymentNotificationService.startPolling(
@@ -347,7 +355,7 @@ export const CheckoutScreen: React.FC = () => {
           {/* 顧客ポイント情報 */}
           {customerPoints && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-medium text-green-800">
                     {customerPoints.customer_name} 様
@@ -363,6 +371,44 @@ export const CheckoutScreen: React.FC = () => {
                   <p className="text-sm text-green-600">
                     累計使用: {customerPoints.total_used_points.toLocaleString()}pt
                   </p>
+                </div>
+              </div>
+              
+              {/* ポイント使用入力 */}
+              <div className="border-t border-green-200 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-green-800">
+                    使用ポイント
+                  </label>
+                  <span className="text-xs text-green-600">
+                    最大 {maxUsablePoints.toLocaleString()}pt まで使用可能
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    value={usePoints}
+                    onChange={(e) => {
+                      const value = Math.min(Number(e.target.value), maxUsablePoints);
+                      setUsePoints(Math.max(0, value));
+                    }}
+                    min="0"
+                    max={maxUsablePoints}
+                    className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="使用するポイント数を入力"
+                  />
+                  <button
+                    onClick={() => setUsePoints(maxUsablePoints)}
+                    className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    最大使用
+                  </button>
+                  <button
+                    onClick={() => setUsePoints(0)}
+                    className="px-3 py-2 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    クリア
+                  </button>
                 </div>
               </div>
             </div>
@@ -466,7 +512,10 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* 合計計算 */}
         <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">合計計算</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Receipt className="h-5 w-5 mr-2 text-green-500" />
+            合計計算
+          </h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-gray-600">小計:</span>
@@ -477,28 +526,6 @@ export const CheckoutScreen: React.FC = () => {
               <span className="text-lg font-medium text-gray-900">¥{tax.toLocaleString()}</span>
             </div>
             
-            {/* ポイント使用 */}
-            {customerPoints && customerPoints.current_points > 0 && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">ポイント使用:</span>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    value={usePoints}
-                    onChange={(e) => updateUsePoints(Number(e.target.value))}
-                    className="w-24 px-2 py-1 border border-gray-300 rounded text-center"
-                    placeholder="0"
-                    min="0"
-                    max={Math.min(customerPoints.current_points, subtotal + tax)}
-                  />
-                  <span className="text-sm text-gray-500">pt</span>
-                  <span className="text-sm text-gray-500">
-                    (最大: {Math.min(customerPoints.current_points, subtotal + tax).toLocaleString()}pt)
-                  </span>
-                </div>
-              </div>
-            )}
-            
             {/* ポイント使用分の割引 */}
             {usePoints > 0 && (
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -507,24 +534,47 @@ export const CheckoutScreen: React.FC = () => {
               </div>
             )}
             
-            <div className="flex justify-between items-center py-4">
-              <span className="text-xl font-bold text-gray-900">総合計:</span>
-              <span className="text-2xl font-bold text-green-600">¥{grandTotal.toLocaleString()}</span>
+            <div className="flex justify-between items-center py-4 border-t-2 border-gray-200">
+              <span className="text-xl font-bold text-gray-900">お支払い金額:</span>
+              <span className="text-2xl font-bold text-green-600">¥{finalTotal.toLocaleString()}</span>
             </div>
             
-            {/* 今回獲得予定ポイント */}
+            {/* ポイント情報サマリー */}
             {customerPoints && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Gift className="h-5 w-5 text-blue-500 mr-2" />
-                    <span className="text-blue-800 font-medium">今回獲得予定ポイント</span>
+              <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* ポイント使用 */}
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Gift className="h-5 w-5 text-red-500 mr-2" />
+                      <span className="text-red-800 font-medium">使用ポイント</span>
+                    </div>
+                    <span className="text-xl font-bold text-red-600">{usePoints.toLocaleString()}pt</span>
+                    <p className="text-xs text-red-600 mt-1">
+                      割引: ¥{pointsDiscount.toLocaleString()}
+                    </p>
                   </div>
-                  <span className="text-xl font-bold text-blue-600">{earnedPoints.toLocaleString()}pt</span>
+                  
+                  {/* 獲得ポイント */}
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Gift className="h-5 w-5 text-blue-500 mr-2" />
+                      <span className="text-blue-800 font-medium">獲得予定</span>
+                    </div>
+                    <span className="text-xl font-bold text-blue-600">{finalEarnedPoints.toLocaleString()}pt</span>
+                    <p className="text-xs text-blue-600 mt-1">
+                      売上の5%付与
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-blue-600 mt-1">
-                  売上の5%がポイントとして付与されます
-                </p>
+                
+                {/* ポイント残高予想 */}
+                <div className="mt-3 pt-3 border-t border-blue-200 text-center">
+                  <span className="text-sm text-gray-600">決済後の予想ポイント残高: </span>
+                  <span className="text-lg font-bold text-green-600">
+                    {((customerPoints.current_points - usePoints + finalEarnedPoints)).toLocaleString()}pt
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -559,6 +609,57 @@ export const CheckoutScreen: React.FC = () => {
                   setPaymentStatus('completed');
                 }}
               />
+              
+              {/* 共有URL */}
+              <div className="mt-6 bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  共有URL
+                </h4>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={shareUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareUrl);
+                      alert('URLをクリップボードにコピーしました');
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    コピー
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  このURLを顧客に送信して、決済ページにアクセスしてもらえます
+                </p>
+              </div>
+              
+              {/* 取引詳細サマリー */}
+              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">取引詳細</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">取引ID:</span>
+                    <span className="ml-2 font-mono">{currentTransaction.transactionId}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">支払い金額:</span>
+                    <span className="ml-2 font-bold">¥{currentTransaction.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">使用ポイント:</span>
+                    <span className="ml-2 text-red-600">{currentTransaction.pointsUsed?.toLocaleString() || 0}pt</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">獲得予定:</span>
+                    <span className="ml-2 text-blue-600">{currentTransaction.pointsEarned?.toLocaleString() || 0}pt</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           

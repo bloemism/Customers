@@ -27,6 +27,9 @@ export interface TransactionData {
   customerId?: string;
   storeId: string;
   timestamp: string;
+  pointsUsed?: number;
+  pointsEarned?: number;
+  customerName?: string;
 }
 
 class PaymentNotificationService {

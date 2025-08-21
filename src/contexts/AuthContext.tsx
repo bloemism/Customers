@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 // 型定義
 interface UserProfile {
@@ -39,7 +40,7 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error(`Supabase環境変数が設定されていません。URL: ${supabaseUrl ? 'OK' : 'NG'}, Key: ${supabaseKey ? 'OK' : 'NG'}`);
 }
 
-const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // コンテキストの作成
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

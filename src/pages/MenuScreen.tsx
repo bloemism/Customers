@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { 
   ShoppingCart, 
   MapPin, 
@@ -16,12 +16,12 @@ import {
 
 export const MenuScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useSimpleAuth();
 
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/login');
+      navigate('/simple-login');
     } catch (error) {
       console.error('ログアウトエラー:', error);
     }
@@ -99,18 +99,8 @@ export const MenuScreen: React.FC = () => {
 
       {/* メインコンテンツ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ウェルカムメッセージ */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            お疲れ様です！
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            今日も素敵なお花でお客様を笑顔にしましょう。
-            どの機能をお使いになりますか？
-          </p>
-        </div>
-
         {/* メニューグリッド */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
