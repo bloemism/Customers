@@ -4,12 +4,13 @@ import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
 import { MenuScreen } from './pages/MenuScreen';
 import { SimpleMenuScreen } from './pages/SimpleMenuScreen';
-import { CheckoutScreen } from './pages/CheckoutScreen';
+import CheckoutScreen from './pages/CheckoutScreen';
 import { CustomerManagement } from './pages/CustomerManagement';
 import { CustomerRegistration } from './pages/CustomerRegistration';
 import { FloristMap } from './pages/FloristMap';
 import { StoreRegistration } from './pages/StoreRegistration';
 import { StoreOwnerRegistration } from './pages/StoreOwnerRegistration';
+import ProductManagement from './pages/ProductManagement';
 import { AuthCallback } from './pages/auth/callback';
 import { SupabaseTest } from './components/SupabaseTest';
 import { LoginForm } from './components/auth/LoginForm';
@@ -71,6 +72,11 @@ function App() {
             <Route path="/store-management" element={
               <SimpleAuthGuard>
                 <StoreRegistration />
+              </SimpleAuthGuard>
+            } />
+            <Route path="/product-management" element={
+              <SimpleAuthGuard>
+                <ProductManagement />
               </SimpleAuthGuard>
             } />
             <Route path="*" element={<Navigate to="/simple-menu" replace />} />

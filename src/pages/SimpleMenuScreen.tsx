@@ -37,6 +37,14 @@ export const SimpleMenuScreen: React.FC = () => {
       route: '/checkout'
     },
     {
+      id: 'product-management',
+      title: '商品管理',
+      description: '品目・色・価格の管理',
+      icon: Flower,
+      color: 'from-pink-500 to-rose-600',
+      route: '/product-management'
+    },
+    {
       id: 'florist-map',
       title: '全国フローリストマップ',
       description: 'GPS位置情報で花屋を検索',
@@ -173,13 +181,16 @@ export const SimpleMenuScreen: React.FC = () => {
                 <UserCheck className="h-6 w-6 text-purple-500 mb-2" />
                 <span className="text-sm text-gray-600">顧客検索</span>
               </button>
+              <button 
+                onClick={() => navigate('/product-management')}
+                className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                <Flower className="h-6 w-6 text-pink-500 mb-2" />
+                <span className="text-sm text-gray-600">商品管理</span>
+              </button>
               <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                 <Settings className="h-6 w-6 text-orange-500 mb-2" />
                 <span className="text-sm text-gray-600">設定</span>
-              </button>
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Flower className="h-6 w-6 text-pink-500 mb-2" />
-                <span className="text-sm text-gray-600">商品管理</span>
               </button>
             </div>
           </div>

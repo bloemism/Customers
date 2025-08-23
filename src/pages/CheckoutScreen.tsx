@@ -1,686 +1,624 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Trash2, 
-  ArrowLeft, 
-  QrCode, 
-  Download,
-  Flower,
-  Receipt,
-  User,
-  Phone,
-  Mail,
-  Gift,
-  CreditCard,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react';
-import { QRCodeGenerator } from '../components/QRCodeGenerator';
-import { paymentNotificationService } from '../services/paymentNotificationService';
-import type { TransactionData } from '../services/paymentNotificationService';
-import { PointService } from '../services/pointService';
-import type { CustomerPoint } from '../services/pointService';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
+import { supabase } from '../lib/supabase';
+import { ArrowLeft, Plus, Minus, Trash2, Calculator, CreditCard, DollarSign, Search, Copy, Mail } from 'lucide-react';
 
-// CustomerPoint型はpointServiceからインポート済み
+interface ProductItem {
+  id: string;
+  name: string;
+  category: string;
+  color: string;
+  is_active: boolean;
+}
 
 interface CheckoutItem {
   id: string;
-  itemName: string;
-  unitPrice: number;
+  name: string;
+  category: string;
+  color: string;
   quantity: number;
-  total: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
-export const CheckoutScreen: React.FC = () => {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<CheckoutItem[]>([]);
-  const [showQR, setShowQR] = useState(false);
-  const [currentTransaction, setCurrentTransaction] = useState<TransactionData | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed'>('pending');
-  const [shareUrl, setShareUrl] = useState('');
-  
-  // 顧客情報とポイント関連
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPoints, setCustomerPoints] = useState<CustomerPoint | null>(null);
-  const [usePoints, setUsePoints] = useState(0);
-  const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
-  const [showCustomerForm, setShowCustomerForm] = useState(false);
+const CheckoutScreen: React.FC = () => {
+  const { user } = useSimpleAuth();
+  const [productItems, setProductItems] = useState<ProductItem[]>([]);
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // 初期品目データ（サンプル）
-  const sampleItems = [
-    { id: '1', itemName: 'バラ（赤）', unitPrice: 300, quantity: 5, total: 1500 },
-    { id: '2', itemName: 'チューリップ', unitPrice: 200, quantity: 3, total: 600 },
-    { id: '3', itemName: 'カーネーション', unitPrice: 250, quantity: 2, total: 500 },
-    { id: '4', itemName: 'ガーベラ', unitPrice: 180, quantity: 4, total: 720 },
-    { id: '5', itemName: 'ひまわり', unitPrice: 400, quantity: 1, total: 400 },
-  ];
+  // 入力フィールド
+  const [itemName, setItemName] = useState('');
+  const [itemColor, setItemColor] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [unitPrice, setUnitPrice] = useState('');
+
+  // 自動変換候補
+  const [suggestions, setSuggestions] = useState<ProductItem[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // ポイント使用
+  const [usedPoints, setUsedPoints] = useState(0);
+  const [customerPoints, setCustomerPoints] = useState(1000); // 仮の顧客ポイント
+
+  // 決済方法
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit'>('cash');
+
+  // 会計伝票URL
+  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+
+  // 計算結果
+  const subtotal = checkoutItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const pointsEarned = Math.floor(subtotal * 0.05); // 5%ポイント
+  const tax = Math.floor((subtotal - usedPoints) * 0.1); // 10%消費税（ポイント使用後）
+  const finalTotal = subtotal - usedPoints + tax;
 
   useEffect(() => {
-    // 初期データを設定
-    setItems(sampleItems);
+    loadProductItems();
   }, []);
 
-  // 品目を追加
-  const addItem = () => {
-    const newItem: CheckoutItem = {
-      id: Date.now().toString(),
-      itemName: '',
-      unitPrice: 0,
-      quantity: 1,
-      total: 0
-    };
-    setItems([...items, newItem]);
-  };
+  // 商品管理ページで登録した品目・色の組み合わせを読み込み
+  const loadProductItems = async () => {
+    try {
+      setLoading(true);
+      
+      // ログインユーザーの店舗の商品を取得
+      if (user) {
+        const { data, error } = await supabase
+          .from('product_items')
+          .select('*')
+          .eq('is_active', true);
 
-  // 品目を削除
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter(item => item.id !== id));
+        if (error) {
+          console.error('商品読み込みエラー:', error);
+        } else if (data && data.length > 0) {
+          setProductItems(data);
+          return;
+        }
+      }
+
+      // エラーの場合やデータがない場合、デフォルトの品目・色を表示
+      const defaultItems: ProductItem[] = [
+        { id: '1', name: 'バラ', category: '花', color: '赤', is_active: true },
+        { id: '2', name: 'バラ', category: '花', color: '白', is_active: true },
+        { id: '3', name: 'アルストロメリア', category: '花', color: 'ピンク', is_active: true },
+        { id: '4', name: 'アレンジメント', category: 'アレンジ', color: 'ミックス', is_active: true },
+        { id: '5', name: '鉢植え', category: '鉢物', color: '緑', is_active: true },
+        { id: '6', name: 'カーネーション', category: '花', color: '赤', is_active: true },
+        { id: '7', name: 'カーネーション', category: '花', color: 'ピンク', is_active: true },
+        { id: '8', name: 'チューリップ', category: '花', color: '黄', is_active: true },
+        { id: '9', name: 'チューリップ', category: '花', color: '紫', is_active: true },
+        { id: '10', name: 'ガーベラ', category: '花', color: 'オレンジ', is_active: true }
+      ];
+      setProductItems(defaultItems);
+    } catch (error) {
+      console.error('商品読み込みエラー:', error);
+      // エラーの場合、デフォルトの品目・色を表示
+      const defaultItems: ProductItem[] = [
+        { id: '1', name: 'バラ', category: '花', color: '赤', is_active: true },
+        { id: '2', name: 'バラ', category: '花', color: '白', is_active: true },
+        { id: '3', name: 'アルストロメリア', category: '花', color: 'ピンク', is_active: true },
+        { id: '4', name: 'アレンジメント', category: 'アレンジ', color: 'ミックス', is_active: true },
+        { id: '5', name: '鉢植え', category: '鉢物', color: '緑', is_active: true }
+      ];
+      setProductItems(defaultItems);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 品目データを更新
-  const updateItem = (id: string, field: keyof CheckoutItem, value: string | number) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
-        // 単価と数量が両方入力されている場合、合計を計算
-        if (field === 'unitPrice' || field === 'quantity') {
-          const unitPrice = field === 'unitPrice' ? Number(value) : item.unitPrice;
-          const quantity = field === 'quantity' ? Number(value) : item.quantity;
-          updatedItem.total = unitPrice * quantity;
-        }
-        
-        return updatedItem;
-      }
-      return item;
-    }));
-  };
-
-  // 小計を計算
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  
-  // 税金（10%）
-  const tax = Math.round(subtotal * 0.1);
-  
-  // ポイント使用分を計算
-  const pointsDiscount = Math.min(usePoints, subtotal + tax);
-  
-  // 総合計（ポイント使用後）
-  const grandTotal = subtotal + tax - pointsDiscount;
-  
-  // 今回獲得予定ポイント（売上の5%）
-  const earnedPoints = Math.round(subtotal * 0.05);
-  
-  // ポイント使用可能上限（小計の50%まで）
-  const maxUsablePoints = Math.min(customerPoints?.current_points || 0, Math.round(subtotal * 0.5));
-  
-  // ポイント使用後の最終合計
-  const finalTotal = grandTotal;
-  
-  // ポイント使用後の獲得ポイント（ポイント使用分は除外）
-  const finalEarnedPoints = Math.round((subtotal - pointsDiscount) * 0.05);
-
-  // 取引を開始してQRコードを生成
-  const startTransaction = async () => {
-    if (items.filter(item => item.itemName && item.unitPrice > 0).length === 0) {
-      alert('商品を追加してください');
+  // 品目名入力時の自動変換
+  const handleItemNameChange = (value: string) => {
+    setItemName(value);
+    
+    if (value.trim() === '') {
+      setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
-    try {
-      // 取引IDを生成
-      const transactionId = `TXN${Date.now()}`;
-      
-      // 取引データを作成
-      const transactionData: TransactionData = {
-        transactionId,
-        totalAmount: finalTotal,
-        items: items.filter(item => item.itemName && item.unitPrice > 0).map(item => ({
-          name: item.itemName,
-          price: item.unitPrice,
-          quantity: item.quantity
-        })),
-        customerId: customerPoints?.customer_id,
-        storeId: 'store-001', // 実際の実装では店舗IDを取得
-        timestamp: new Date().toISOString(),
-        // ポイント情報を追加
-        pointsUsed: usePoints,
-        pointsEarned: finalEarnedPoints,
-        customerName: customerPoints?.customer_name || customerName
-      };
-
-      // 取引データをSupabaseに保存
-      const saved = await paymentNotificationService.saveTransaction(transactionData);
-      if (!saved) {
-        alert('取引データの保存に失敗しました');
-        return;
-      }
-
-      setCurrentTransaction(transactionData);
-      setShowQR(true);
-      setPaymentStatus('pending');
-      
-      // 共有URLを生成
-      const baseUrl = window.location.origin;
-      const shareUrl = `${baseUrl}/checkout?transaction=${transactionId}&amount=${finalTotal}&points=${usePoints}&earned=${finalEarnedPoints}`;
-      setShareUrl(shareUrl);
-
-      // 決済完了通知の監視を開始
-      const stopPolling = paymentNotificationService.startPolling(
-        transactionId,
-        (notification) => {
-          if (notification) {
-            setPaymentStatus('completed');
-            // 顧客データを更新
-            paymentNotificationService.updateCustomerData(notification);
-            // 成功メッセージを表示
-            setTimeout(() => {
-              alert('決済が完了しました！');
-              setShowQR(false);
-              setCurrentTransaction(null);
-              setPaymentStatus('pending');
-            }, 1000);
-          }
-        },
-        3000 // 3秒ごとにチェック
-      );
-
-      // コンポーネントのアンマウント時にポーリングを停止
-      return () => stopPolling();
-    } catch (error) {
-      console.error('取引開始エラー:', error);
-      alert('取引の開始に失敗しました');
-    }
+    // 品目名で検索
+    const filtered = productItems.filter(item => 
+      item.name.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    setSuggestions(filtered);
+    setShowSuggestions(filtered.length > 0);
   };
 
-  // 顧客情報を検索
-  const searchCustomer = async () => {
-    if (!customerPhone.trim()) return;
-    
-    setIsLoadingCustomer(true);
-    try {
-      const customer = await PointService.getCustomerPoints(customerPhone);
-      if (customer) {
-        setCustomerPoints(customer);
-        setCustomerName(customer.customer_name);
-        setCustomerEmail(customer.customer_email || '');
-        setShowCustomerForm(false);
-      } else {
-        setShowCustomerForm(true);
-        setCustomerPoints(null);
-      }
-    } catch (error) {
-      console.error('顧客検索エラー:', error);
-    } finally {
-      setIsLoadingCustomer(false);
-    }
+  // 品目選択
+  const selectItem = (item: ProductItem) => {
+    setItemName(item.name);
+    setItemColor(item.color);
+    setSuggestions([]);
+    setShowSuggestions(false);
   };
 
-  // 新しい顧客を作成
-  const createNewCustomer = async () => {
-    if (!customerName.trim() || !customerPhone.trim()) return;
-    
-    try {
-      const newCustomer = await PointService.createCustomerPoints({
-        name: customerName,
-        phone: customerPhone,
-        email: customerEmail,
-      });
-      
-      if (newCustomer) {
-        setCustomerPoints(newCustomer);
-        setShowCustomerForm(false);
-      }
-    } catch (error) {
-      console.error('顧客作成エラー:', error);
+  // 会計に追加
+  const addToCheckout = () => {
+    if (!itemName.trim() || !itemColor.trim() || !unitPrice.trim() || quantity <= 0) {
+      alert('品目名、色、単価、数量を入力してください');
+      return;
     }
+
+    const price = Number(unitPrice);
+    if (isNaN(price) || price <= 0) {
+      alert('正しい価格を入力してください');
+      return;
+    }
+
+    const checkoutItem: CheckoutItem = {
+      id: Date.now().toString(),
+      name: itemName,
+      category: productItems.find(item => item.name === itemName && item.color === itemColor)?.category || 'その他',
+      color: itemColor,
+      quantity: quantity,
+      unitPrice: price,
+      totalPrice: price * quantity
+    };
+
+    setCheckoutItems([...checkoutItems, checkoutItem]);
+    
+    // フォームをリセット
+    setItemName('');
+    setItemColor('');
+    setQuantity(1);
+    setUnitPrice('');
+  };
+
+  // 会計から商品を削除
+  const removeFromCheckout = (itemId: string) => {
+    setCheckoutItems(checkoutItems.filter(item => item.id !== itemId));
+  };
+
+  // 数量を更新
+  const updateQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) return;
+    
+    setCheckoutItems(checkoutItems.map(item => 
+      item.id === itemId 
+        ? { ...item, quantity: newQuantity, totalPrice: item.unitPrice * newQuantity }
+        : item
+    ));
+  };
+
+  // 単価を更新
+  const updateUnitPrice = (itemId: string, newPrice: number) => {
+    if (newPrice <= 0) return;
+    
+    setCheckoutItems(checkoutItems.map(item => 
+      item.id === itemId 
+        ? { ...item, unitPrice: newPrice, totalPrice: newPrice * item.quantity }
+        : item
+    ));
   };
 
   // ポイント使用量を更新
-  const updateUsePoints = (points: number) => {
-    const maxPoints = Math.min(points, customerPoints?.current_points || 0, subtotal + tax);
-    setUsePoints(Math.max(0, maxPoints));
+  const updateUsedPoints = (points: number) => {
+    if (points < 0 || points > customerPoints) return;
+    setUsedPoints(points);
   };
 
+  // 会計伝票URLを生成
+  const generateCheckoutUrl = () => {
+    if (checkoutItems.length === 0) {
+      alert('会計項目がありません');
+      return;
+    }
 
+    const checkoutData = {
+      items: checkoutItems,
+      subtotal: subtotal,
+      usedPoints: usedPoints,
+      pointsEarned: pointsEarned,
+      tax: tax,
+      finalTotal: finalTotal,
+      paymentMethod: paymentMethod,
+      timestamp: new Date().toISOString()
+    };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
-      {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/menu')}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                title="メニューに戻る"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <Receipt className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">お客様会計</h1>
-                  <p className="text-sm text-gray-500">品目入力・会計処理</p>
-                </div>
-              </div>
-            </div>
-          </div>
+    // 会計伝票のIDを生成（実際の実装ではデータベースに保存）
+    const checkoutId = `checkout_${Date.now()}`;
+    const url = `${window.location.origin}/checkout/${checkoutId}`;
+    
+    // 会計データをローカルストレージに保存（実際の実装ではデータベース）
+    localStorage.setItem(`checkout_${checkoutId}`, JSON.stringify(checkoutData));
+    
+    setCheckoutUrl(url);
+    alert('会計伝票URLを生成しました！お客様にメールで送信してください。');
+  };
+
+  // URLをクリップボードにコピー
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(checkoutUrl);
+      alert('URLをクリップボードにコピーしました');
+    } catch (error) {
+      console.error('コピーに失敗しました:', error);
+      alert('コピーに失敗しました');
+    }
+  };
+
+  // 決済処理
+  const processPayment = async () => {
+    if (checkoutItems.length === 0) {
+      alert('会計項目がありません');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 決済方法に応じた処理
+      if (paymentMethod === 'credit') {
+        // クレジット決済の場合
+        alert(`クレジット決済が完了しました！\n\n合計金額: ¥${finalTotal.toLocaleString()}\n使用ポイント: ${usedPoints}pt\n獲得ポイント: +${pointsEarned}pt`);
+      } else {
+        // 現金決済の場合
+        alert(`現金決済が完了しました！\n\n合計金額: ¥${finalTotal.toLocaleString()}\n使用ポイント: ${usedPoints}pt\n獲得ポイント: +${pointsEarned}pt`);
+      }
+      
+      // 会計項目をクリア
+      setCheckoutItems([]);
+      setItemName('');
+      setItemColor('');
+      setQuantity(1);
+      setUnitPrice('');
+      setUsedPoints(0);
+      setCheckoutUrl('');
+      
+    } catch (error) {
+      console.error('決済処理エラー:', error);
+      alert('決済処理に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && checkoutItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">商品情報を読み込み中...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* メインコンテンツ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 顧客情報入力 */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <User className="h-5 w-5 mr-2 text-blue-500" />
-            顧客情報
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ヘッダー */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                電話番号
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="090-1234-5678"
-                />
-                <button
-                  onClick={searchCustomer}
-                  disabled={isLoadingCustomer || !customerPhone.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                  {isLoadingCustomer ? '検索中...' : '検索'}
-                </button>
-              </div>
+              <h1 className="text-3xl font-bold text-gray-900">お客様会計</h1>
+              <p className="mt-2 text-gray-600">エクセル形式で品目を入力し、会計処理を行います</p>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                お名前
-              </label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="顧客名を入力"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                メールアドレス
-              </label>
-              <input
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="email@example.com"
-              />
-            </div>
-          </div>
-
-          {/* 新規顧客作成フォーム */}
-          {showCustomerForm && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-blue-800 text-sm mb-3">
-                新しい顧客として登録しますか？
-              </p>
-              <button
-                onClick={createNewCustomer}
-                disabled={!customerName.trim() || !customerPhone.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                新規顧客として登録
-              </button>
-            </div>
-          )}
-
-          {/* 顧客ポイント情報 */}
-          {customerPoints && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-medium text-green-800">
-                    {customerPoints.customer_name} 様
-                  </h3>
-                  <p className="text-sm text-green-600">
-                    現在のポイント: <span className="font-semibold">{customerPoints.current_points.toLocaleString()}pt</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-green-600">
-                    累計獲得: {customerPoints.total_earned_points.toLocaleString()}pt
-                  </p>
-                  <p className="text-sm text-green-600">
-                    累計使用: {customerPoints.total_used_points.toLocaleString()}pt
-                  </p>
-                </div>
-              </div>
-              
-              {/* ポイント使用入力 */}
-              <div className="border-t border-green-200 pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-green-800">
-                    使用ポイント
-                  </label>
-                  <span className="text-xs text-green-600">
-                    最大 {maxUsablePoints.toLocaleString()}pt まで使用可能
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    value={usePoints}
-                    onChange={(e) => {
-                      const value = Math.min(Number(e.target.value), maxUsablePoints);
-                      setUsePoints(Math.max(0, value));
-                    }}
-                    min="0"
-                    max={maxUsablePoints}
-                    className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="使用するポイント数を入力"
-                  />
-                  <button
-                    onClick={() => setUsePoints(maxUsablePoints)}
-                    className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200"
-                  >
-                    最大使用
-                  </button>
-                  <button
-                    onClick={() => setUsePoints(0)}
-                    className="px-3 py-2 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors duration-200"
-                  >
-                    クリア
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 品目テーブル */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Flower className="h-5 w-5 mr-2 text-green-500" />
-              品目一覧
-            </h2>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                    品目
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                    単価（円）
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                    本数
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                    合計（円）
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                    操作
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <input
-                        type="text"
-                        value={item.itemName}
-                        onChange={(e) => updateItem(item.id, 'itemName', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="品目名を入力"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(item.id, 'unitPrice', Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="0"
-                        min="0"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="1"
-                        min="1"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-lg font-semibold text-gray-900">
-                        ¥{item.total.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        disabled={items.length <= 1}
-                        className="p-2 text-red-400 hover:text-red-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
-                        title="品目を削除"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 品目追加ボタン */}
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
             <button
-              onClick={addItem}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+              onClick={() => window.history.back()}
+              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              品目を追加
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              戻る
             </button>
           </div>
         </div>
 
-        {/* 合計計算 */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Receipt className="h-5 w-5 mr-2 text-green-500" />
-            合計計算
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-600">小計:</span>
-              <span className="text-lg font-medium text-gray-900">¥{subtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-600">消費税（10%）:</span>
-              <span className="text-lg font-medium text-gray-900">¥{tax.toLocaleString()}</span>
-            </div>
-            
-            {/* ポイント使用分の割引 */}
-            {usePoints > 0 && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">ポイント割引:</span>
-                <span className="text-lg font-medium text-red-600">-¥{pointsDiscount.toLocaleString()}</span>
+        {/* メインコンテンツ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* 左側：商品入力 */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">商品入力</h2>
+                <p className="text-sm text-gray-600 mt-2">品目名を入力すると、自動変換で候補が表示されます</p>
               </div>
-            )}
-            
-            <div className="flex justify-between items-center py-4 border-t-2 border-gray-200">
-              <span className="text-xl font-bold text-gray-900">お支払い金額:</span>
-              <span className="text-2xl font-bold text-green-600">¥{finalTotal.toLocaleString()}</span>
-            </div>
-            
-            {/* ポイント情報サマリー */}
-            {customerPoints && (
-              <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {/* ポイント使用 */}
-                  <div className="text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Gift className="h-5 w-5 text-red-500 mr-2" />
-                      <span className="text-red-800 font-medium">使用ポイント</span>
-                    </div>
-                    <span className="text-xl font-bold text-red-600">{usePoints.toLocaleString()}pt</span>
-                    <p className="text-xs text-red-600 mt-1">
-                      割引: ¥{pointsDiscount.toLocaleString()}
-                    </p>
+
+              <div className="p-6 space-y-4">
+                {/* 品目名入力 */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">品目名</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={itemName}
+                      onChange={(e) => handleItemNameChange(e.target.value)}
+                      placeholder="例: バラ、アルストロメリア..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
                   </div>
                   
-                  {/* 獲得ポイント */}
-                  <div className="text-center">
-                    <div className="flex items-center justify-center mb-2">
-                      <Gift className="h-5 w-5 text-blue-500 mr-2" />
-                      <span className="text-blue-800 font-medium">獲得予定</span>
+                  {/* 自動変換候補 */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {suggestions.map(item => (
+                        <div
+                          key={`${item.name}-${item.color}`}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          onClick={() => selectItem(item)}
+                        >
+                          <div className="font-medium text-gray-900">{item.name}</div>
+                          <div className="text-sm text-gray-600">{item.category} - {item.color}</div>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-xl font-bold text-blue-600">{finalEarnedPoints.toLocaleString()}pt</span>
-                    <p className="text-xs text-blue-600 mt-1">
-                      売上の5%付与
-                    </p>
-                  </div>
+                  )}
                 </div>
-                
-                {/* ポイント残高予想 */}
-                <div className="mt-3 pt-3 border-t border-blue-200 text-center">
-                  <span className="text-sm text-gray-600">決済後の予想ポイント残高: </span>
-                  <span className="text-lg font-bold text-green-600">
-                    {((customerPoints.current_points - usePoints + finalEarnedPoints)).toLocaleString()}pt
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* 取引完了・QRコード発行 */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <QrCode className="h-5 w-5 mr-2 text-blue-500" />
-              QRコード発行
-            </h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={startTransaction}
-                disabled={showQR}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                {showQR ? '取引中...' : '取引開始'}
-              </button>
-            </div>
-          </div>
-          
-          {/* QRコード表示 */}
-          {showQR && currentTransaction && (
-            <div className="text-center">
-              <QRCodeGenerator
-                transactionData={currentTransaction}
-                onPaymentComplete={(transactionId) => {
-                  console.log('決済完了:', transactionId);
-                  setPaymentStatus('completed');
-                }}
-              />
-              
-              {/* 共有URL */}
-              <div className="mt-6 bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  共有URL
-                </h4>
-                <div className="flex items-center space-x-2">
+                {/* 色入力 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">色</label>
                   <input
                     type="text"
-                    value={shareUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                    value={itemColor}
+                    onChange={(e) => setItemColor(e.target.value)}
+                    placeholder="例: 赤、白、ピンク..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(shareUrl);
-                      alert('URLをクリップボードにコピーしました');
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                  >
-                    コピー
-                  </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  このURLを顧客に送信して、決済ページにアクセスしてもらえます
-                </p>
-              </div>
-              
-              {/* 取引詳細サマリー */}
-              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">取引詳細</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">取引ID:</span>
-                    <span className="ml-2 font-mono">{currentTransaction.transactionId}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">支払い金額:</span>
-                    <span className="ml-2 font-bold">¥{currentTransaction.totalAmount.toLocaleString()}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">使用ポイント:</span>
-                    <span className="ml-2 text-red-600">{currentTransaction.pointsUsed?.toLocaleString() || 0}pt</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">獲得予定:</span>
-                    <span className="ml-2 text-blue-600">{currentTransaction.pointsEarned?.toLocaleString() || 0}pt</span>
+
+                {/* 数量入力 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">数量</label>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="px-4 py-2 border border-gray-300 rounded-md min-w-[3rem] text-center">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
+
+                {/* 単価入力 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">単価（円）</label>
+                  <input
+                    type="number"
+                    value={unitPrice}
+                    onChange={(e) => setUnitPrice(e.target.value)}
+                    placeholder="例: 500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* 会計に追加ボタン */}
+                <button
+                  onClick={addToCheckout}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  会計に追加
+                </button>
               </div>
             </div>
-          )}
-          
-          {/* 取引開始前の説明 */}
-          {!showQR && (
-            <div className="text-center p-6 bg-gray-50 rounded-lg">
-              <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">取引を開始してください</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                商品を追加して「取引開始」ボタンを押すと、87app-customers用のQRコードが生成されます
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
-                  💡 お客様に87app-customersアプリでQRコードを読み取ってもらい、決済を完了してください。
-                  決済が完了すると自動的に顧客管理に反映されます。
-                </p>
+          </div>
+
+          {/* 右側：会計表と決済 */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">会計表</h2>
+              </div>
+
+              <div className="p-6">
+                {checkoutItems.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-gray-400 text-4xl mb-4">📋</div>
+                    <p>会計項目がありません</p>
+                    <p className="text-sm mt-1">左側で商品を入力して追加してください</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* エクセル形式の会計表 */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-300">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">品目名</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium text-gray-700">色</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">数量</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">単価</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">小計</th>
+                            <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {checkoutItems.map(item => (
+                            <tr key={item.id} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-sm">{item.color}</td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                <div className="flex items-center justify-center space-x-1">
+                                  <button
+                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                    className="px-1 py-1 text-gray-600 hover:text-gray-900"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="min-w-[2rem] text-center">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                    className="px-1 py-1 text-gray-600 hover:text-gray-900"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                <input
+                                  type="number"
+                                  value={item.unitPrice}
+                                  onChange={(e) => updateUnitPrice(item.id, Number(e.target.value))}
+                                  className="w-20 text-center border border-gray-300 rounded px-1 py-1 text-sm"
+                                />
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">
+                                ¥{item.totalPrice.toLocaleString()}
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                <button
+                                  onClick={() => removeFromCheckout(item.id)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* ポイント使用 */}
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h3 className="font-medium text-gray-900 mb-3">ポイント使用</h3>
+                      <div className="flex items-center space-x-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">使用ポイント</label>
+                          <input
+                            type="number"
+                            value={usedPoints}
+                            onChange={(e) => updateUsedPoints(Number(e.target.value))}
+                            min="0"
+                            max={customerPoints}
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          利用可能: <span className="font-medium">{customerPoints}pt</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 合計計算 */}
+                    <div className="mt-6 border-t border-gray-200 pt-4 space-y-2 bg-gray-50 p-4 rounded-lg">
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">小計</span>
+                        <span className="font-medium">¥{subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">使用ポイント</span>
+                        <span className="text-red-600 font-medium">-¥{usedPoints.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">獲得ポイント（5%）</span>
+                        <span className="text-green-600 font-medium">+{pointsEarned}pt</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">消費税（10%）</span>
+                        <span className="font-medium">¥{tax.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
+                        <span>合計</span>
+                        <span className="text-blue-600">¥{finalTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* 会計伝票URL生成 */}
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <Mail className="w-4 h-4 mr-2" />
+                        会計伝票URL生成
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        遠隔地のお客様にメールで送信できる会計伝票のURLを生成します
+                      </p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={generateCheckoutUrl}
+                          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                        >
+                          URL生成
+                        </button>
+                        {checkoutUrl && (
+                          <>
+                            <input
+                              type="text"
+                              value={checkoutUrl}
+                              readOnly
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                            />
+                            <button
+                              onClick={copyToClipboard}
+                              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              コピー
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 決済方法選択 */}
+                    <div className="mt-6">
+                      <h3 className="font-medium text-gray-900 mb-3">決済方法</h3>
+                      <div className="flex space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            value="cash"
+                            checked={paymentMethod === 'cash'}
+                            onChange={() => setPaymentMethod('cash')}
+                            className="mr-2"
+                          />
+                          <DollarSign className="w-4 h-4 mr-1" />
+                          現金
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            value="credit"
+                            checked={paymentMethod === 'credit'}
+                            onChange={() => setPaymentMethod('credit')}
+                            className="mr-2"
+                          />
+                          <CreditCard className="w-4 h-4 mr-1" />
+                          クレジットカード
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 決済ボタン */}
+                    <button
+                      onClick={processPayment}
+                      disabled={loading}
+                      className="w-full mt-6 bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-lg font-medium"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          処理中...
+                        </>
+                      ) : (
+                        <>
+                          <Calculator className="w-5 h-5 mr-2" />
+                          決済完了
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default CheckoutScreen;
