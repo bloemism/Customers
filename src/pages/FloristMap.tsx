@@ -98,6 +98,15 @@ export const FloristMap: React.FC = () => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  
+  // 住所検索関連
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // 現在地マーカー
+  const [userLocationMarker, setUserLocationMarker] = useState<any>(null);
   const [map, setMap] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
   const [directionsService, setDirectionsService] = useState<any>(null);
@@ -201,12 +210,17 @@ export const FloristMap: React.FC = () => {
       
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: center,
-        zoom: 10,
+        zoom: 13, // より詳細な表示でInfoWindowが見やすい
         mapTypeId: window.google.maps.MapTypeId.ROADMAP,
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
         zoomControl: true,
+        gestureHandling: 'greedy', // モバイルでのタッチ操作を改善
+        disableDefaultUI: false,
+        zoomControlOptions: {
+          position: window.google.maps.ControlPosition.RIGHT_TOP
+        },
         styles: [
           {
             featureType: 'poi.business',
@@ -217,6 +231,11 @@ export const FloristMap: React.FC = () => {
       });
 
       console.log('Map instance created successfully');
+      
+      // 現在地マーカーを表示
+      if (userLocation) {
+        addUserLocationMarker(mapInstance, userLocation);
+      }
       
       window.google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
         console.log('Map is idle - fully loaded');
@@ -233,6 +252,68 @@ export const FloristMap: React.FC = () => {
     } catch (error) {
       console.error('Error initializing map:', error);
     }
+  };
+
+  // 現在地マーカーを表示
+  const addUserLocationMarker = (mapInstance: any, location: { lat: number; lng: number }) => {
+    if (!window.google || !window.google.maps) return;
+    
+    // 既存の現在地マーカーを削除
+    if (userLocationMarker) {
+      userLocationMarker.setMap(null);
+    }
+    
+    // 新しい現在地マーカーを作成
+    const marker = new window.google.maps.Marker({
+      position: location,
+      map: mapInstance,
+      title: '現在地',
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <!-- シンプルな赤い丸 -->
+            <circle cx="16" cy="16" r="14" fill="#ef4444" stroke="#FFFFFF" stroke-width="2"/>
+          </svg>
+        `),
+        scaledSize: new window.google.maps.Size(32, 32),
+        anchor: new window.google.maps.Point(16, 16)
+      },
+      zIndex: 1000 // 他のマーカーより前面に表示
+    });
+    
+    setUserLocationMarker(marker);
+  };
+
+  // StoreからStoreDetailsへの変換関数
+  const convertStoreToStoreDetails = (store: Store): StoreDetails => {
+    return {
+      id: store.id,
+      store_name: store.store_name || '',
+      owner_name: '', // 必要に応じて設定
+      address: store.address,
+      latitude: store.latitude,
+      longitude: store.longitude,
+      phone: store.phone || null,
+      email: store.email || null,
+      website: store.website || null,
+      instagram: null, // 必要に応じて設定
+      online_shop: null, // 必要に応じて設定
+      description: store.description || null,
+      business_hours: store.business_hours ? JSON.stringify(store.business_hours) : null,
+      business_type: null, // 必要に応じて設定
+      tags: null, // 必要に応じて設定
+      has_parking: false, // 必要に応じて設定
+      photos: null, // 必要に応じて設定
+      is_verified: true, // 必要に応じて設定
+      is_active: store.is_active,
+      created_at: store.created_at,
+      updated_at: store.updated_at,
+      bulletin_board: null, // 必要に応じて設定
+      business_hours_details: [],
+      services: [],
+      recommended_flowers: [],
+      active_posts: []
+    };
   };
 
   // マーカーとInfoWindowの更新
@@ -270,13 +351,13 @@ export const FloristMap: React.FC = () => {
             },
             icon: {
               url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="2"/>
-                  <text x="15" y="18" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${index + 1}</text>
+                <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                  <!-- シンプルなオレンジ色の丸 -->
+                  <circle cx="16" cy="16" r="14" fill="#f97316" stroke="#FFFFFF" stroke-width="2"/>
                 </svg>
               `),
-              scaledSize: new window.google.maps.Size(30, 30),
-              anchor: new window.google.maps.Point(15, 15)
+              scaledSize: new window.google.maps.Size(32, 32),
+              anchor: new window.google.maps.Point(16, 16)
             }
           });
 
@@ -299,6 +380,9 @@ export const FloristMap: React.FC = () => {
             
             // 店舗を選択状態にする
             handleStoreClick(store);
+            
+            // 選択された店舗のInfoWindowを保持
+            setSelectedStore(convertStoreToStoreDetails(store));
           });
 
           newMarkers.push(marker);
@@ -313,37 +397,171 @@ export const FloristMap: React.FC = () => {
     } catch (error) {
       console.error('Error updating markers:', error);
     }
-  }, [map, stores, selectedStore]);
+  }, [map, stores]);
 
   // InfoWindowのコンテンツを作成
   const createInfoWindowContent = (store: Store) => {
     return `
-      <div style="padding: 10px; max-width: 280px; font-family: Arial, sans-serif;">
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-            <span style="color: white; font-size: 18px;">🌸</span>
-          </div>
-          <div>
-            <h3 style="margin: 0; color: #1f2937; font-size: 16px; font-weight: bold;">${store.store_name}</h3>
-            <p style="margin: 2px 0 0 0; color: #6b7280; font-size: 12px;">${store.address}</p>
+      <div style="padding: 16px; max-width: 380px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <!-- ヘッダー部分 -->
+        <div style="margin-bottom: 16px;">
+          <h3 style="margin: 0 0 4px 0; color: #202124; font-size: 18px; font-weight: 500; line-height: 1.2;">${store.store_name}</h3>
+          <p style="margin: 0 0 4px 0; color: #5f6368; font-size: 14px; line-height: 1.3;">${store.address}</p>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #5f6368; font-size: 12px;">⭐ 4.5</span>
+            <span style="color: #5f6368; font-size: 12px;">•</span>
+            <span style="color: #5f6368; font-size: 12px;">${store.business_type || '花屋'}</span>
           </div>
         </div>
         
-        <div style="border-top: 1px solid #e5e7eb; padding-top: 8px;">
-          ${store.phone ? `<p style="margin: 4px 0; color: #374151; font-size: 12px;">📞 ${store.phone}</p>` : ''}
-          ${store.business_hours ? `<p style="margin: 4px 0; color: #374151; font-size: 12px;">🕒 ${store.business_hours}</p>` : ''}
-          ${store.has_parking ? `<p style="margin: 4px 0; color: #374151; font-size: 12px;">🚗 駐車場あり</p>` : ''}
+        <!-- 店舗タグ（Supabaseから取得） -->
+        <div style="margin-bottom: 16px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            ${store.tags && store.tags.length > 0 ? 
+              store.tags.map(tag => `
+                <span style="background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 16px; font-size: 11px; font-weight: 500;">${tag}</span>
+              `).join('') : 
+              `<span style="background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 16px; font-size: 11px; font-weight: 500;">🏪 実店舗</span>
+               <span style="background: #fce8e6; color: #d93025; padding: 4px 8px; border-radius: 16px; font-size: 11px; font-weight: 500;">🌺 アレンジメント</span>
+               <span style="background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 16px; font-size: 11px; font-weight: 500;">💐 花束</span>`
+            }
+          </div>
         </div>
         
-        <div style="margin-top: 8px;">
+        <!-- 画像5枚を小さく並べて横スライド -->
+        <div style="margin-bottom: 16px; position: relative;">
+          <div style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=80&h=80&fit=crop" alt="店舗外観" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <img src="https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=80&h=80&fit=crop" alt="店内の様子" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <img src="https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=80&h=80&fit=crop" alt="花のアレンジ" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <img src="https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=80&h=80&fit=crop" alt="作品ギャラリー" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=80&h=80&fit=crop" alt="特別な花" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 8px;">
+            <span style="color: #5f6368; font-size: 11px;">← 左右にスワイプして画像を見る →</span>
+          </div>
+        </div>
+        
+        <!-- Supabase連携の店舗情報 -->
+        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e8eaed;">
+          <h4 style="margin: 0 0 8px 0; color: #202124; font-size: 14px; font-weight: 500;">店舗情報</h4>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${store.phone ? `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #5f6368; font-size: 12px;">📞</span>
+                <a href="tel:${store.phone}" style="color: #1a73e8; text-decoration: none; font-size: 12px; font-weight: 500;">${store.phone}</a>
+              </div>
+            ` : ''}
+            ${store.business_hours ? `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #5f6368; font-size: 12px;">🕒</span>
+                <span style="color: #202124; font-size: 12px;">${store.business_hours}</span>
+              </div>
+            ` : ''}
+            ${store.has_parking ? `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #5f6368; font-size: 12px;">🚗</span>
+                <span style="color: #202124; font-size: 12px;">駐車場あり</span>
+              </div>
+            ` : ''}
+            ${store.email ? `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #5f6368; font-size: 12px;">📧</span>
+                <a href="mailto:${store.email}" style="color: #1a73e8; text-decoration: none; font-size: 12px; font-weight: 500;">${store.email}</a>
+              </div>
+            ` : ''}
+            ${store.description ? `
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span style="color: #5f6368; font-size: 12px; margin-top: 2px;">ℹ️</span>
+                <span style="color: #202124; font-size: 12px; line-height: 1.4;">${store.description}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <!-- 外部リンクボタン（適切なサイズ） -->
+        <div style="display: flex; gap: 6px; margin-bottom: 16px;">
+          ${store.website ? `
+            <button onclick="window.open('${store.website}', '_blank')" 
+                    style="background: #1a73e8; border: none; color: white; font-size: 11px; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span style="font-size: 12px;">🌐</span>
+              <span>ウェブ</span>
+            </button>
+          ` : ''}
+          
+          ${store.instagram ? `
+            <button onclick="window.open('${store.instagram}', '_blank')" 
+                    style="background: #e4405f; border: none; color: white; font-size: 11px; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="fill: white;">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              <span>Instagram</span>
+            </button>
+          ` : ''}
+          
+          ${store.online_shop ? `
+            <button onclick="window.open('${store.online_shop}', '_blank')" 
+                    style="background: #34a853; border: none; color: white; font-size: 11px; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <span style="font-size: 12px;">🛒</span>
+              <span>オンライン</span>
+            </button>
+          ` : ''}
+        </div>
+        
+        <!-- アクションボタン（Google風） -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
           <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}', '_blank')" 
-                  style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-right: 5px;">
-            経路案内
+                  style="background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span style="font-size: 14px;">🗺️</span>
+            <span>経路案内</span>
           </button>
           <button onclick="window.open('tel:${store.phone || ''}', '_self')" 
-                  style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
-            電話
+                  style="background: #34a853; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span style="font-size: 14px;">📞</span>
+            <span>電話</span>
           </button>
+        </div>
+        
+        <!-- Supabaseとリンクした掲示板（Google風） -->
+        <div style="background: #fff3e0; border: 1px solid #ff9800; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 16px;">📋</span>
+            <h4 style="margin: 0; color: #e65100; font-size: 13px; font-weight: 500;">店舗からのお知らせ</h4>
+          </div>
+          <div style="background: white; padding: 10px; border-radius: 6px; border-left: 4px solid #ff9800;">
+            <p style="margin: 0; color: #bf360c; font-size: 12px; line-height: 1.4;">
+              ${store.bulletin_board || '🌸 春の新作アレンジメント入荷中！<br>🌺 母の日ギフトのご予約受付開始<br>💐 毎週水曜日は定休日です'}
+            </p>
+          </div>
+        </div>
+        
+        <!-- お気に入り切り替えスライダー（Google風） -->
+        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #e8eaed;">
+          <p style="margin: 0 0 8px 0; color: #202124; font-size: 13px; font-weight: 500;">お気に入り設定</p>
+          <div style="display: flex; gap: 6px; justify-content: center;">
+            <button onclick="setFavoriteStatus('${store.id}', 'favorite')" 
+                    style="background: #d93025; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 500; transition: all 0.2s ease;">
+              ❤️ お気に入り
+            </button>
+            <button onclick="setFavoriteStatus('${store.id}', 'interested')" 
+                    style="background: #b06000; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 500; transition: all 0.2s ease;">
+              ⭐ 気になる
+            </button>
+            <button onclick="setFavoriteStatus('${store.id}', 'visited')" 
+                    style="background: #137333; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 500; transition: all 0.2s ease;">
+              ✅ 行った
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -485,8 +703,140 @@ export const FloristMap: React.FC = () => {
     if (map && userLocation) {
       map.setCenter(userLocation);
       map.setZoom(15);
+      
+      // 現在地マーカーが表示されていない場合は追加
+      if (!userLocationMarker) {
+        addUserLocationMarker(map, userLocation);
+      }
     }
   };
+
+  // 住所検索機能
+  const handleSearch = async (query: string) => {
+    if (!query.trim() || !window.google || !window.google.maps) return;
+    
+    try {
+      const service = new window.google.maps.places.AutocompleteService();
+      const request = {
+        input: query,
+        componentRestrictions: { country: 'jp' }, // 日本に限定
+        types: ['geocode'] // 住所のみ
+      };
+      
+      service.getPlacePredictions(request, (predictions: any[], status: any) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setSearchResults(predictions);
+        } else {
+          setSearchResults([]);
+        }
+      });
+    } catch (error) {
+      console.error('住所検索エラー:', error);
+      setSearchResults([]);
+    }
+  };
+
+  // Enterキーでの住所検索
+  const handleEnterSearch = async () => {
+    if (!searchQuery.trim() || !window.google || !window.google.maps) return;
+    
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+      const request = {
+        address: searchQuery,
+        componentRestrictions: { country: 'jp' }
+      };
+      
+      geocoder.geocode(request, (results: any[], status: any) => {
+        if (status === window.google.maps.GeocoderStatus.OK && results && results[0]) {
+          const location = results[0].geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
+          
+          // 地図を検索した住所に移動
+          if (map) {
+            map.setCenter({ lat, lng });
+            map.setZoom(15);
+          }
+          
+          // 検索クエリをクリア
+          setSearchQuery('');
+          setShowSearchResults(false);
+          setSearchResults([]);
+        } else {
+          alert('住所が見つかりませんでした。別の住所を試してください。');
+        }
+      });
+    } catch (error) {
+      console.error('住所検索エラー:', error);
+      alert('住所検索中にエラーが発生しました。');
+    }
+  };
+
+  // 検索結果を選択
+  const selectSearchResult = async (result: any) => {
+    if (!window.google || !window.google.maps) return;
+    
+    try {
+      const service = new window.google.maps.places.PlacesService(map);
+      const request = {
+        placeId: result.place_id
+      };
+      
+      service.getDetails(request, (place: any, status: any) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
+          const location = place.geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
+          
+          // 地図を検索した住所に移動
+          map.setCenter({ lat, lng });
+          map.setZoom(15);
+          
+          // 検索クエリをクリア
+          setSearchQuery(result.description || '');
+          setShowSearchResults(false);
+          setSearchResults([]);
+        }
+      });
+    } catch (error) {
+      console.error('場所詳細取得エラー:', error);
+    }
+  };
+
+  // 検索をクリア
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // 検索クエリが変更された時の処理
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const timeoutId = setTimeout(() => {
+        handleSearch(searchQuery);
+      }, 300); // 300msのディレイ
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  // 外側クリックで検索結果を閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleStoreSelect = (store: Store) => {
     handleStoreClick(store);
@@ -559,11 +909,59 @@ export const FloristMap: React.FC = () => {
               <div className="relative">
                 {GOOGLE_MAPS_API_KEY ? (
                   <div className="relative">
+                    {/* 住所検索バー */}
+                    <div className="absolute top-4 left-4 right-4 z-10">
+                      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-2">
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                          <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="住所を入力して花屋を検索..."
+                            className="flex-1 text-sm border-none outline-none bg-transparent placeholder-gray-400"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => setShowSearchResults(true)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && searchQuery.trim()) {
+                                handleEnterSearch();
+                              }
+                            }}
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={clearSearch}
+                              className="text-gray-400 hover:text-gray-600 p-1"
+                              title="検索をクリア"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* 検索結果のドロップダウン */}
+                        {showSearchResults && searchResults.length > 0 && (
+                          <div className="mt-2 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                            {searchResults.map((result, index) => (
+                              <button
+                                key={index}
+                                onClick={() => selectSearchResult(result)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-sm"
+                              >
+                                <div className="font-medium text-gray-900">{result.main_text}</div>
+                                <div className="text-xs text-gray-500">{result.secondary_text}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     {/* 動的なGoogle Maps */}
                     <div 
                       ref={mapRef} 
-                      className="w-full h-96 rounded-lg overflow-hidden bg-gray-100"
-                      style={{ minHeight: '384px' }}
+                      className="w-full h-[70vh] sm:h-[600px] md:h-[700px] lg:h-[800px] rounded-lg overflow-hidden bg-gray-100"
+                      style={{ minHeight: '400px' }}
                     />
                     
                     {/* デバッグ情報 */}

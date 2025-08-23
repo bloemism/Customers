@@ -58,15 +58,40 @@ export class StoreService {
   // 全店舗一覧取得（マップ表示用）
   static async getAllStores(): Promise<Store[]> {
     try {
+      console.log('=== StoreService.getAllStores 開始 ===');
+      
       const { data, error } = await supabase
         .from('stores')
         .select('*')
         .eq('is_active', true)
         .order('store_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabaseエラー:', error);
+        throw error;
+      }
       
-      return data || [];
+      console.log('=== Supabaseから取得した生データ ===');
+      console.log('データ件数:', data?.length);
+      
+      if (data && data.length > 0) {
+        data.forEach((store, index) => {
+          console.log(`生データ${index + 1}:`, {
+            id: store.id,
+            store_name: store.store_name,
+            store_name_type: typeof store.store_name,
+            store_name_length: store.store_name?.length,
+            store_name_bytes: new TextEncoder().encode(store.store_name || '').length,
+            all_keys: Object.keys(store)
+          });
+        });
+      }
+      
+      console.log('=== 返却するデータ ===');
+      const result = data || [];
+      console.log('返却件数:', result.length);
+      
+      return result;
     } catch (error) {
       console.error('店舗一覧取得エラー:', error);
       throw new Error('店舗一覧の取得中にエラーが発生しました。');
