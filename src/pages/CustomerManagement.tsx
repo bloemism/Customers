@@ -17,11 +17,13 @@ import {
   Plus,
   Filter,
   Download,
-  AlertCircle
+  AlertCircle,
+  QrCode
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { EditCustomerModal } from '../components/EditCustomerModal';
+import QRCodeScanner from '../components/QRCodeScanner';
 
 interface Customer {
   id: string;
@@ -74,6 +76,70 @@ export const CustomerManagement: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [showQRScanner, setShowQRScanner] = useState(false);
+
+  // QRコード読み取り処理
+  const handleQRScan = async (qrData: string) => {
+    try {
+      setLoading(true);
+      
+      // QRデータを解析
+      let customerData;
+      try {
+        customerData = JSON.parse(qrData);
+      } catch {
+        // プレーンテキストの場合
+        const lines = qrData.split('\n');
+        customerData = {
+          id: lines[0] || '',
+          name: lines[1] || '',
+          email: lines[2] || '',
+          phone: lines[3] || '',
+          address: lines[4] || '',
+          total_points: parseInt(lines[5]) || 0
+        };
+      }
+
+      // 既存顧客との重複チェック
+      const existingCustomer = customers.find(c => 
+        c.email === customerData.email || c.phone === customerData.phone
+      );
+
+      if (existingCustomer) {
+        setMessage('この顧客は既に登録されています。');
+        setMessageType('error');
+        return;
+      }
+
+      // 新規顧客として登録
+      const { error } = await supabase
+        .from('customers')
+        .insert({
+          name: customerData.name,
+          email: customerData.email,
+          phone: customerData.phone,
+          address: customerData.address,
+          total_points: customerData.total_points || 0,
+          first_purchase_date: new Date().toISOString(),
+          last_purchase_date: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setMessage('QRコードから顧客データを登録しました。');
+      setMessageType('success');
+      
+      // 顧客一覧を再読み込み
+      searchCustomers();
+      
+    } catch (error) {
+      console.error('QRデータ登録エラー:', error);
+      setMessage('顧客データの登録に失敗しました。');
+      setMessageType('error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 顧客検索
   const searchCustomers = async () => {
@@ -254,6 +320,13 @@ export const CustomerManagement: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowQRScanner(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+              >
+                <QrCode className="h-4 w-4 mr-2" />
+                QR読み取り
+              </button>
               <button
                 onClick={handleAddCustomer}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
@@ -641,6 +714,13 @@ export const CustomerManagement: React.FC = () => {
         }}
         customer={editingCustomer}
         onCustomerUpdated={handleCustomerUpdated}
+      />
+
+      {/* QRコードスキャナー */}
+      <QRCodeScanner
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScan={handleQRScan}
       />
     </div>
   );

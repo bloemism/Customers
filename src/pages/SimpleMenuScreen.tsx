@@ -11,7 +11,11 @@ import {
   Receipt,
   Map,
   UserCheck,
-  Settings
+  Settings,
+  BookOpen,
+  Calendar,
+  GraduationCap,
+  TrendingUp
 } from 'lucide-react';
 
 export const SimpleMenuScreen: React.FC = () => {
@@ -31,7 +35,7 @@ export const SimpleMenuScreen: React.FC = () => {
     {
       id: 'checkout',
       title: 'お客様会計',
-      description: '品目を入力して会計処理',
+      description: '品目自動変換・ポイント管理・QR決済',
       icon: ShoppingCart,
       color: 'from-green-500 to-emerald-600',
       route: '/checkout'
@@ -67,6 +71,38 @@ export const SimpleMenuScreen: React.FC = () => {
       icon: Store,
       color: 'from-orange-500 to-red-600',
       route: '/store-registration'
+    },
+    {
+      id: 'flower-lesson-map',
+      title: 'フラワーレッスンマップ',
+      description: '全国のフラワーレッスンスクールを探す',
+      icon: BookOpen,
+      color: 'from-pink-500 to-rose-600',
+      route: '/flower-lesson-map'
+    },
+    {
+      id: 'lesson-school-management',
+      title: 'レッスンスクール管理',
+      description: 'フラワーレッスンスクールの情報を管理',
+      icon: GraduationCap,
+      color: 'from-teal-500 to-cyan-600',
+      route: '/lesson-school-management'
+    },
+    {
+      id: 'lesson-schedule-management',
+      title: 'レッスンスケジュール管理',
+      description: 'レッスンのスケジュールと生徒予約を管理',
+      icon: Calendar,
+      color: 'from-cyan-500 to-blue-600',
+      route: '/lesson-schedule-management'
+    },
+    {
+      id: 'popularity-rankings',
+      title: '人気ランキング',
+      description: '全国の購入データを元にした月次ランキング',
+      icon: TrendingUp,
+      color: 'from-yellow-500 to-orange-600',
+      route: '/popularity-rankings'
     }
   ];
 
@@ -107,19 +143,15 @@ export const SimpleMenuScreen: React.FC = () => {
 
       {/* メインコンテンツ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ウェルカムメッセージ */}
+        {/* シンプルなタイトル */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            お疲れ様です！
+          <h2 className="text-3xl font-bold text-gray-900">
+            87app メニュー
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            今日も素敵なお花でお客様を笑顔にしましょう。
-            どの機能をお使いになりますか？
-          </p>
         </div>
 
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             return (

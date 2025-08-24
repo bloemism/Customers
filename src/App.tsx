@@ -16,6 +16,10 @@ import { SupabaseTest } from './components/SupabaseTest';
 import { LoginForm } from './components/auth/LoginForm';
 import { SimpleLoginForm } from './components/auth/SimpleLoginForm';
 import { TestRouting } from './pages/TestRouting';
+import FlowerLessonMap from './pages/FlowerLessonMap';
+import LessonSchoolManagement from './pages/LessonSchoolManagement';
+import LessonScheduleManagement from './pages/LessonScheduleManagement';
+import PopularityRankings from './pages/PopularityRankings';
 import './index.css';
 
 // ローディングスピナーコンポーネント
@@ -79,7 +83,27 @@ function App() {
                 <ProductManagement />
               </SimpleAuthGuard>
             } />
-            <Route path="*" element={<Navigate to="/simple-menu" replace />} />
+            <Route path="/flower-lesson-map" element={
+              <SimpleAuthGuard>
+                <FlowerLessonMap />
+              </SimpleAuthGuard>
+            } />
+            <Route path="/lesson-school-management" element={
+              <SimpleAuthGuard>
+                <LessonSchoolManagement />
+              </SimpleAuthGuard>
+            } />
+                    <Route path="/lesson-schedule-management" element={
+          <SimpleAuthGuard>
+            <LessonScheduleManagement />
+          </SimpleAuthGuard>
+        } />
+        <Route path="/popularity-rankings" element={
+          <SimpleAuthGuard>
+            <PopularityRankings />
+          </SimpleAuthGuard>
+        } />
+        <Route path="*" element={<Navigate to="/simple-menu" replace />} />
           </Routes>
         </div>
       </Router>

@@ -1,0 +1,410 @@
+import React, { useState, useEffect } from 'react';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
+import { supabase } from '../lib/supabase';
+import { 
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Clock,
+  User,
+  Mail,
+  Phone,
+  Star,
+  Search,
+  Filter,
+  X
+} from 'lucide-react';
+
+// レッスンスクールの型定義
+interface LessonSchool {
+  id: string;
+  name: string;
+  prefecture: string;
+  city: string;
+  address: string;
+  email: string;
+  phone: string;
+  instructor_name: string;
+  instructor_bio: string;
+  lesson_content: string;
+  main_days: string[];
+  main_time: string;
+  trial_price: number;
+  regular_price: number;
+  latitude: number;
+  longitude: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+// 地域分類の型定義
+interface RegionCategory {
+  id: string;
+  name: string;
+  prefectures: string[];
+  display_order: number;
+}
+
+const FlowerLessonMap: React.FC = () => {
+  const { user } = useSimpleAuth();
+  
+  // レッスンスクール一覧
+  const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
+  const [filteredSchools, setFilteredSchools] = useState<LessonSchool[]>([]);
+  
+  // 地域分類
+  const [regionCategories, setRegionCategories] = useState<RegionCategory[]>([]);
+  
+  // フィルター
+  const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // 選択されたスクール
+  const [selectedSchool, setSelectedSchool] = useState<LessonSchool | null>(null);
+  
+  // ローディング状態
+  const [loading, setLoading] = useState(true);
+
+  // ランダムな色を生成する関数
+  const getRandomColor = (id: string) => {
+    const colors = [
+      'bg-gradient-to-br from-blue-400 to-blue-600',
+      'bg-gradient-to-br from-green-400 to-green-600',
+      'bg-gradient-to-br from-purple-400 to-purple-600',
+      'bg-gradient-to-br from-pink-400 to-pink-600',
+      'bg-gradient-to-br from-indigo-400 to-indigo-600',
+      'bg-gradient-to-br from-teal-400 to-teal-600',
+      'bg-gradient-to-br from-orange-400 to-orange-600',
+      'bg-gradient-to-br from-red-400 to-red-600'
+    ];
+    const index = id.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // レッスンスクールを読み込み
+  useEffect(() => {
+    const loadLessonSchools = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('lesson_schools')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) {
+          console.error('レッスンスクール読み込みエラー:', error);
+        } else if (data) {
+          console.log('読み込まれたスクールデータ:', data);
+          console.log('スクール数:', data.length);
+          console.log('スクール名一覧:', data.map(s => s.name));
+          setLessonSchools(data);
+          setFilteredSchools(data);
+        }
+      } catch (error) {
+        console.error('レッスンスクール読み込みエラー:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLessonSchools();
+  }, []);
+
+
+
+  // 地域分類を読み込み
+  useEffect(() => {
+    const loadRegionCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('region_categories')
+          .select('*')
+          .order('display_order');
+
+        if (error) {
+          console.error('地域分類読み込みエラー:', error);
+        } else if (data) {
+          setRegionCategories(data);
+        }
+      } catch (error) {
+        console.error('地域分類読み込みエラー:', error);
+      }
+    };
+
+    loadRegionCategories();
+  }, []);
+
+  // フィルタリング処理
+  useEffect(() => {
+    let filtered = lessonSchools;
+
+    console.log('フィルタリング開始:', { lessonSchools: lessonSchools.length, selectedRegion, searchQuery });
+
+    // 地域フィルター
+    if (selectedRegion) {
+      const region = regionCategories.find(r => r.id === selectedRegion);
+      if (region) {
+        filtered = filtered.filter(school => 
+          region.prefectures.includes(school.prefecture)
+        );
+        console.log('地域フィルター適用後:', filtered.length);
+      }
+    }
+
+    // 検索フィルター
+    if (searchQuery) {
+      filtered = filtered.filter(school =>
+        school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        school.prefecture.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        school.city.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      console.log('検索フィルター適用後:', filtered.length);
+    }
+
+    console.log('最終フィルタリング結果:', filtered.length);
+    setFilteredSchools(filtered);
+  }, [lessonSchools, selectedRegion, searchQuery, regionCategories]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">レッスンスクール情報を読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => window.history.back()}
+              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">フラワーレッスンマップ</h1>
+              <p className="text-gray-600">全国のフラワーレッスンスクールを探す</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* 左側：フィルター・検索 */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">検索・フィルター</h2>
+              
+              {/* 検索バー */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  スクール名・地域で検索
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="スクール名、県、市を入力..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* 地域フィルター */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  地域で絞り込み
+                </label>
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">すべての地域</option>
+                  {regionCategories.map(region => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 結果件数 */}
+              <div className="text-sm text-gray-600">
+                表示件数: {filteredSchools.length}件
+              </div>
+            </div>
+          </div>
+
+          {/* 右側：スクール一覧 */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">レッスンスクール一覧</h2>
+              
+                            {filteredSchools.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p>条件に合うレッスンスクールが見つかりません</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 地域別にグループ化 */}
+                  {regionCategories
+                    .filter(region => {
+                      // 選択された地域がある場合はその地域のみ表示
+                      if (selectedRegion) {
+                        return region.id === selectedRegion;
+                      }
+                      // 地域が選択されていない場合は、スクールがある地域のみ表示
+                      return filteredSchools.some(school => 
+                        region.prefectures.includes(school.prefecture)
+                      );
+                    })
+                    .map(region => {
+                      const schoolsInRegion = filteredSchools.filter(school => 
+                        region.prefectures.includes(school.prefecture)
+                      );
+                      
+                      if (schoolsInRegion.length === 0) return null;
+                      
+                      return (
+                        <div key={region.id} className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
+                            {region.name} ({schoolsInRegion.length}校)
+                          </h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {schoolsInRegion.map(school => (
+                              <div
+                                key={school.id}
+                                className={`p-4 rounded-lg transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
+                                onClick={() => setSelectedSchool(school)}
+                                title={`${school.name} (${school.prefecture} ${school.city})`}
+                              >
+                                <div className="text-lg font-semibold text-white mb-2 drop-shadow-sm">
+                                  {school.name}
+                                </div>
+                                <div className="text-sm text-white/90 mb-2">
+                                  {school.prefecture} {school.city}
+                                </div>
+                                <div className="text-xs text-white/80 bg-white/20 rounded-full px-3 py-1 inline-block">
+                                  詳細を見る
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* スクール詳細モーダル */}
+        {selectedSchool && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {selectedSchool.name}
+                </h3>
+                <button
+                  onClick={() => setSelectedSchool(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">基本情報</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span>{selectedSchool.prefecture} {selectedSchool.city}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <span>{selectedSchool.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <span>{selectedSchool.phone}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span>{selectedSchool.instructor_name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">レッスン情報</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span>開催曜日: {selectedSchool.main_days.join(', ')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span>時間: {selectedSchool.main_time}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Star className="w-4 h-4 text-gray-400" />
+                      <span>体験料金: ¥{selectedSchool.trial_price.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Star className="w-4 h-4 text-gray-400" />
+                      <span>通常料金: ¥{selectedSchool.regular_price.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">先生の経歴</h4>
+                  <p className="text-sm text-gray-700">{selectedSchool.instructor_bio}</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">レッスン内容</h4>
+                  <p className="text-sm text-gray-700">{selectedSchool.lesson_content}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={() => setSelectedSchool(null)}
+                  className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  閉じる
+                </button>
+                <button
+                  onClick={() => {
+                    // 体験予約ページへの遷移
+                    alert('体験予約機能は開発中です');
+                  }}
+                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  体験予約
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default FlowerLessonMap;
