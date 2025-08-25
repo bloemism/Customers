@@ -17,7 +17,8 @@ import {
   BookOpen,
   Calendar,
   GraduationCap,
-  TrendingUp
+  TrendingUp,
+  CreditCard
 } from 'lucide-react';
 
 export const SimpleMenuScreen: React.FC = () => {
@@ -105,6 +106,14 @@ export const SimpleMenuScreen: React.FC = () => {
       icon: TrendingUp,
       color: 'from-yellow-500 to-orange-600',
       route: '/popularity-rankings'
+    },
+    {
+      id: 'subscription-management',
+      title: 'サブスクリプション管理',
+      description: '月額プランの管理と支払い方法の設定',
+      icon: CreditCard,
+      color: 'from-indigo-500 to-purple-600',
+      route: '/subscription-management'
     }
   ];
 

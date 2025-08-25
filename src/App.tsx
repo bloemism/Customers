@@ -16,6 +16,8 @@ const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
 const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
 const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
+const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement').then(module => ({ default: module.SubscriptionManagement })));
+
 
 // 認証ページ
 const SimpleLoginForm = React.lazy(() => import('./components/auth/SimpleLoginForm').then(module => ({ default: module.SimpleLoginForm })));
@@ -43,43 +45,48 @@ const PageLoader: React.FC = () => (
 function App() {
   return (
     <Router>
-      <SimpleAuthProvider>
+    <SimpleAuthProvider>
         <div className="App">
           <Suspense fallback={<PageLoader />}>
-            <Routes>
+          <Routes>
               {/* 公開ルート */}
               <Route path="/" element={<Home />} />
-              <Route path="/simple-login" element={<SimpleLoginForm />} />
+            <Route path="/simple-login" element={<SimpleLoginForm />} />
               <Route path="/signup" element={<SignUpForm />} />
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
               
               {/* 保護されたルート */}
-              <Route path="/menu" element={
-                <SimpleAuthGuard>
+            <Route path="/menu" element={
+              <SimpleAuthGuard>
                   <SimpleMenuScreen />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/checkout" element={
-                <SimpleAuthGuard>
-                  <CheckoutScreen />
-                </SimpleAuthGuard>
-              } />
+              </SimpleAuthGuard>
+            } />
+            <Route path="/simple-menu" element={
+              <SimpleAuthGuard>
+                <SimpleMenuScreen />
+              </SimpleAuthGuard>
+            } />
+            <Route path="/checkout" element={
+              <SimpleAuthGuard>
+                <CheckoutScreen />
+              </SimpleAuthGuard>
+            } />
               <Route path="/product-management" element={
                 <SimpleAuthGuard>
                   <ProductManagement />
                 </SimpleAuthGuard>
               } />
-              <Route path="/customer-management" element={
-                <SimpleAuthGuard>
-                  <CustomerManagement />
-                </SimpleAuthGuard>
-              } />
+            <Route path="/customer-management" element={
+              <SimpleAuthGuard>
+                <CustomerManagement />
+              </SimpleAuthGuard>
+            } />
               <Route path="/store-registration" element={
-                <SimpleAuthGuard>
-                  <StoreRegistration />
-                </SimpleAuthGuard>
-              } />
+              <SimpleAuthGuard>
+                <StoreRegistration />
+              </SimpleAuthGuard>
+            } />
               <Route path="/florist-map" element={
                 <SimpleAuthGuard>
                   <FloristMap />
@@ -105,6 +112,12 @@ function App() {
                   <PopularityRankings />
                 </SimpleAuthGuard>
               } />
+              <Route path="/subscription-management" element={
+                <SimpleAuthGuard>
+                  <SubscriptionManagement />
+                </SimpleAuthGuard>
+              } />
+
               
               {/* レガシールート */}
               <Route path="/old-menu" element={
@@ -123,15 +136,18 @@ function App() {
                 </SimpleAuthGuard>
               } />
               <Route path="/customer-registration" element={
-                <SimpleAuthGuard>
+              <SimpleAuthGuard>
                   <CustomerRegistration />
-                </SimpleAuthGuard>
-              } />
-            </Routes>
+              </SimpleAuthGuard>
+            } />
+              
+              {/* デフォルトルート */}
+              <Route path="*" element={<Home />} />
+          </Routes>
           </Suspense>
         </div>
       </SimpleAuthProvider>
-    </Router>
+      </Router>
   );
 }
 

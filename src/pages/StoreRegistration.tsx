@@ -121,7 +121,7 @@ export const StoreRegistration: React.FC = () => {
   // 既存の店舗情報を読み込み
   useEffect(() => {
     if (user) {
-      loadExistingStore();
+    loadExistingStore();
       loadAvailableTags();
     }
   }, [user]);
@@ -652,8 +652,8 @@ export const StoreRegistration: React.FC = () => {
       // モーダルを閉じてフォームをリセット
       setShowBulletinModal(false);
       setNewBulletin({
-        title: '',
-        content: '',
+      title: '',
+      content: '',
         is_pinned: false
       });
       
@@ -797,7 +797,7 @@ export const StoreRegistration: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Instagram
                 </label>
-                <input
+                    <input
                   type="url"
                   value={formData.instagram}
                   onChange={(e) => handleInputChange('instagram', e.target.value)}
@@ -825,23 +825,23 @@ export const StoreRegistration: React.FC = () => {
                 </label>
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center">
-                    <input
+                <input
                       type="radio"
                       checked={formData.parking === true}
                       onChange={() => handleInputChange('parking', true)}
                       className="mr-2"
                     />
                     あり
-                  </label>
+                </label>
                   <label className="flex items-center">
-                    <input
+                <input
                       type="radio"
                       checked={formData.parking === false}
                       onChange={() => handleInputChange('parking', false)}
                       className="mr-2"
                     />
                     なし
-                  </label>
+                </label>
                 </div>
               </div>
 
@@ -868,8 +868,8 @@ export const StoreRegistration: React.FC = () => {
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => (
                       <label key={tag.id} className="flex items-center">
-                        <input
-                          type="checkbox"
+                    <input
+                      type="checkbox"
                           checked={selectedTags.includes(tag.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
@@ -878,8 +878,8 @@ export const StoreRegistration: React.FC = () => {
                               setSelectedTags(selectedTags.filter(id => id !== tag.id));
                             }
                           }}
-                          className="mr-2"
-                        />
+                      className="mr-2"
+                    />
                         <span 
                           className="px-2 py-1 text-xs rounded-full text-white"
                           style={{ backgroundColor: tag.color }}
@@ -888,12 +888,12 @@ export const StoreRegistration: React.FC = () => {
                         </span>
                       </label>
                     ))}
-                  </div>
+                </div>
                   {selectedTags.length === 0 && (
                     <p className="text-sm text-gray-500">タグを選択してください</p>
-                  )}
-                </div>
-              </div>
+              )}
+            </div>
+          </div>
             </div>
 
                         {/* 保存ボタン */}
@@ -916,7 +916,7 @@ export const StoreRegistration: React.FC = () => {
                 <Image className="w-5 h-5 mr-2" />
                 店舗画像管理
               </h3>
-              <div className="space-y-4">
+            <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <input
                     type="file"
@@ -944,21 +944,21 @@ export const StoreRegistration: React.FC = () => {
                           alt="店舗画像"
                           className="w-full h-24 object-cover rounded-lg"
                         />
-                        <button 
+                  <button
                           onClick={() => handleDeleteImage(image.id, image.image_url)}
                           className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                        >
+                  >
                           <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  </button>
+                </div>
+              ))}
+                </div>
                 ) : (
                   <p className="text-gray-500 text-center py-8">画像がありません</p>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
           {/* 店舗掲示板管理 */}
           {existingStore && (
@@ -969,15 +969,15 @@ export const StoreRegistration: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
-                  <button 
+              <button
                     onClick={() => setShowBulletinModal(true)}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
+              >
                     <Plus className="w-4 h-4 mr-2" />
                     新規投稿
-                  </button>
+              </button>
                   <p className="text-sm text-gray-600">お客様へのお知らせを投稿できます</p>
-                </div>
+            </div>
                 {storeBulletins.length > 0 ? (
                   <div className="space-y-3">
                     {storeBulletins.map((bulletin) => (
@@ -988,89 +988,89 @@ export const StoreRegistration: React.FC = () => {
                             {bulletin.is_pinned && (
                               <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">ピン留め</span>
                             )}
-                            <button 
+                      <button
                               onClick={() => handleDeleteBulletin(bulletin.id)}
                               className="text-red-500 hover:text-red-700"
-                            >
+                      >
                               <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
+                      </button>
+                    </div>
+                  </div>
                         <p className="text-gray-600 text-sm">{bulletin.content}</p>
                         <p className="text-xs text-gray-400 mt-2">
                           {new Date(bulletin.created_at).toLocaleDateString('ja-JP')}
                         </p>
-                      </div>
-                    ))}
-                  </div>
+                </div>
+              ))}
+                </div>
                 ) : (
                   <p className="text-gray-500 text-center py-8">掲示板の投稿がありません</p>
-                )}
-              </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+            </div>
 
         {/* 掲示板作成モーダル */}
         {showBulletinModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">新規掲示板投稿</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+
+            <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                     タイトル <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
+                      </label>
+                      <input
+                        type="text"
                     value={newBulletin.title}
                     onChange={(e) => setNewBulletin(prev => ({ ...prev, title: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="お知らせのタイトル"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                     内容 <span className="text-red-500">*</span>
-                  </label>
+                      </label>
                   <textarea
                     value={newBulletin.content}
                     onChange={(e) => setNewBulletin(prev => ({ ...prev, content: e.target.value }))}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="お知らせの詳細内容"
-                  />
-                </div>
-                
+                      />
+                    </div>
+
                 <div className="flex items-center">
-                  <input
-                    type="checkbox"
+                        <input
+                          type="checkbox"
                     checked={newBulletin.is_pinned}
                     onChange={(e) => setNewBulletin(prev => ({ ...prev, is_pinned: e.target.checked }))}
-                    className="mr-2"
-                  />
+                          className="mr-2"
+                        />
                   <label className="text-sm text-gray-700">ピン留めする</label>
-                </div>
-              </div>
+                    </div>
+                  </div>
               
               <div className="flex justify-end space-x-3 mt-6">
-                <button
+              <button
                   onClick={() => setShowBulletinModal(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
+              >
                   キャンセル
-                </button>
-                <button
+              </button>
+                      <button
                   onClick={handleCreateBulletin}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
+                      >
                   投稿する
-                </button>
-              </div>
-            </div>
-          </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
         )}
 
         {/* デバッグ情報 */}

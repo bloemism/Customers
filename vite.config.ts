@@ -8,19 +8,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // ベンダーライブラリを分離
-          vendor: ['react', 'react-dom'],
+          react: ['react', 'react-dom'],
           router: ['react-router-dom'],
           supabase: ['@supabase/supabase-js'],
           ui: ['lucide-react'],
-          qr: ['qrcode', 'qrcode.react', 'html5-qrcode'],
-          stripe: ['@stripe/stripe-js'],
-        },
-      },
+          qr: ['qrcode'],
+          stripe: ['@stripe/stripe-js']
+        }
+      }
     },
-    chunkSizeWarningLimit: 1000, // 警告閾値を1MBに設定
+    chunkSizeWarningLimit: 1000
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-  },
+    include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js', 'lucide-react', 'qrcode', '@stripe/stripe-js']
+  }
 })

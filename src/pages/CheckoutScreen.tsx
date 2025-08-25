@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
+import { PaymentFeeService } from '../services/paymentFeeService';
 import { 
   ArrowLeft,
   Plus,
@@ -13,7 +14,8 @@ import {
   Mail,
   Copy,
   Download,
-  X
+  X,
+  Percent
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -87,6 +89,8 @@ const CheckoutScreen: React.FC = () => {
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
   const [finalTotal, setFinalTotal] = useState(0);
+  const [paymentFee, setPaymentFee] = useState(0);
+  const [customerTotal, setCustomerTotal] = useState(0);
   
   // ポイント
   const [pointsToUse, setPointsToUse] = useState(0);
@@ -249,12 +253,19 @@ const CheckoutScreen: React.FC = () => {
     // ポイント引いた後の金額に税金を計算
     const newTax = Math.round(afterPoints * 0.1); // 10%消費税
     
-    // 最終金額
+    // 店舗の最終金額（税金込み）
     const newTotal = afterPoints + newTax;
+    
+    // 顧客決済時の手数料計算
+    const feeCalculation = PaymentFeeService.calculatePaymentFee(newTotal);
+    const newPaymentFee = feeCalculation.feeAmount;
+    const newCustomerTotal = feeCalculation.totalAmount;
 
     setSubtotal(newSubtotal);
     setTax(newTax);
     setTotal(newTotal);
+    setPaymentFee(newPaymentFee);
+    setCustomerTotal(newCustomerTotal);
     setPointsEarned(newPointsEarned);
     setFinalTotal(newTotal);
   }, [checkoutItems, pointsToUse]);
@@ -293,6 +304,8 @@ const CheckoutScreen: React.FC = () => {
         subtotal: subtotal,
         tax: tax,
         total: total,
+        payment_fee: paymentFee,
+        customer_total: customerTotal,
         points_used: pointsToUse,
         points_earned: pointsEarned,
         payment_method: 'cash',
@@ -353,6 +366,8 @@ const CheckoutScreen: React.FC = () => {
       subtotal: subtotal,
       tax: tax,
         total: total,
+        payment_fee: paymentFee,
+        customer_total: customerTotal,
         points_used: pointsToUse,
         points_earned: pointsEarned,
         payment_method: 'credit_card',
@@ -906,13 +921,32 @@ const CheckoutScreen: React.FC = () => {
                 </div>
                 <div className="border-t pt-2 mt-2">
                   <div className="flex justify-between font-semibold text-lg">
-                    <span>最終金額:</span>
+                    <span>店舗最終金額:</span>
                     <span>¥{total.toLocaleString()}</span>
                   </div>
-                      </div>
+                </div>
+                
+                {/* 顧客決済手数料情報 */}
+                <div className="border-t pt-2 mt-2 bg-blue-50 p-2 rounded">
+                  <div className="flex justify-between text-sm text-blue-700">
+                    <span className="flex items-center">
+                      <Percent className="w-3 h-3 mr-1" />
+                      決済手数料 (3%):
+                    </span>
+                    <span>¥{paymentFee.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-blue-900 mt-1">
+                    <span>顧客支払金額:</span>
+                    <span>¥{customerTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    店舗収益: ¥{total.toLocaleString()} | 手数料収益: ¥{paymentFee.toLocaleString()}
+                  </div>
+                </div>
+                
                 <div className="text-xs text-gray-500 mt-2">
                   獲得ポイント: {pointsEarned} pt
-                      </div>
+                </div>
                       </div>
                     </div>
 

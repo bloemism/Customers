@@ -123,6 +123,7 @@ export const theme = {
     lessonScheduleManagement: 'from-cyan-500 to-blue-600',
     popularityRankings: 'from-yellow-500 to-orange-600',
     floristMap: 'from-blue-500 to-purple-600',
+    subscriptionManagement: 'from-indigo-500 to-purple-600',
   }
 };
 

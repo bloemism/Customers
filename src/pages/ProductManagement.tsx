@@ -631,7 +631,7 @@ const ProductManagement: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+              </div>
 
           {/* 色カテゴリ管理 */}
           <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
@@ -711,7 +711,7 @@ const ProductManagement: React.FC = () => {
                         </button>
                       </>
                     )}
-                  </div>
+          </div>
                 </div>
               ))}
             </div>
