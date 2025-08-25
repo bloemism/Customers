@@ -467,29 +467,31 @@ const LessonScheduleManagement: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => window.history.back()}
-              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">レッスンスケジュール管理</h1>
-              <p className="text-gray-600">フラワーレッスンのスケジュールと生徒予約を管理</p>
+        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => window.history.back()}
+                className="p-2 text-white hover:text-cyan-100 transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-white">レッスンスケジュール管理</h1>
+                <p className="text-cyan-100">フラワーレッスンのスケジュールと生徒予約を管理</p>
+              </div>
             </div>
+            
+            {!isEditing && (
+              <button
+                onClick={startCreate}
+                className="px-4 py-2 bg-white text-cyan-600 rounded-lg hover:bg-cyan-50 transition-colors flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                新規スケジュール作成
+              </button>
+            )}
           </div>
-          
-          {!isEditing && (
-            <button
-              onClick={startCreate}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              新規スケジュール作成
-            </button>
-          )}
         </div>
 
         {/* メッセージ表示 */}
@@ -511,7 +513,7 @@ const LessonScheduleManagement: React.FC = () => {
 
         {/* 編集・作成フォーム */}
         {isEditing && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 mb-8">
             <div className="text-sm text-gray-500 mb-2">
               デバッグ: isEditing={isEditing.toString()}, editingSchedule={editingSchedule ? 'あり' : 'なし'}
             </div>
@@ -670,7 +672,7 @@ const LessonScheduleManagement: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* 左側：レッスンスケジュール一覧 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               レッスンスケジュール一覧
               {selectedDate && (
@@ -761,7 +763,7 @@ const LessonScheduleManagement: React.FC = () => {
           </div>
 
           {/* 右側：生徒予約一覧 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               生徒予約一覧
               {selectedSchedule && (

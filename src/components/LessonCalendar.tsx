@@ -129,7 +129,7 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
       {/* カレンダーコントロール */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -152,7 +152,7 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
       {/* 3ヶ月分のカレンダー */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {generateCalendarMonths().map((monthDate, monthIndex) => (
-          <div key={monthIndex} className="border border-gray-200 rounded-lg p-4">
+          <div key={monthIndex} className="border border-gray-300 rounded-lg p-4 bg-white shadow-md">
             {/* 月のヘッダー */}
             <div className="text-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">

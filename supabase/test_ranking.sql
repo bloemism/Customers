@@ -12,3 +12,4 @@ WHERE c.total_points > 0;
 
 -- 権限設定
 GRANT SELECT ON test_points_ranking TO authenticated;
+

@@ -1,138 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
+import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft,
   Save,
-  Plus,
-  Trash2,
-  Upload,
-  Clock,
-  Flower,
-  Star,
-  MessageSquare,
   MapPin,
   Phone,
   Mail,
   Globe,
   Instagram,
-  ShoppingCart,
-  Car
+  Clock,
+  Car,
+  Flower,
+  Image,
+  MessageSquare,
+  Tag,
+  Plus,
+  X,
+  Upload
 } from 'lucide-react';
-import { StoreService } from '../services/storeService';
 
-// Store型を直接定義
+// 店舗情報の型定義
 interface Store {
   id: string;
-  user_id: string;
-  store_name: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-  phone: string | null;
-  email: string | null;
-  website_url: string | null;
-  instagram_url: string | null;
-  commerce_url: string | null;
-  business_hours: string | null;
-  holiday_info: string | null;
-  parking_available: boolean;
-  parking_info: string | null;
-  description: string | null;
+  store_name: string; // nameではなくstore_name
+  address: string; // 住所
+  phone: string | null; // 電話番号
+  email: string | null; // メールアドレス
+  website: string | null; // ウェブサイト
+  instagram: string | null; // Instagram
+  business_hours: string | null; // 営業時間
+  parking: boolean; // 駐車場
+  description: string | null; // 店舗説明
+  is_active: boolean; // 有効/無効
   created_at: string;
   updated_at: string;
 }
 
-// StoreDetails型を直接定義
-interface StoreDetails {
+// 店舗画像の型定義
+interface StoreImage {
   id: string;
-  user_id: string;
-  store_name: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-  phone: string | null;
-  email: string | null;
-  website_url: string | null;
-  instagram_url: string | null;
-  commerce_url: string | null;
-  business_hours: string | null;
-  holiday_info: string | null;
-  parking_available: boolean;
-  parking_info: string | null;
-  description: string | null;
+  store_id: string;
+  image_url: string;
+  image_type: string;
+  display_order: number;
+  is_primary: boolean;
   created_at: string;
-  updated_at: string;
-  business_hours_details: any[];
-  services: any[];
-  photos: any[];
-  recommended_flowers: any[];
-  active_posts: any[];
 }
 
-interface StoreFormData {
-  store_name: string;
-  address: string;
-  phone: string;
-  email: string;
-  website_url: string;
-  instagram_url: string;
-  commerce_url: string;
-  business_hours: string;
-  holiday_info: string;
-  parking_available: boolean;
-  parking_info: string;
-  description: string;
-}
-
-interface BusinessHoursData {
-  day_of_week: number;
-  open_time: string;
-  close_time: string;
-  is_closed: boolean;
-  special_hours: string;
-}
-
-interface ServiceData {
-  service_name: string;
-  service_category: string;
-  description: string;
-  is_available: boolean;
-}
-
-interface PhotoData {
-  photo_url: string;
-  photo_title: string;
-  photo_description: string;
-  display_order: number;
-  is_main_photo: boolean;
-}
-
-interface FlowerData {
-  flower_name: string;
-  flower_image_url: string;
-  price: number;
-  price_type: string;
-  description: string;
-  is_available: boolean;
-  display_order: number;
-}
-
-interface PostData {
-  post_type: string;
+// 店舗掲示板の型定義
+interface StoreBulletin {
+  id: string;
+  store_id: string;
   title: string;
   content: string;
+  is_pinned: boolean;
   is_active: boolean;
-  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 店舗タグの型定義
+interface StoreTag {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+// フォームデータの型定義
+interface StoreFormData {
+  store_name: string; // nameではなくstore_name
+  address: string; // 住所
+  phone: string; // 電話番号
+  email: string; // メールアドレス
+  website: string; // ウェブサイト
+  instagram: string; // Instagram
+  business_hours: string; // 営業時間
+  parking: boolean; // 駐車場
+  description: string; // 店舗説明
 }
 
 export const StoreRegistration: React.FC = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { user } = useSimpleAuth();
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [existingStore, setExistingStore] = useState<Store | null>(null);
+  const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
+  const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
+  const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
+  const [availableTags, setAvailableTags] = useState<StoreTag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // 掲示板作成用の状態
+  const [showBulletinModal, setShowBulletinModal] = useState(false);
+  const [newBulletin, setNewBulletin] = useState({
+    title: '',
+    content: '',
+    is_pinned: false
+  });
 
   // フォームデータ
   const [formData, setFormData] = useState<StoreFormData>({
@@ -140,51 +111,207 @@ export const StoreRegistration: React.FC = () => {
     address: '',
     phone: '',
     email: '',
-    website_url: '',
-    instagram_url: '',
-    commerce_url: '',
+    website: '',
+    instagram: '',
     business_hours: '',
-    holiday_info: '',
-    parking_available: false,
-    parking_info: '',
+    parking: false,
     description: ''
   });
 
-  const [businessHours, setBusinessHours] = useState<BusinessHoursData[]>([]);
-  const [services, setServices] = useState<ServiceData[]>([]);
-  const [photos, setPhotos] = useState<PhotoData[]>([]);
-  const [flowers, setFlowers] = useState<FlowerData[]>([]);
-  const [posts, setPosts] = useState<PostData[]>([]);
-
+  // 既存の店舗情報を読み込み
   useEffect(() => {
-    loadExistingStore();
-  }, []);
+    if (user) {
+      loadExistingStore();
+      loadAvailableTags();
+    }
+  }, [user]);
 
   const loadExistingStore = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
-      const store = await StoreService.getUserStore();
-      if (store) {
-        setExistingStore(store);
+      console.log('店舗データ読み込み開始:', user.email);
+      
+      // 既存のstoresテーブル構造に合わせて、emailフィールドで店舗データを取得
+      const { data: stores, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('email', user.email) // owner_idではなくemailフィールドを使用
+        .single();
+
+      if (error) {
+        console.log('店舗データが見つかりません:', error.message);
+        setExistingStore(null);
+        // 新規作成の場合は、ユーザーのメールアドレスをフォームに設定
+        setFormData(prev => ({
+          ...prev,
+          email: user.email || ''
+        }));
+      } else {
+        console.log('既存店舗データ取得成功:', stores);
+        setExistingStore(stores);
         setFormData({
-          store_name: store.store_name,
-          address: store.address,
-          phone: store.phone || '',
-          email: store.email || '',
-          website_url: store.website_url || '',
-          instagram_url: store.instagram_url || '',
-          commerce_url: store.commerce_url || '',
-          business_hours: store.business_hours || '',
-          holiday_info: store.holiday_info || '',
-          parking_available: store.parking_available,
-          parking_info: store.parking_info || '',
-          description: store.description || ''
+          store_name: stores.store_name || stores.name || '',
+          address: stores.address || '',
+          phone: stores.phone || '',
+          email: stores.email || user.email || '',
+          website: stores.website || '',
+          instagram: stores.instagram || '',
+          business_hours: stores.business_hours || '',
+          parking: stores.parking || false,
+          description: stores.description || ''
         });
+
+        // 店舗画像、掲示板、タグを読み込み
+        await loadStoreImages(stores.id);
+        await loadStoreBulletins(stores.id);
+        await loadStoreTags(stores.id);
       }
     } catch (err) {
-      console.error('店舗情報取得エラー:', err);
+      console.error('店舗情報読み込みエラー:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableTags = async () => {
+    try {
+      console.log('タグ読み込み開始...');
+      const { data, error } = await supabase
+        .from('store_tags')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('タグ読み込みエラー:', error);
+        console.log('デフォルトタグを設定します...');
+        // テーブルが存在しない場合はデフォルトタグを設定
+        setAvailableTags([
+          { id: '1', name: '切花', color: '#FF6B6B', created_at: new Date().toISOString() },
+          { id: '2', name: '鉢花', color: '#4ECDC4', created_at: new Date().toISOString() },
+          { id: '3', name: '観葉植物', color: '#45B7D1', created_at: new Date().toISOString() },
+          { id: '4', name: '苗もの', color: '#96CEB4', created_at: new Date().toISOString() },
+          { id: '5', name: 'ラン鉢', color: '#FFEAA7', created_at: new Date().toISOString() },
+          { id: '6', name: '花束', color: '#DDA0DD', created_at: new Date().toISOString() },
+          { id: '7', name: 'アレンジメント', color: '#98D8C8', created_at: new Date().toISOString() },
+          { id: '8', name: 'ウエディングブーケ', color: '#F7DC6F', created_at: new Date().toISOString() },
+          { id: '9', name: 'ブライダル', color: '#BB8FCE', created_at: new Date().toISOString() },
+          { id: '10', name: 'コサージュ', color: '#85C1E9', created_at: new Date().toISOString() },
+          { id: '11', name: 'スタンド花', color: '#F8C471', created_at: new Date().toISOString() },
+          { id: '12', name: '定期装花', color: '#82E0AA', created_at: new Date().toISOString() },
+          { id: '13', name: '配送', color: '#F1948A', created_at: new Date().toISOString() },
+          { id: '14', name: 'お届け', color: '#85C1E9', created_at: new Date().toISOString() },
+          { id: '15', name: '造花', color: '#D7BDE2', created_at: new Date().toISOString() },
+          { id: '16', name: 'プリザーブド', color: '#FAD7A0', created_at: new Date().toISOString() },
+          { id: '17', name: '仏花', color: '#A9CCE3', created_at: new Date().toISOString() },
+          { id: '18', name: '葬儀', color: '#7FB3D3', created_at: new Date().toISOString() },
+          { id: '19', name: 'ガーデニング', color: '#82E0AA', created_at: new Date().toISOString() },
+          { id: '20', name: '花器', color: '#F8C471', created_at: new Date().toISOString() },
+          { id: '21', name: 'ガーデン資材', color: '#F7DC6F', created_at: new Date().toISOString() }
+        ]);
+      } else {
+        console.log('タグ読み込み成功:', data?.length || 0, '個のタグ');
+        setAvailableTags(data || []);
+      }
+    } catch (err) {
+      console.error('タグ読み込みエラー:', err);
+      console.log('デフォルトタグを設定します...');
+      // エラー時もデフォルトタグを設定
+      setAvailableTags([
+        { id: '1', name: '切花', color: '#FF6B6B', created_at: new Date().toISOString() },
+        { id: '2', name: '鉢花', color: '#4ECDC4', created_at: new Date().toISOString() },
+        { id: '3', name: '観葉植物', color: '#45B7D1', created_at: new Date().toISOString() },
+        { id: '4', name: '苗もの', color: '#96CEB4', created_at: new Date().toISOString() },
+        { id: '5', name: 'ラン鉢', color: '#FFEAA7', created_at: new Date().toISOString() },
+        { id: '6', name: '花束', color: '#DDA0DD', created_at: new Date().toISOString() },
+        { id: '7', name: 'アレンジメント', color: '#98D8C8', created_at: new Date().toISOString() },
+        { id: '8', name: 'ウエディングブーケ', color: '#F7DC6F', created_at: new Date().toISOString() },
+        { id: '9', name: 'ブライダル', color: '#BB8FCE', created_at: new Date().toISOString() },
+        { id: '10', name: 'コサージュ', color: '#85C1E9', created_at: new Date().toISOString() },
+        { id: '11', name: 'スタンド花', color: '#F8C471', created_at: new Date().toISOString() },
+        { id: '12', name: '定期装花', color: '#82E0AA', created_at: new Date().toISOString() },
+        { id: '13', name: '配送', color: '#F1948A', created_at: new Date().toISOString() },
+        { id: '14', name: 'お届け', color: '#85C1E9', created_at: new Date().toISOString() },
+        { id: '15', name: '造花', color: '#D7BDE2', created_at: new Date().toISOString() },
+        { id: '16', name: 'プリザーブド', color: '#FAD7A0', created_at: new Date().toISOString() },
+        { id: '17', name: '仏花', color: '#A9CCE3', created_at: new Date().toISOString() },
+        { id: '18', name: '葬儀', color: '#7FB3D3', created_at: new Date().toISOString() },
+        { id: '19', name: 'ガーデニング', color: '#82E0AA', created_at: new Date().toISOString() },
+        { id: '20', name: '花器', color: '#F8C471', created_at: new Date().toISOString() },
+        { id: '21', name: 'ガーデン資材', color: '#F7DC6F', created_at: new Date().toISOString() }
+      ]);
+    }
+  };
+
+  const loadStoreImages = async (storeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('store_images')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('display_order');
+
+      if (error) {
+        console.error('店舗画像読み込みエラー:', error);
+      } else {
+        setStoreImages(data || []);
+      }
+    } catch (err) {
+      console.error('店舗画像読み込みエラー:', err);
+    }
+  };
+
+  const loadStoreBulletins = async (storeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('store_bulletins')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('店舗掲示板読み込みエラー:', error);
+        // テーブルが存在しない場合は空配列を設定
+        setStoreBulletins([]);
+      } else {
+        setStoreBulletins(data || []);
+      }
+    } catch (err) {
+      console.error('店舗掲示板読み込みエラー:', err);
+      setStoreBulletins([]);
+    }
+  };
+
+  const loadStoreTags = async (storeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('store_tag_relations')
+        .select(`
+          tag_id,
+          store_tags (
+            id,
+            name,
+            color
+          )
+        `)
+        .eq('store_id', storeId);
+
+      if (error) {
+        console.error('店舗タグ読み込みエラー:', error);
+        // テーブルが存在しない場合は空配列を設定
+        setStoreTags([]);
+        setSelectedTags([]);
+      } else {
+        const tags = data?.map(item => item.store_tags).filter(Boolean) || [];
+        setStoreTags(tags as unknown as StoreTag[]);
+        setSelectedTags(tags.map((tag: any) => tag.id));
+      }
+    } catch (err) {
+      console.error('店舗タグ読み込みエラー:', err);
+      setStoreTags([]);
+      setSelectedTags([]);
     }
   };
 
@@ -206,11 +333,23 @@ export const StoreRegistration: React.FC = () => {
       setError('住所を入力してください');
       return false;
     }
+    if (!formData.phone.trim()) {
+      setError('電話番号を入力してください');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('メールアドレスを入力してください');
+      return false;
+    }
     return true;
   };
 
   const handleSave = async () => {
     if (!validateForm()) return;
+    if (!user) {
+      setError('ユーザー情報が見つかりません');
+      return;
+    }
 
     try {
       setSaving(true);
@@ -219,228 +358,373 @@ export const StoreRegistration: React.FC = () => {
 
       if (existingStore) {
         // 既存店舗の更新
-        await StoreService.updateStore(existingStore.id, formData);
+        console.log('既存店舗更新開始:', existingStore.id);
+        const updateData: any = {
+          store_name: formData.store_name,
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          website: formData.website || null,
+          instagram: formData.instagram || null,
+          business_hours: formData.business_hours || null,
+          description: formData.description || null,
+          updated_at: new Date().toISOString()
+        };
+
+        // parkingカラムを追加（SQL実行後に有効化）
+        updateData.parking = formData.parking;
+        
+        console.log('更新データ:', updateData);
+        
+        const { data: updatedStore, error } = await supabase
+          .from('stores')
+          .update(updateData)
+          .eq('id', existingStore.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('店舗更新エラー:', error);
+          setError('店舗情報の更新に失敗しました');
+          return;
+        }
+
+        console.log('店舗更新成功:', updatedStore);
+        setExistingStore(updatedStore);
         setSuccess('店舗情報を更新しました');
+        
+        // タグも更新
+        await updateStoreTags(existingStore.id);
       } else {
         // 新規店舗の作成
-        const coordinates = await StoreService.getCoordinatesFromAddress(formData.address);
-        const newStore = await StoreService.createStore({
-          ...formData,
-          latitude: coordinates?.latitude,
-          longitude: coordinates?.longitude
-        });
-        setExistingStore(newStore);
+        console.log('新規店舗作成開始');
+        const createData: any = {
+          id: `store-${Date.now()}`, // ユニークなIDを生成
+          store_name: formData.store_name,
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          website: formData.website || null,
+          instagram: formData.instagram || null,
+          business_hours: formData.business_hours || null,
+          description: formData.description || null,
+          is_active: true
+        };
+
+        // parkingカラムを追加（SQL実行後に有効化）
+        createData.parking = formData.parking;
+        
+        console.log('作成データ:', createData);
+        
+        const { data, error } = await supabase
+          .from('stores')
+          .insert([createData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('店舗作成エラー:', error);
+          setError('店舗の登録に失敗しました');
+          return;
+        }
+
+        console.log('店舗作成成功:', data);
+        setExistingStore(data);
         setSuccess('店舗を登録しました');
+        
+        // 新規作成時はタグを更新
+        await updateStoreTags(data.id);
       }
     } catch (err: any) {
+      console.error('保存エラー:', err);
       setError(err.message || '保存中にエラーが発生しました');
     } finally {
       setSaving(false);
     }
   };
 
-  const addBusinessHours = () => {
-    setBusinessHours(prev => [...prev, {
-      day_of_week: 0,
-      open_time: '09:00',
-      close_time: '18:00',
-      is_closed: false,
-      special_hours: ''
-    }]);
+  const updateStoreTags = async (storeId: string) => {
+    try {
+      console.log('タグ更新開始:', storeId, selectedTags);
+      
+      // テーブルが存在しない場合はスキップ
+      if (selectedTags.length === 0) {
+        console.log('タグが選択されていないため、タグ更新をスキップ');
+        return;
+      }
+
+      // 既存のタグ関連を削除
+      const { error: deleteError } = await supabase
+        .from('store_tag_relations')
+        .delete()
+        .eq('store_id', storeId);
+
+      if (deleteError) {
+        console.error('タグ削除エラー:', deleteError);
+        // テーブルが存在しない場合はスキップ
+        if (deleteError.code === 'PGRST205') {
+          console.log('store_tag_relationsテーブルが存在しないため、タグ更新をスキップ');
+          return;
+        }
+      }
+
+      // 新しいタグ関連を追加
+      if (selectedTags.length > 0) {
+        const tagRelations = selectedTags.map(tagId => ({
+          store_id: storeId,
+          tag_id: tagId
+        }));
+
+        console.log('追加するタグ関連:', tagRelations);
+
+        const { error: insertError } = await supabase
+          .from('store_tag_relations')
+          .insert(tagRelations);
+
+        if (insertError) {
+          console.error('タグ追加エラー:', insertError);
+          // テーブルが存在しない場合はスキップ
+          if (insertError.code === 'PGRST205') {
+            console.log('store_tag_relationsテーブルが存在しないため、タグ更新をスキップ');
+            return;
+          }
+        } else {
+          console.log('タグ更新成功');
+        }
+      }
+    } catch (err) {
+      console.error('タグ更新エラー:', err);
+    }
   };
 
-  const updateBusinessHours = (index: number, field: keyof BusinessHoursData, value: any) => {
-    setBusinessHours(prev => prev.map((hours, i) => 
-      i === index ? { ...hours, [field]: value } : hours
-    ));
+  // 画像アップロード機能
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !existingStore) return;
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${existingStore.id}/${Date.now()}-${i}.${fileExt}`;
+
+        // Supabase Storageにアップロード
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('store-images')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error('画像アップロードエラー:', uploadError);
+          continue;
+        }
+
+        // 公開URLを取得
+        const { data: urlData } = supabase.storage
+          .from('store-images')
+          .getPublicUrl(fileName);
+
+        // データベースに画像情報を保存
+        const { error: insertError } = await supabase
+          .from('store_images')
+          .insert({
+            store_id: existingStore.id,
+            image_url: urlData.publicUrl,
+            alt_text: file.name,
+            display_order: storeImages.length + i
+          });
+
+        if (insertError) {
+          console.error('画像情報保存エラー:', insertError);
+        }
+      }
+
+      // 画像リストを再読み込み
+      await loadStoreImages(existingStore.id);
+      setSuccess('画像をアップロードしました');
+    } catch (err) {
+      console.error('画像アップロードエラー:', err);
+      setError('画像のアップロードに失敗しました');
+    }
   };
 
-  const removeBusinessHours = (index: number) => {
-    setBusinessHours(prev => prev.filter((_, i) => i !== index));
+  // 画像削除機能
+  const handleDeleteImage = async (imageId: string, imageUrl: string) => {
+    if (!existingStore) return;
+
+    try {
+      // データベースから画像情報を削除
+      const { error: deleteError } = await supabase
+        .from('store_images')
+        .delete()
+        .eq('id', imageId);
+
+      if (deleteError) {
+        console.error('画像削除エラー:', deleteError);
+        setError('画像の削除に失敗しました');
+        return;
+      }
+
+      // Storageからファイルを削除（オプション）
+      // URLからファイル名を抽出
+      const urlParts = imageUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      
+      if (fileName) {
+        const { error: storageError } = await supabase.storage
+          .from('store-images')
+          .remove([`${existingStore.id}/${fileName}`]);
+
+        if (storageError) {
+          console.error('Storage削除エラー:', storageError);
+        }
+      }
+
+      // 画像リストを再読み込み
+      await loadStoreImages(existingStore.id);
+      setSuccess('画像を削除しました');
+    } catch (err) {
+      console.error('画像削除エラー:', err);
+      setError('画像の削除に失敗しました');
+    }
   };
 
-  const addService = () => {
-    setServices(prev => [...prev, {
-      service_name: '',
-      service_category: '',
-      description: '',
-      is_available: true
-    }]);
+  // 掲示板削除機能
+  const handleDeleteBulletin = async (bulletinId: string) => {
+    if (!existingStore) return;
+
+    // 削除確認
+    if (!confirm('この掲示板を削除しますか？')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('store_bulletins')
+        .delete()
+        .eq('id', bulletinId);
+
+      if (error) {
+        console.error('掲示板削除エラー:', error);
+        setError('掲示板の削除に失敗しました');
+        return;
+      }
+
+      // 掲示板一覧を再読み込み
+      await loadStoreBulletins(existingStore.id);
+      setSuccess('掲示板を削除しました');
+    } catch (err) {
+      console.error('掲示板削除エラー:', err);
+      setError('掲示板の削除に失敗しました');
+    }
   };
 
-  const updateService = (index: number, field: keyof ServiceData, value: any) => {
-    setServices(prev => prev.map((service, i) => 
-      i === index ? { ...service, [field]: value } : service
-    ));
-  };
+  // 掲示板作成機能
+  const handleCreateBulletin = async () => {
+    if (!existingStore || !newBulletin.title.trim() || !newBulletin.content.trim()) {
+      alert('タイトルと内容を入力してください');
+      return;
+    }
 
-  const removeService = (index: number) => {
-    setServices(prev => prev.filter((_, i) => i !== index));
-  };
+    try {
+      const { data, error } = await supabase
+        .from('store_bulletins')
+        .insert([{
+          store_id: existingStore.id,
+          title: newBulletin.title,
+          content: newBulletin.content,
+          is_pinned: newBulletin.is_pinned,
+          is_active: true
+        }])
+        .select()
+        .single();
 
-  const addPhoto = () => {
-    setPhotos(prev => [...prev, {
-      photo_url: '',
-      photo_title: '',
-      photo_description: '',
-      display_order: prev.length,
-      is_main_photo: prev.length === 0
-    }]);
-  };
+      if (error) {
+        console.error('掲示板作成エラー:', error);
+        alert('掲示板の作成に失敗しました');
+        return;
+      }
 
-  const updatePhoto = (index: number, field: keyof PhotoData, value: any) => {
-    setPhotos(prev => prev.map((photo, i) => 
-      i === index ? { ...photo, [field]: value } : photo
-    ));
+      console.log('掲示板作成成功:', data);
+      
+      // 掲示板一覧を再読み込み
+      await loadStoreBulletins(existingStore.id);
+      
+      // モーダルを閉じてフォームをリセット
+      setShowBulletinModal(false);
+      setNewBulletin({
+        title: '',
+        content: '',
+        is_pinned: false
+      });
+      
+      setSuccess('掲示板を作成しました');
+    } catch (err) {
+      console.error('掲示板作成エラー:', err);
+      alert('掲示板の作成に失敗しました');
+    }
   };
-
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const addFlower = () => {
-    setFlowers(prev => [...prev, {
-      flower_name: '',
-      flower_image_url: '',
-      price: 0,
-      price_type: '本',
-      description: '',
-      is_available: true,
-      display_order: prev.length
-    }]);
-  };
-
-  const updateFlower = (index: number, field: keyof FlowerData, value: any) => {
-    setFlowers(prev => prev.map((flower, i) => 
-      i === index ? { ...flower, [field]: value } : flower
-    ));
-  };
-
-  const removeFlower = (index: number) => {
-    setFlowers(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const addPost = () => {
-    setPosts(prev => [...prev, {
-      post_type: 'announcement',
-      title: '',
-      content: '',
-      is_active: true,
-      expires_at: ''
-    }]);
-  };
-
-  const updatePost = (index: number, field: keyof PostData, value: any) => {
-    setPosts(prev => prev.map((post, i) => 
-      i === index ? { ...post, [field]: value } : post
-    ));
-  };
-
-  const removePost = (index: number) => {
-    setPosts(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
-  const serviceCategories = StoreService.getServiceCategories();
-  const postTypes = StoreService.getPostTypes();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">店舗情報を読み込み中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">店舗情報を確認中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg p-6 mb-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/menu')}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <ArrowLeft className="h-6 w-6" />
-              </button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  {existingStore ? '店舗情報編集' : '店舗登録'}
-                </h1>
-                <p className="text-sm text-gray-600">
-                  {existingStore ? '店舗情報を更新できます' : '新しい店舗を登録できます'}
+              <h1 className="text-3xl font-bold text-white">店舗データ管理</h1>
+              <p className="mt-2 text-orange-100">店舗情報の登録・編集</p>
+              {existingStore && (
+                <p className="mt-1 text-sm text-orange-200">
+                  ✅ 店舗情報が登録されています
                 </p>
-              </div>
+              )}
             </div>
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 transition-colors"
+              onClick={() => window.history.back()}
+              className="flex items-center px-4 py-2 text-white hover:text-orange-100 transition-colors"
             >
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? '保存中...' : '保存'}
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              戻る
             </button>
-          </div>
         </div>
       </div>
 
-      {/* ステップナビゲーション */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex space-x-8">
-            {[
-              { step: 1, title: '基本情報', icon: MapPin },
-              { step: 2, title: '営業時間', icon: Clock },
-              { step: 3, title: 'サービス', icon: Flower },
-              { step: 4, title: '写真', icon: Upload },
-              { step: 5, title: 'オススメの花', icon: Star },
-              { step: 6, title: '掲示板', icon: MessageSquare }
-            ].map(({ step, title, icon: Icon }) => (
-              <button
-                key={step}
-                onClick={() => setCurrentStep(step)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  currentStep === step
-                    ? 'bg-pink-100 text-pink-700'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="text-sm font-medium">{title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* メインコンテンツ */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* エラーメッセージ */}
+        {/* エラー・成功メッセージ */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{error}</p>
           </div>
         )}
-
-        {/* 成功メッセージ */}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
-            {success}
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800">{success}</p>
           </div>
         )}
 
-        {/* ステップ1: 基本情報 */}
-        {currentStep === 1 && (
-          <div className="bg-white rounded-lg shadow p-6 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">基本情報</h2>
-            
+        {/* フォーム */}
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+              {/* 基本情報 */}
+              <div className="md:col-span-2">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Flower className="w-5 h-5 mr-2 text-pink-500" />
+                  基本情報
+                </h2>
+              </div>
+
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   店舗名 <span className="text-red-500">*</span>
                 </label>
@@ -448,21 +732,9 @@ export const StoreRegistration: React.FC = () => {
                   type="text"
                   value={formData.store_name}
                   onChange={(e) => handleInputChange('store_name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="花のアトリエ サクラ"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  電話番号
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="03-1234-5678"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="花屋の名前"
+                  required
                 />
               </div>
 
@@ -474,21 +746,63 @@ export const StoreRegistration: React.FC = () => {
                   type="text"
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="東京都渋谷区1-1-1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="〒123-4567 東京都渋谷区..."
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  メールアドレス
+                  電話番号 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="03-1234-5678"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  メールアドレス <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="example@email.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="info@example.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ウェブサイト
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Instagram
+                </label>
+                <input
+                  type="url"
+                  value={formData.instagram}
+                  onChange={(e) => handleInputChange('instagram', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://instagram.com/..."
                 />
               </div>
 
@@ -500,21 +814,8 @@ export const StoreRegistration: React.FC = () => {
                   type="text"
                   value={formData.business_hours}
                   onChange={(e) => handleInputChange('business_hours', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="9:00-18:00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  定休日
-                </label>
-                <input
-                  type="text"
-                  value={formData.holiday_info}
-                  onChange={(e) => handleInputChange('holiday_info', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="月曜日"
                 />
               </div>
 
@@ -525,66 +826,23 @@ export const StoreRegistration: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center">
                     <input
-                      type="checkbox"
-                      checked={formData.parking_available}
-                      onChange={(e) => handleInputChange('parking_available', e.target.checked)}
+                      type="radio"
+                      checked={formData.parking === true}
+                      onChange={() => handleInputChange('parking', true)}
                       className="mr-2"
                     />
-                    駐車場あり
+                    あり
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={formData.parking === false}
+                      onChange={() => handleInputChange('parking', false)}
+                      className="mr-2"
+                    />
+                    なし
                   </label>
                 </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  駐車場詳細
-                </label>
-                <input
-                  type="text"
-                  value={formData.parking_info}
-                  onChange={(e) => handleInputChange('parking_info', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="店舗前に2台分駐車場あり"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  HPのURL
-                </label>
-                <input
-                  type="url"
-                  value={formData.website_url}
-                  onChange={(e) => handleInputChange('website_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="https://example.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  InstagramのURL
-                </label>
-                <input
-                  type="url"
-                  value={formData.instagram_url}
-                  onChange={(e) => handleInputChange('instagram_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="https://instagram.com/username"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  オンラインショップのURL
-                </label>
-                <input
-                  type="url"
-                  value={formData.commerce_url}
-                  onChange={(e) => handleInputChange('commerce_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="https://shop.example.com"
-                />
               </div>
 
               <div className="md:col-span-2">
@@ -595,483 +853,256 @@ export const StoreRegistration: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="店舗の特徴や得意分野を記載してください"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="店舗の特徴やサービスについて..."
                 />
+              </div>
+
+              {/* 店舗タグ */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <Tag className="w-4 h-4 mr-2" />
+                  店舗タグ
+                </label>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => (
+                      <label key={tag.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedTags.includes(tag.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTags([...selectedTags, tag.id]);
+                            } else {
+                              setSelectedTags(selectedTags.filter(id => id !== tag.id));
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <span 
+                          className="px-2 py-1 text-xs rounded-full text-white"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedTags.length === 0 && (
+                    <p className="text-sm text-gray-500">タグを選択してください</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+                        {/* 保存ボタン */}
+            <div className="mt-8 flex justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                {saving ? '保存中...' : (existingStore ? '更新' : '登録')}
+              </button>
+            </div>
+          </form>
+
+          {/* 店舗画像管理 */}
+          {existingStore && (
+            <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Image className="w-5 h-5 mr-2" />
+                店舗画像管理
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="file"
+                    id="image-upload"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <label 
+                    htmlFor="image-upload"
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    画像をアップロード
+                  </label>
+                  <p className="text-sm text-gray-600">店舗の写真をアップロードできます</p>
+                </div>
+                {storeImages.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {storeImages.map((image) => (
+                      <div key={image.id} className="relative">
+                        <img
+                          src={image.image_url}
+                          alt="店舗画像"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button 
+                          onClick={() => handleDeleteImage(image.id, image.image_url)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">画像がありません</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 店舗掲示板管理 */}
+          {existingStore && (
+            <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <MessageSquare className="w-5 h-5 mr-2" />
+                店舗掲示板管理
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <button 
+                    onClick={() => setShowBulletinModal(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    新規投稿
+                  </button>
+                  <p className="text-sm text-gray-600">お客様へのお知らせを投稿できます</p>
+                </div>
+                {storeBulletins.length > 0 ? (
+                  <div className="space-y-3">
+                    {storeBulletins.map((bulletin) => (
+                      <div key={bulletin.id} className="bg-white rounded-lg p-4 border">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-gray-900">{bulletin.title}</h4>
+                          <div className="flex items-center space-x-2">
+                            {bulletin.is_pinned && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">ピン留め</span>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteBulletin(bulletin.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-gray-600 text-sm">{bulletin.content}</p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          {new Date(bulletin.created_at).toLocaleDateString('ja-JP')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">掲示板の投稿がありません</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 掲示板作成モーダル */}
+        {showBulletinModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">新規掲示板投稿</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    タイトル <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newBulletin.title}
+                    onChange={(e) => setNewBulletin(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="お知らせのタイトル"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    内容 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={newBulletin.content}
+                    onChange={(e) => setNewBulletin(prev => ({ ...prev, content: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="お知らせの詳細内容"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={newBulletin.is_pinned}
+                    onChange={(e) => setNewBulletin(prev => ({ ...prev, is_pinned: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  <label className="text-sm text-gray-700">ピン留めする</label>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowBulletinModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleCreateBulletin}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  投稿する
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ステップ2: 営業時間 */}
-        {currentStep === 2 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">営業時間設定</h2>
-              <button
-                onClick={addBusinessHours}
-                className="flex items-center px-3 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {businessHours.map((hours, index) => (
-                <div key={index} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                  <select
-                    value={hours.day_of_week}
-                    onChange={(e) => updateBusinessHours(index, 'day_of_week', parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  >
-                    {dayNames.map((day, dayIndex) => (
-                      <option key={dayIndex} value={dayIndex}>{day}</option>
-                    ))}
-                  </select>
-
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={hours.is_closed}
-                      onChange={(e) => updateBusinessHours(index, 'is_closed', e.target.checked)}
-                      className="mr-2"
-                    />
-                    定休日
-                  </label>
-
-                  {!hours.is_closed && (
-                    <>
-                      <input
-                        type="time"
-                        value={hours.open_time}
-                        onChange={(e) => updateBusinessHours(index, 'open_time', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      />
-                      <span>〜</span>
-                      <input
-                        type="time"
-                        value={hours.close_time}
-                        onChange={(e) => updateBusinessHours(index, 'close_time', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      />
-                    </>
-                  )}
-
-                  <input
-                    type="text"
-                    value={hours.special_hours}
-                    onChange={(e) => updateBusinessHours(index, 'special_hours', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    placeholder="特別営業時間（例: 祝日は休み）"
-                  />
-
-                  <button
-                    onClick={() => removeBusinessHours(index)}
-                    className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-
-              {businessHours.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  営業時間が設定されていません
-                </div>
+        {/* デバッグ情報 */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-8 bg-yellow-50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">デバッグ情報</h3>
+            <div className="text-gray-700 space-y-2 text-sm">
+              <p><strong>ユーザー:</strong> {user?.email}</p>
+              <p><strong>既存店舗:</strong> {existingStore ? 'あり' : 'なし'}</p>
+              {existingStore && (
+                <p><strong>店舗ID:</strong> {existingStore.id}</p>
               )}
+              <p><strong>選択タグ数:</strong> {selectedTags.length}</p>
+              <p><strong>利用可能タグ数:</strong> {availableTags.length}</p>
+              <p><strong>店舗画像数:</strong> {storeImages.length}</p>
+              <p><strong>掲示板投稿数:</strong> {storeBulletins.length}</p>
             </div>
           </div>
         )}
 
-        {/* ステップ3: サービス */}
-        {currentStep === 3 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">取り扱いサービス</h2>
-              <button
-                onClick={addService}
-                className="flex items-center px-3 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {services.map((service, index) => (
-                <div key={index} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                  <input
-                    type="text"
-                    value={service.service_name}
-                    onChange={(e) => updateService(index, 'service_name', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    placeholder="サービス名"
-                  />
-
-                  <select
-                    value={service.service_category}
-                    onChange={(e) => updateService(index, 'service_category', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  >
-                    <option value="">カテゴリを選択</option>
-                    {serviceCategories.map(category => (
-                      <option key={category.value} value={category.value}>{category.label}</option>
-                    ))}
-                  </select>
-
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={service.is_available}
-                      onChange={(e) => updateService(index, 'is_available', e.target.checked)}
-                      className="mr-2"
-                    />
-                    提供中
-                  </label>
-
-                  <button
-                    onClick={() => removeService(index)}
-                    className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-
-              {services.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  サービスが設定されていません
-                </div>
-              )}
-            </div>
+        {/* 説明 */}
+        <div className="mt-8 bg-blue-50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">このページについて</h3>
+          <div className="text-gray-700 space-y-2">
+            <p>• 店舗の基本情報を登録・編集できます</p>
+            <p>• 必須項目（店舗名、住所、電話番号、メールアドレス）を入力してください</p>
+            <p>• 店舗タグを選択して、店舗の特徴を表現できます</p>
+            <p>• 店舗画像をアップロードして、お客様に店舗の雰囲気を伝えられます</p>
+            <p>• 店舗掲示板でお客様へのお知らせを投稿できます</p>
+            <p>• 登録した店舗情報は、商品管理やお客様会計で使用されます</p>
+            <p>• データはSupabaseに保存され、店舗ごとに管理されます</p>
           </div>
-        )}
-
-        {/* ステップ4: 写真 */}
-        {currentStep === 4 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">店舗写真</h2>
-              <button
-                onClick={addPhoto}
-                className="flex items-center px-3 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {photos.map((photo, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        写真URL
-                      </label>
-                      <input
-                        type="url"
-                        value={photo.photo_url}
-                        onChange={(e) => updatePhoto(index, 'photo_url', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="https://example.com/photo.jpg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        タイトル
-                      </label>
-                      <input
-                        type="text"
-                        value={photo.photo_title}
-                        onChange={(e) => updatePhoto(index, 'photo_title', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="店舗外観"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        説明
-                      </label>
-                      <input
-                        type="text"
-                        value={photo.photo_description}
-                        onChange={(e) => updatePhoto(index, 'photo_description', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="写真の説明"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={photo.is_main_photo}
-                          onChange={(e) => updatePhoto(index, 'is_main_photo', e.target.checked)}
-                          className="mr-2"
-                        />
-                        メイン写真
-                      </label>
-
-                      <button
-                        onClick={() => removePhoto(index)}
-                        className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {photos.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  写真が設定されていません
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ステップ5: オススメの花 */}
-        {currentStep === 5 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">今週のおすすめ</h2>
-              <button
-                onClick={addFlower}
-                className="flex items-center px-3 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {flowers.map((flower, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        花の名前
-                      </label>
-                      <input
-                        type="text"
-                        value={flower.flower_name}
-                        onChange={(e) => updateFlower(index, 'flower_name', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="ピンクのバラ"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        価格
-                      </label>
-                      <input
-                        type="number"
-                        value={flower.price}
-                        onChange={(e) => updateFlower(index, 'price', parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        価格単位
-                      </label>
-                      <select
-                        value={flower.price_type}
-                        onChange={(e) => updateFlower(index, 'price_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      >
-                        <option value="本">本</option>
-                        <option value="束">束</option>
-                        <option value="アレンジメント">アレンジメント</option>
-                        <option value="鉢">鉢</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        写真URL
-                      </label>
-                      <input
-                        type="url"
-                        value={flower.flower_image_url}
-                        onChange={(e) => updateFlower(index, 'flower_image_url', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="https://example.com/flower.jpg"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        説明
-                      </label>
-                      <input
-                        type="text"
-                        value={flower.description}
-                        onChange={(e) => updateFlower(index, 'description', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="花の説明"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={flower.is_available}
-                          onChange={(e) => updateFlower(index, 'is_available', e.target.checked)}
-                          className="mr-2"
-                        />
-                        在庫あり
-                      </label>
-
-                      <button
-                        onClick={() => removeFlower(index)}
-                        className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {flowers.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  おすすめの花が設定されていません
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ステップ6: 掲示板 */}
-        {currentStep === 6 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">掲示板</h2>
-              <button
-                onClick={addPost}
-                className="flex items-center px-3 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {posts.map((post, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        投稿タイプ
-                      </label>
-                      <select
-                        value={post.post_type}
-                        onChange={(e) => updatePost(index, 'post_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      >
-                        {postTypes.map(type => (
-                          <option key={type.value} value={type.value}>{type.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        タイトル
-                      </label>
-                      <input
-                        type="text"
-                        value={post.title}
-                        onChange={(e) => updatePost(index, 'title', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="投稿タイトル"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        内容
-                      </label>
-                      <textarea
-                        value={post.content}
-                        onChange={(e) => updatePost(index, 'content', e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                        placeholder="投稿内容"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        掲載期限
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={post.expires_at}
-                        onChange={(e) => updatePost(index, 'expires_at', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={post.is_active}
-                          onChange={(e) => updatePost(index, 'is_active', e.target.checked)}
-                          className="mr-2"
-                        />
-                        公開中
-                      </label>
-
-                      <button
-                        onClick={() => removePost(index)}
-                        className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {posts.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  掲示板投稿が設定されていません
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ナビゲーションボタン */}
-        <div className="flex justify-between mt-8">
-          <button
-            onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-            disabled={currentStep === 1}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            前へ
-          </button>
-
-          <button
-            onClick={() => setCurrentStep(Math.min(6, currentStep + 1))}
-            disabled={currentStep === 6}
-            className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 transition-colors"
-          >
-            次へ
-          </button>
         </div>
       </div>
     </div>

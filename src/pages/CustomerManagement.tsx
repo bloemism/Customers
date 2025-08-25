@@ -303,33 +303,33 @@ export const CustomerManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-gradient-to-r from-purple-500 to-indigo-600 shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/menu')}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                className="p-2 text-white hover:text-purple-100 transition-colors duration-200"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">顧客管理</h1>
-                <p className="text-sm text-gray-500">お客様データ・ポイント・販売履歴</p>
+                <h1 className="text-xl font-bold text-white">顧客管理</h1>
+                <p className="text-sm text-purple-100">お客様データ・ポイント・販売履歴</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowQRScanner(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-white hover:bg-purple-50 transition-colors duration-200"
               >
                 <QrCode className="h-4 w-4 mr-2" />
                 QR読み取り
               </button>
               <button
                 onClick={handleAddCustomer}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-700 hover:bg-purple-800 transition-colors duration-200"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 新規顧客
@@ -369,7 +369,7 @@ export const CustomerManagement: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 検索セクション */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Search className="h-5 w-5 mr-2 text-purple-500" />
             顧客検索
@@ -436,7 +436,7 @@ export const CustomerManagement: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 顧客リスト */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">顧客一覧</h3>
                 <p className="text-sm text-gray-500 mt-1">
@@ -499,7 +499,7 @@ export const CustomerManagement: React.FC = () => {
             {selectedCustomer ? (
               <div className="space-y-6">
                 {/* 顧客基本情報 */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">顧客詳細</h3>
                     <button
@@ -567,7 +567,7 @@ export const CustomerManagement: React.FC = () => {
                 </div>
 
                 {/* 月間統計 */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">月間統計</h3>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -622,7 +622,7 @@ export const CustomerManagement: React.FC = () => {
                 </div>
 
                 {/* 購入履歴 */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">購入履歴</h3>
                   
                   {purchaseHistory.length > 0 ? (
@@ -689,7 +689,7 @@ export const CustomerManagement: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-8 text-center">
                 <User className="h-16 w-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">顧客を選択してください</h3>
                 <p className="text-gray-500">左側の顧客リストから顧客を選択すると、詳細情報が表示されます。</p>

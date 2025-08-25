@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
+import { PageLayout, Card } from '../components/common';
+import { theme } from '../styles/theme';
 import { 
   ShoppingCart, 
   MapPin, 
@@ -142,16 +144,9 @@ export const SimpleMenuScreen: React.FC = () => {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* シンプルなタイトル */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900">
-            87app メニュー
-          </h2>
-        </div>
-
+      <PageLayout maxWidth="7xl" padding="lg">
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             return (
@@ -192,12 +187,12 @@ export const SimpleMenuScreen: React.FC = () => {
         </div>
 
         {/* クイックアクション */}
-        <div className="mt-12 max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Receipt className="h-5 w-5 mr-2 text-green-500" />
-              クイックアクション
-            </h3>
+        <div className="mt-12">
+          <Card 
+            title="クイックアクション"
+            icon={<Receipt className="h-5 w-5 text-green-500" />}
+            variant="elevated"
+          >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button 
                 onClick={() => navigate('/florist-map')}
@@ -225,14 +220,14 @@ export const SimpleMenuScreen: React.FC = () => {
                 <span className="text-sm text-gray-600">設定</span>
               </button>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* フッター */}
         <div className="mt-16 text-center text-sm text-gray-500">
           <p>© 2024 87app. 花屋向け店舗管理システム</p>
         </div>
-      </div>
+      </PageLayout>
     </div>
   );
 };

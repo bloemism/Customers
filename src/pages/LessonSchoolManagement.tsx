@@ -311,29 +311,31 @@ const LessonSchoolManagement: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => window.history.back()}
-              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">レッスンスクール管理</h1>
-              <p className="text-gray-600">フラワーレッスンスクールの情報を管理</p>
+        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => window.history.back()}
+                className="p-2 text-white hover:text-teal-100 transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-white">レッスンスクール管理</h1>
+                <p className="text-teal-100">フラワーレッスンスクールの情報を管理</p>
+              </div>
             </div>
+            
+            {!isEditing && (
+              <button
+                onClick={startCreate}
+                className="px-4 py-2 bg-white text-teal-600 rounded-lg hover:bg-teal-50 transition-colors flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                新規作成
+              </button>
+            )}
           </div>
-          
-          {!isEditing && (
-            <button
-              onClick={startCreate}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              新規作成
-            </button>
-          )}
         </div>
 
         {/* メッセージ表示 */}
@@ -355,7 +357,7 @@ const LessonSchoolManagement: React.FC = () => {
 
         {/* 編集・作成フォーム */}
         {isEditing && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               {editingSchool ? 'レッスンスクール編集' : '新規レッスンスクール作成'}
             </h2>
@@ -577,7 +579,7 @@ const LessonSchoolManagement: React.FC = () => {
         )}
 
         {/* レッスンスクール一覧 */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">登録済みレッスンスクール</h2>
           
           {lessonSchools.length === 0 ? (
@@ -659,3 +661,4 @@ const LessonSchoolManagement: React.FC = () => {
 };
 
 export default LessonSchoolManagement;
+

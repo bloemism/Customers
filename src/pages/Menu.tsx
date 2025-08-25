@@ -9,7 +9,10 @@ import {
   LogOut,
   User,
   MapPin,
-  CreditCard
+  CreditCard,
+  BookOpen,
+  Calendar,
+  GraduationCap
 } from 'lucide-react';
 
 export const Menu: React.FC = () => {
@@ -75,6 +78,27 @@ export const Menu: React.FC = () => {
       icon: Settings,
       href: '/settings',
       color: 'bg-gray-500'
+    },
+    {
+      title: 'フラワーレッスンマップ',
+      description: '全国のフラワーレッスンスクールを探す',
+      icon: BookOpen,
+      href: '/flower-lesson-map',
+      color: 'bg-pink-500'
+    },
+    {
+      title: 'レッスンスクール管理',
+      description: 'フラワーレッスンスクールの情報を管理',
+      icon: GraduationCap,
+      href: '/lesson-school-management',
+      color: 'bg-teal-500'
+    },
+    {
+      title: 'レッスンスケジュール管理',
+      description: 'レッスンのスケジュールと生徒予約を管理',
+      icon: Calendar,
+      href: '/lesson-schedule-management',
+      color: 'bg-cyan-500'
     }
   ];
 

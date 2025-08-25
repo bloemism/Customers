@@ -21,9 +21,12 @@ import {
   Share2,
   Map,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Image,
+  MessageSquare
 } from 'lucide-react';
 import { StoreService } from '../services/storeService';
+import { supabase } from '../lib/supabase';
 
 // Google Maps JavaScript APIの型定義
 declare global {
@@ -402,15 +405,13 @@ export const FloristMap: React.FC = () => {
   // InfoWindowのコンテンツを作成
   const createInfoWindowContent = (store: Store) => {
     return `
-      <div style="padding: 16px; max-width: 380px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+      <div style="padding: 16px; max-width: 380px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
         <!-- ヘッダー部分 -->
         <div style="margin-bottom: 16px;">
-          <h3 style="margin: 0 0 4px 0; color: #202124; font-size: 18px; font-weight: 500; line-height: 1.2;">${store.store_name}</h3>
-          <p style="margin: 0 0 4px 0; color: #5f6368; font-size: 14px; line-height: 1.3;">${store.address}</p>
+          <h3 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 18px; font-weight: 600; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${store.store_name}</h3>
+          <p style="margin: 0 0 4px 0; color: #495057; font-size: 14px; line-height: 1.3; font-weight: 500;">${store.address}</p>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="color: #5f6368; font-size: 12px;">⭐ 4.5</span>
-            <span style="color: #5f6368; font-size: 12px;">•</span>
-            <span style="color: #5f6368; font-size: 12px;">${store.business_type || '花屋'}</span>
+            <span style="color: #6c757d; font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.7); padding: 2px 6px; border-radius: 4px;">${store.business_type || '花屋'}</span>
           </div>
         </div>
         
@@ -428,33 +429,27 @@ export const FloristMap: React.FC = () => {
           </div>
         </div>
         
-        <!-- 画像5枚を小さく並べて横スライド -->
-        <div style="margin-bottom: 16px; position: relative;">
-          <div style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
-            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=80&h=80&fit=crop" alt="店舗外観" style="width: 100%; height: 100%; object-fit: cover;" />
+        <!-- 動的画像表示（store_imagesテーブルから取得） -->
+        ${store.photos && store.photos.length > 0 ? `
+          <div style="margin-bottom: 16px; position: relative;">
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+              ${store.photos.slice(0, 5).map(photo => `
+                <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <img src="${photo}" alt="店舗写真" style="width: 100%; height: 100%; object-fit: cover;" />
+                </div>
+              `).join('')}
             </div>
-            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <img src="https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=80&h=80&fit=crop" alt="店内の様子" style="width: 100%; height: 100%; object-fit: cover;" />
-            </div>
-            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <img src="https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=80&h=80&fit=crop" alt="花のアレンジ" style="width: 100%; height: 100%; object-fit: cover;" />
-            </div>
-            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <img src="https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=80&h=80&fit=crop" alt="作品ギャラリー" style="width: 100%; height: 100%; object-fit: cover;" />
-            </div>
-            <div style="min-width: 80px; height: 80px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=80&h=80&fit=crop" alt="特別な花" style="width: 100%; height: 100%; object-fit: cover;" />
-            </div>
+            ${store.photos.length > 5 ? `
+              <div style="text-align: center; margin-top: 8px;">
+                <span style="color: #5f6368; font-size: 11px;">← 左右にスワイプして画像を見る →</span>
+              </div>
+            ` : ''}
           </div>
-          <div style="text-align: center; margin-top: 8px;">
-            <span style="color: #5f6368; font-size: 11px;">← 左右にスワイプして画像を見る →</span>
-          </div>
-        </div>
+        ` : ''}
         
         <!-- Supabase連携の店舗情報 -->
-        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e8eaed;">
-          <h4 style="margin: 0 0 8px 0; color: #202124; font-size: 14px; font-weight: 500;">店舗情報</h4>
+        <div style="background: rgba(255, 255, 255, 0.8); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ced4da; backdrop-filter: blur(5px);">
+          <h4 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 14px; font-weight: 600; border-bottom: 2px solid #3498db; padding-bottom: 4px;">店舗情報</h4>
           <div style="display: flex; flex-direction: column; gap: 6px;">
             ${store.phone ? `
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -579,8 +574,73 @@ export const FloristMap: React.FC = () => {
         store.latitude && store.longitude && store.is_active
       );
 
-      console.log('Loaded stores from Supabase:', storesWithCoordinates);
-      setStores(storesWithCoordinates);
+      // 各店舗の画像、掲示板、タグ情報を取得
+      const enrichedStores = await Promise.all(
+        storesWithCoordinates.map(async (store) => {
+          try {
+            // 店舗画像を取得
+            const { data: images, error: imagesError } = await supabase
+              .from('store_images')
+              .select('image_url')
+              .eq('store_id', store.id)
+              .eq('is_active', true)
+              .order('display_order');
+
+            if (imagesError) {
+              console.error(`店舗 ${store.store_name} の画像取得エラー:`, imagesError);
+            }
+
+            // 店舗掲示板を取得
+            const { data: bulletins } = await supabase
+              .from('store_bulletins')
+              .select('title, content, is_pinned')
+              .eq('store_id', store.id)
+              .eq('is_active', true)
+              .order('is_pinned', { ascending: false })
+              .order('created_at', { ascending: false })
+              .limit(3);
+
+            // 店舗タグを取得
+            const { data: tagRelations } = await supabase
+              .from('store_tag_relations')
+              .select(`
+                store_tags (
+                  name, color
+                )
+              `)
+              .eq('store_id', store.id);
+
+            const enrichedStore = {
+              ...store,
+              // 古いphotosカラムを無視して、store_imagesテーブルのデータのみを使用
+              photos: images?.map((img: any) => img.image_url) || [],
+              bulletin_board: bulletins?.map((b: any) => b.title).join(', ') || null,
+              tags: tagRelations?.map((tr: any) => tr.store_tags?.name).filter(Boolean) || []
+            };
+
+            // デバッグ情報を出力
+            console.log(`店舗 ${store.store_name} の詳細情報:`, {
+              store_id: store.id,
+              old_photos_from_stores: store.photos, // 古いphotosカラム
+              new_images_from_store_images: images?.length || 0,
+              new_image_urls: images?.map((img: any) => img.image_url) || [],
+              final_photos_used: enrichedStore.photos.length,
+              final_photo_urls: enrichedStore.photos,
+              bulletins: bulletins?.length || 0,
+              bulletin_board: enrichedStore.bulletin_board,
+              tags: enrichedStore.tags.length
+            });
+
+            return enrichedStore;
+          } catch (err) {
+            console.error(`店舗 ${store.id} の詳細情報取得エラー:`, err);
+            return store;
+          }
+        })
+      );
+
+      console.log('Loaded enriched stores from Supabase:', enrichedStores);
+      setStores(enrichedStores);
       
     } catch (err: any) {
       console.error('店舗読み込みエラー:', err);
@@ -629,9 +689,37 @@ export const FloristMap: React.FC = () => {
 
   const handleStoreClick = async (store: Store) => {
     try {
-      const storeDetails = await StoreService.getStoreDetails(store.id);
-      setSelectedStore(storeDetails);
-      setShowRoute(false); // 新しい店舗選択時に経路をリセット
+      // 既に読み込んだenrichedStoresから該当する店舗を探す
+      const enrichedStore = stores.find(s => s.id === store.id);
+      if (enrichedStore) {
+        // StoreDetails型に変換
+        const storeDetails: StoreDetails = {
+          ...enrichedStore,
+          business_hours_details: [],
+          services: [],
+          recommended_flowers: [],
+          active_posts: []
+        };
+        
+        // デバッグ情報を出力
+        console.log('Selected store details:', {
+          id: storeDetails.id,
+          store_name: storeDetails.store_name,
+          photos: storeDetails.photos,
+          photos_length: storeDetails.photos?.length || 0,
+          photo_urls: storeDetails.photos,
+          bulletin_board: storeDetails.bulletin_board,
+          tags: storeDetails.tags
+        });
+        
+        setSelectedStore(storeDetails);
+        setShowRoute(false); // 新しい店舗選択時に経路をリセット
+      } else {
+        // フォールバック: 古い方法で取得
+        const storeDetails = await StoreService.getStoreDetails(store.id);
+        setSelectedStore(storeDetails);
+        setShowRoute(false);
+      }
     } catch (err) {
       console.error('店舗詳細の取得に失敗:', err);
     }
@@ -1093,6 +1181,45 @@ export const FloristMap: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
+                  {/* 店舗画像 */}
+                  <div>
+                    <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                      <Image className="h-4 w-4 mr-2 text-green-500" />
+                      店舗写真
+                    </h5>
+                    
+
+                    
+                    {/* 画像表示 */}
+                    {selectedStore.photos && selectedStore.photos.length > 0 ? (
+                      <div>
+                        <div className="text-xs text-gray-500 mb-2">
+                          表示中: {selectedStore.photos.length}枚 (最大4枚表示)
+                        </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                          {selectedStore.photos.slice(0, 4).map((photo, index) => (
+                            <div key={index} className="border border-gray-200 rounded-lg p-1">
+                              <img
+                                src={photo}
+                                alt={`${selectedStore.store_name}の写真${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg"
+                                onError={(e) => console.error('画像読み込みエラー:', photo, e)}
+                                onLoad={() => console.log('画像読み込み成功:', photo)}
+                              />
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                {photo}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 bg-gray-100 p-2 rounded">
+                        画像がありません
+                      </div>
+                    )}
+                  </div>
+
                   {/* 店舗名 */}
                   <div>
                     <h4 className="text-xl font-bold text-gray-900 mb-2">
@@ -1314,26 +1441,14 @@ export const FloristMap: React.FC = () => {
                   )}
 
                   {/* 掲示板 */}
-                  {selectedStore.active_posts && selectedStore.active_posts.length > 0 && (
+                  {selectedStore.bulletin_board && (
                     <div>
-                      <h5 className="font-semibold text-gray-900 mb-3">掲示板</h5>
-                      <div className="space-y-2">
-                        {selectedStore.active_posts.slice(0, 2).map((post: any, index: number) => (
-                          <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                {post.post_type}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(post.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-900">{post.title}</p>
-                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                              {post.content}
-                            </p>
-                          </div>
-                        ))}
+                      <h5 className="font-semibold text-gray-900 flex items-center mb-3">
+                        <MessageSquare className="h-4 w-4 mr-2 text-blue-500" />
+                        お知らせ
+                      </h5>
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-gray-900">{selectedStore.bulletin_board}</p>
                       </div>
                     </div>
                   )}

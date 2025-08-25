@@ -189,3 +189,4 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }
 };
 
 export default QRCodeScanner;
+

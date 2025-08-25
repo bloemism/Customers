@@ -1,4 +1,4 @@
--- 基本的な人気ランキングシステム
+-- シンプルな人気ランキングシステムのセットアップ
 
 -- 1. ポイント使用ランキング（月次）
 CREATE OR REPLACE VIEW monthly_points_used_ranking AS
@@ -80,10 +80,15 @@ FROM customers c
 JOIN purchase_history ph ON c.id = ph.customer_id
 GROUP BY DATE_PART('year', ph.purchase_date), DATE_PART('month', ph.purchase_date), c.id, c.name, c.email;
 
+-- インデックスの作成（パフォーマンス向上）
+CREATE INDEX IF NOT EXISTS idx_purchase_history_customer ON purchase_history(customer_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_date ON purchase_history(purchase_date);
+CREATE INDEX IF NOT EXISTS idx_customers_points ON customers(total_points DESC);
+
 -- 権限設定
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT ON monthly_points_used_ranking TO authenticated;
 GRANT SELECT ON current_points_ranking TO authenticated;
 GRANT SELECT ON monthly_sales_ranking TO authenticated;
 GRANT SELECT ON monthly_avg_sales_ranking TO authenticated;
 GRANT SELECT ON monthly_purchase_count_ranking TO authenticated;
-

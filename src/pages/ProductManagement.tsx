@@ -1,27 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
+import { ArrowLeft, Plus, Edit2, Trash2, Save, X, Database, Download, Upload } from 'lucide-react';
 
-// 品目・色の組み合わせの型定義
-interface ProductItem {
+// 品目カテゴリの型定義
+interface FlowerItemCategory {
   id: string;
+  store_id: string; // 文字列として扱う
   name: string;
-  category: string;
-  color: string;
   is_active: boolean;
+  display_order: number;
   created_at: string;
   updated_at: string;
 }
 
-interface ProductCategory {
+// 色カテゴリの型定義
+interface ColorCategory {
   id: string;
+  store_id: string; // 文字列として扱う
   name: string;
-  description: string;
+  hex_code: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
+// 店舗情報の型定義
 interface Store {
   id: string;
-  name: string;
+  name: string; // 表示用の店舗名
   owner_id: string;
 }
 
@@ -32,52 +40,33 @@ const ProductManagement: React.FC = () => {
   const [store, setStore] = useState<Store | null>(null);
   const [storeLoading, setStoreLoading] = useState(true);
   
-  // デフォルトの品目・色の組み合わせ（ローカルモード用）
-  const [productItems, setProductItems] = useState<ProductItem[]>([
-    { id: '1', name: 'バラ', category: '花', color: '赤', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '2', name: 'バラ', category: '花', color: '白', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '3', name: 'バラ', category: '花', color: 'ピンク', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '4', name: 'アルストロメリア', category: '花', color: '白', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '5', name: 'アルストロメリア', category: '花', color: 'ピンク', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '6', name: 'アレンジメント', category: 'アレンジメント', color: 'ピンク', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '7', name: 'アレンジメント', category: 'アレンジメント', color: '白', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '8', name: '花束', category: '花束', color: '赤', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '9', name: '花束', category: '花束', color: 'ピンク', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' },
-    { id: '10', name: '鉢物', category: '鉢物', color: '緑', is_active: true, created_at: '2024-01-01', updated_at: '2024-01-01' }
-  ]);
-
-  const [categories, setCategories] = useState<ProductCategory[]>([
-    { id: '1', name: '花', description: '切り花' },
-    { id: '2', name: 'アレンジメント', description: '花のアレンジメント' },
-    { id: '3', name: '花束', description: '花束' },
-    { id: '4', name: '鉢物', description: '鉢植えの花' },
-    { id: '5', name: '季節の花', description: '季節限定の花' }
-  ]);
-
-  const [editingItem, setEditingItem] = useState<ProductItem | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+  // 品目カテゴリ（最大30個）
+  const [flowerItemCategories, setFlowerItemCategories] = useState<FlowerItemCategory[]>([]);
   
-  // 新規品目追加フォーム
-  const [newItem, setNewItem] = useState({
+  // 色カテゴリ（最大10個）
+  const [colorCategories, setColorCategories] = useState<ColorCategory[]>([]);
+
+  // 編集状態
+  const [editingFlowerItem, setEditingFlowerItem] = useState<FlowerItemCategory | null>(null);
+  const [editingColor, setEditingColor] = useState<ColorCategory | null>(null);
+  const [showAddFlowerItem, setShowAddFlowerItem] = useState(false);
+  const [showAddColor, setShowAddColor] = useState(false);
+
+  // 新規追加フォーム
+  const [newFlowerItem, setNewFlowerItem] = useState({
     name: '',
-    category: '',
-    color: ''
+    display_order: 1 // sort_orderからdisplay_orderに変更
   });
 
-  // 品目カテゴリ（30種類まで登録可能）
-  const productCategories = [
-    'バラ', 'アルストロメリア', 'アレンジメント', '花束', '鉢物', 
-    '季節の花', 'ガラス', '資材', 'ブーケ', 'コサージュ',
-    'リース', '花器', 'ラッピング', 'リボン', '花束台', '花瓶',
-    '植木鉢', '肥料', '土', '種', '球根', '苗', '切り花',
-    'ドライフラワー', 'プリザーブドフラワー', 'アーティフィシャルフラワー',
-    '花の小物', '花の本', '花の雑誌'
-  ];
+  const [newColor, setNewColor] = useState({
+    name: '',
+    hex_code: '#000000',
+    display_order: 1 // sort_orderからdisplay_orderに変更
+  });
 
-  // 色の選択肢（10色程度）
-  const productColors = [
-    '赤', '白', 'ピンク', '黄', '青', '紫', 'オレンジ', '緑', '茶色', '黒'
-  ];
+  // 保存状態
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   // 店舗情報を読み込み
   useEffect(() => {
@@ -86,26 +75,31 @@ const ProductManagement: React.FC = () => {
     }
   }, [user]);
 
+  // 店舗データを読み込み
   const loadStoreData = async () => {
     if (!user) return;
     
     try {
       setStoreLoading(true);
       
-      // 店舗データを取得
+      // 既存のstoresテーブル構造に合わせて、emailフィールドで店舗データを取得
       const { data: stores, error } = await supabase
         .from('stores')
-        .select('id, name, owner_id')
-        .eq('owner_id', user.id)
+        .select('id, store_name, email') // nameではなくstore_name
+        .eq('email', user.email)
         .single();
 
       if (error) {
-        console.log('店舗データが見つかりません（ローカルモードで動作）:', error.message);
+        console.log('店舗データが見つかりません:', error.message);
         setStore(null);
       } else {
-        setStore(stores);
-        // 店舗データがある場合は、Supabaseから商品データを読み込み
-        await loadProductItemsFromSupabase(stores.id);
+        setStore({
+          id: stores.id,
+          name: stores.store_name, // store_nameフィールドから取得
+          owner_id: stores.email
+        });
+        // 店舗データがある場合は、カテゴリデータを読み込み
+        await loadCategoriesFromSupabase(stores.id);
       }
     } catch (error) {
       console.error('店舗データ読み込みエラー:', error);
@@ -115,208 +109,347 @@ const ProductManagement: React.FC = () => {
     }
   };
 
-  // Supabaseから商品データを読み込み
-  const loadProductItemsFromSupabase = async (storeId: string) => {
+  // Supabaseからカテゴリデータを読み込み
+  const loadCategoriesFromSupabase = async (storeId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('product_items')
+      setStoreLoading(true);
+      
+      // 品目カテゴリを読み込み
+      const { data: flowerItems, error: flowerError } = await supabase
+        .from('flower_item_categories')
         .select('*')
-        .eq('store_id', storeId);
+        .eq('store_id', storeId)
+        .eq('is_active', true)
+        .order('display_order');
 
-      if (error) {
-        console.log('商品データの読み込みに失敗（ローカルモードで動作）:', error.message);
-      } else if (data && data.length > 0) {
-        setProductItems(data);
+      if (flowerError) {
+        console.error('品目カテゴリ読み込みエラー:', flowerError);
+      } else {
+        setFlowerItemCategories(flowerItems || []);
+      }
+
+      // 色カテゴリを読み込み
+      const { data: colors, error: colorError } = await supabase
+        .from('color_categories')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('is_active', true)
+        .order('display_order');
+
+      if (colorError) {
+        console.error('色カテゴリ読み込みエラー:', colorError);
+      } else {
+        setColorCategories(colors || []);
       }
     } catch (error) {
-      console.error('商品データ読み込みエラー:', error);
+      console.error('カテゴリデータ読み込みエラー:', error);
+    } finally {
+      setStoreLoading(false);
     }
   };
 
-  // 品目追加（ローカル + Supabase）
-  const addItem = async () => {
-    if (!newItem.name || !newItem.category || !newItem.color) {
-      alert('全ての項目を入力してください');
+  // 品目カテゴリの追加
+  const addFlowerItemCategory = async () => {
+    if (!store) {
+      alert('店舗情報が見つかりません');
       return;
     }
 
-    // 重複チェック
-    const isDuplicate = productItems.some(item => 
-      item.name === newItem.name && item.color === newItem.color
-    );
-
-    if (isDuplicate) {
-      alert('同じ品目・色の組み合わせは既に登録されています');
+    if (flowerItemCategories.length >= 30) {
+      alert('品目カテゴリは最大30個まで登録できます');
       return;
     }
 
-    const item: ProductItem = {
-      id: Date.now().toString(),
-      name: newItem.name,
-      category: newItem.category,
-      color: newItem.color,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    if (!newFlowerItem.name.trim()) {
+      alert('品目名を入力してください');
+      return;
+    }
+
+    const newItem: Omit<FlowerItemCategory, 'id' | 'created_at' | 'updated_at'> = {
+      store_id: store.id,
+      name: newFlowerItem.name.trim(),
+      display_order: flowerItemCategories.length + 1, // 新しいアイテムは最後に追加
+      is_active: true
     };
 
-    // ローカルに追加
-    setProductItems([...productItems, item]);
-    setNewItem({ name: '', category: '', color: '' });
-    setShowAddForm(false);
-
-    // Supabaseにも保存（店舗データがある場合）
-    if (store) {
-      try {
-        const { error } = await supabase
-          .from('product_items')
-          .insert({
-            store_id: store.id,
-            name: item.name,
-            category: item.category,
-            color: item.color,
-            is_active: item.is_active
-          });
+    try {
+      const { data, error } = await supabase
+        .from('flower_item_categories')
+        .insert([newItem])
+        .select()
+        .single();
 
         if (error) {
-          console.error('Supabase保存エラー:', error);
-          alert('品目・色の組み合わせを追加しました（ローカル保存のみ）');
-        } else {
-          alert('品目・色の組み合わせを追加しました（Supabaseにも保存）');
-        }
-      } catch (error) {
-        console.error('Supabase保存エラー:', error);
-        alert('品目・色の組み合わせを追加しました（ローカル保存のみ）');
+        console.error('品目カテゴリ追加エラー:', error);
+        alert('品目カテゴリの追加に失敗しました');
+        return;
       }
-    } else {
-      alert('品目・色の組み合わせを追加しました（ローカル保存）');
+
+      setFlowerItemCategories([...flowerItemCategories, data]);
+      setNewFlowerItem({ name: '', display_order: flowerItemCategories.length + 2 });
+      setShowAddFlowerItem(false);
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+    } catch (error) {
+      console.error('品目カテゴリ追加エラー:', error);
+      alert('品目カテゴリの追加に失敗しました');
     }
   };
 
-  // 品目更新（ローカル + Supabase）
-  const updateItem = async (item: ProductItem) => {
-    if (!item.name || !item.category || !item.color) {
-      alert('全ての項目を入力してください');
+  // 色カテゴリの追加
+  const addColorCategory = async () => {
+    if (!store) {
+      alert('店舗情報が見つかりません');
       return;
     }
 
-    const updatedItems = productItems.map(p => 
-      p.id === item.id ? { ...item, updated_at: new Date().toISOString() } : p
-    );
-    setProductItems(updatedItems);
-    setEditingItem(null);
+    if (colorCategories.length >= 10) {
+      alert('色カテゴリは最大10個まで登録できます');
+      return;
+    }
 
-    // Supabaseにも更新（店舗データがある場合）
-    if (store) {
-      try {
-        const { error } = await supabase
-          .from('product_items')
-          .update({
-            name: item.name,
-            category: item.category,
-            color: item.color,
-            is_active: item.is_active,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.id);
+    if (!newColor.name.trim()) {
+      alert('色名を入力してください');
+      return;
+    }
 
-        if (error) {
-          console.error('Supabase更新エラー:', error);
-          alert('品目・色の組み合わせを更新しました（ローカル保存のみ）');
-        } else {
-          alert('品目・色の組み合わせを更新しました（Supabaseにも保存）');
-        }
-      } catch (error) {
-        console.error('Supabase更新エラー:', error);
-        alert('品目・色の組み合わせを更新しました（ローカル保存のみ）');
+    const newColorItem: Omit<ColorCategory, 'id' | 'created_at' | 'updated_at'> = {
+      store_id: store.id,
+      name: newColor.name.trim(),
+      hex_code: newColor.hex_code,
+      display_order: colorCategories.length + 1, // 新しいカラーは最後に追加
+      is_active: true
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('color_categories')
+        .insert([newColorItem])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('色カテゴリ追加エラー:', error);
+        alert('色カテゴリの追加に失敗しました');
+        return;
       }
-    } else {
-      alert('品目・色の組み合わせを更新しました（ローカル保存）');
+
+      setColorCategories([...colorCategories, data]);
+      setNewColor({ name: '', hex_code: '#000000', display_order: colorCategories.length + 2 });
+      setShowAddColor(false);
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+    } catch (error) {
+      console.error('色カテゴリ追加エラー:', error);
+      alert('色カテゴリの追加に失敗しました');
     }
   };
 
-  // 品目削除（ローカル + Supabase）
-  const deleteItem = async (id: string) => {
-    if (!confirm('この品目・色の組み合わせを削除しますか？')) return;
+  // 品目カテゴリの編集
+  const editFlowerItemCategory = (item: FlowerItemCategory) => {
+    setEditingFlowerItem(item);
+  };
 
-    setProductItems(productItems.filter(p => p.id !== id));
+  // 色カテゴリの編集
+  const editColorCategory = (color: ColorCategory) => {
+    setEditingColor(color);
+  };
 
-    // Supabaseからも削除（店舗データがある場合）
-    if (store) {
+  // 品目カテゴリの保存
+  const saveFlowerItemCategory = async () => {
+    if (!editingFlowerItem) return;
+
+    try {
+      setSaving(true);
+      
+        const { error } = await supabase
+        .from('flower_item_categories')
+          .update({
+          name: editingFlowerItem.name,
+          display_order: editingFlowerItem.display_order // display_orderも更新
+        })
+        .eq('id', editingFlowerItem.id);
+
+        if (error) {
+        console.error('品目カテゴリ更新エラー:', error);
+        alert('品目カテゴリの更新に失敗しました');
+        return;
+      }
+
+      setFlowerItemCategories(flowerItemCategories.map(item =>
+        item.id === editingFlowerItem.id ? editingFlowerItem : item
+      ));
+      setEditingFlowerItem(null);
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+      } catch (error) {
+      console.error('品目カテゴリ更新エラー:', error);
+      alert('品目カテゴリの更新に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 色カテゴリの保存
+  const saveColorCategory = async () => {
+    if (!editingColor) return;
+
+    try {
+      setSaving(true);
+      
+      const { error } = await supabase
+        .from('color_categories')
+        .update({
+          name: editingColor.name,
+          hex_code: editingColor.hex_code,
+          display_order: editingColor.display_order // display_orderも更新
+        })
+        .eq('id', editingColor.id);
+
+      if (error) {
+        console.error('色カテゴリ更新エラー:', error);
+        alert('色カテゴリの更新に失敗しました');
+        return;
+      }
+
+      setColorCategories(colorCategories.map(color =>
+        color.id === editingColor.id ? editingColor : color
+      ));
+      setEditingColor(null);
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+    } catch (error) {
+      console.error('色カテゴリ更新エラー:', error);
+      alert('色カテゴリの更新に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 品目カテゴリの削除
+  const deleteFlowerItemCategory = async (id: string) => {
+    if (!confirm('この品目カテゴリを削除しますか？')) return;
+
       try {
         const { error } = await supabase
-          .from('product_items')
-          .delete()
+        .from('flower_item_categories')
+        .update({ is_active: false })
           .eq('id', id);
 
         if (error) {
-          console.error('Supabase削除エラー:', error);
-          alert('品目・色の組み合わせを削除しました（ローカル保存のみ）');
-        } else {
-          alert('品目・色の組み合わせを削除しました（Supabaseからも削除）');
-        }
-      } catch (error) {
-        console.error('Supabase削除エラー:', error);
-        alert('品目・色の組み合わせを削除しました（ローカル保存のみ）');
+        console.error('品目カテゴリ削除エラー:', error);
+        alert('品目カテゴリの削除に失敗しました');
+        return;
       }
-    } else {
-      alert('品目・色の組み合わせを削除しました（ローカル保存）');
+
+      setFlowerItemCategories(flowerItemCategories.filter(item => item.id !== id));
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+    } catch (error) {
+      console.error('品目カテゴリ削除エラー:', error);
+      alert('品目カテゴリの削除に失敗しました');
     }
   };
 
-  // 品目状態切り替え（ローカル + Supabase）
-  const toggleItemStatus = async (item: ProductItem) => {
-    const updatedItems = productItems.map(p => 
-      p.id === item.id ? { ...p, is_active: !p.is_active, updated_at: new Date().toISOString() } : p
-    );
-    setProductItems(updatedItems);
+  // 色カテゴリの削除
+  const deleteColorCategory = async (id: string) => {
+    if (!confirm('この色カテゴリを削除しますか？')) return;
 
-    // Supabaseにも更新（店舗データがある場合）
-    if (store) {
       try {
         const { error } = await supabase
-          .from('product_items')
-          .update({
-            is_active: !item.is_active,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.id);
+        .from('color_categories')
+        .update({ is_active: false })
+        .eq('id', id);
 
         if (error) {
-          console.error('Supabase状態更新エラー:', error);
-        }
-      } catch (error) {
-        console.error('Supabase状態更新エラー:', error);
+        console.error('色カテゴリ削除エラー:', error);
+        alert('色カテゴリの削除に失敗しました');
+        return;
       }
+
+      setColorCategories(colorCategories.filter(color => color.id !== id));
+      
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+    } catch (error) {
+      console.error('色カテゴリ削除エラー:', error);
+      alert('色カテゴリの削除に失敗しました');
     }
   };
 
-  // 検索・フィルタリング
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
+  // 全データをSupabaseに保存
+  const saveAllData = async () => {
+    if (!store) {
+      alert('店舗情報が見つかりません');
+      return;
+    }
 
-  const filteredItems = productItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || item.category === selectedCategory;
-    const matchesColor = !selectedColor || item.color === selectedColor;
-    
-    return matchesSearch && matchesCategory && matchesColor;
-  });
+    try {
+      setSaving(true);
+      
+      // 品目カテゴリの一括更新
+      for (const item of flowerItemCategories) {
+        if (item.id.startsWith('temp_')) {
+          // 新規アイテムの場合
+          const { error } = await supabase
+            .from('flower_item_categories')
+            .insert({
+              store_id: store.id,
+              name: item.name,
+              display_order: item.display_order, // display_orderも保存
+              is_active: true
+            });
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">ログインが必要です</h2>
-          <p className="text-gray-600 mb-6">品目管理ページにアクセスするにはログインしてください</p>
-        </div>
-      </div>
-    );
-  }
+          if (error) {
+            console.error('品目カテゴリ保存エラー:', error);
+            alert('品目カテゴリの保存に失敗しました');
+            return;
+          }
+        }
+      }
 
+      // 色カテゴリの一括更新
+      for (const color of colorCategories) {
+        if (color.id.startsWith('temp_')) {
+          // 新規カラーの場合
+          const { error } = await supabase
+            .from('color_categories')
+            .insert({
+              store_id: store.id,
+              name: color.name,
+              hex_code: color.hex_code,
+              display_order: color.display_order, // display_orderも保存
+              is_active: true
+            });
+
+          if (error) {
+            console.error('色カテゴリ保存エラー:', error);
+            alert('色カテゴリの保存に失敗しました');
+            return;
+          }
+        }
+      }
+
+      // 保存完了を記録
+      setLastSaved(new Date().toLocaleString());
+      alert('全データが保存されました！');
+      
+      // データを再読み込み
+      await loadCategoriesFromSupabase(store.id);
+    } catch (error) {
+      console.error('全データ保存エラー:', error);
+      alert('データの保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ローディング中
   if (storeLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -328,346 +461,313 @@ const ProductManagement: React.FC = () => {
     );
   }
 
+  // 店舗情報がない場合
+  if (!store) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">🏪</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">店舗情報が見つかりません</h2>
+          <p className="text-gray-600 mb-6">商品管理ページにアクセスするには店舗登録が必要です</p>
+          <button
+            onClick={() => window.location.href = '/store-registration'}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            店舗登録へ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ヘッダー */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">品目・色管理</h1>
-          <p className="mt-2 text-gray-600">会計時の品目入力と色選択をスムーズにするための辞書を管理します</p>
-          
-          {/* 店舗情報の表示 */}
-          {store ? (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                🏪 <strong>店舗: {store.name}</strong> - Supabaseと連携して動作中
-              </p>
-            </div>
-          ) : (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                ⚠️ <strong>店舗データが見つかりません</strong> - ローカルモードで動作中
-              </p>
-              <div className="mt-2">
-                <button
-                  onClick={() => window.location.href = '/store-registration'}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm"
-                >
-                  店舗登録へ
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 検索・フィルター */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">検索・フィルター</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">検索</label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="品目名やカテゴリで検索"
-              />
+              <h1 className="text-3xl font-bold text-white">商品管理</h1>
+              <p className="mt-2 text-pink-100">品目・色の管理でお客様会計を効率化</p>
+              {store && (
+                <p className="mt-1 text-sm text-pink-200">
+                  🏪 店舗: {store.name}
+                </p>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">全て</option>
-                {productCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">色</label>
-              <select
-                value={selectedColor}
-                onChange={(e) => setSelectedColor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">全て</option>
-                {productColors.map(color => (
-                  <option key={color} value={color}>{color}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
+            <div className="flex items-center space-x-3">
               <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedCategory('');
-                  setSelectedColor('');
-                }}
-                className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                onClick={saveAllData}
+                disabled={saving}
+                className="flex items-center px-4 py-2 bg-white text-pink-600 rounded-lg hover:bg-pink-50 disabled:opacity-50 transition-colors"
               >
-                リセット
+                <Database className="w-4 h-4 mr-2" />
+                {saving ? '保存中...' : '全データ保存'}
+              </button>
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center px-4 py-2 text-white hover:text-pink-100 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                戻る
               </button>
             </div>
           </div>
+          
+          {/* 保存状態表示 */}
+          {lastSaved && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                ✅ 最終保存: {lastSaved}
+              </p>
+        </div>
+          )}
         </div>
 
-        {/* 新規品目追加ボタン */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-          >
-            <span className="mr-2">+</span>
-            {showAddForm ? 'フォームを隠す' : '新規品目・色追加'}
-          </button>
-        </div>
-
-        {/* 新規品目追加フォーム */}
-        {showAddForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">新規品目・色追加</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">品目名</label>
-                <input
-                  type="text"
-                  value={newItem.name}
-                  onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例: バラ"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
-                <select
-                  value={newItem.category}
-                  onChange={(e) => setNewItem({...newItem, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">選択してください</option>
-                  {productCategories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">色</label>
-                <select
-                  value={newItem.color}
-                  onChange={(e) => setNewItem({...newItem, color: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">選択してください</option>
-                  {productColors.map(color => (
-                    <option key={color} value={color}>{color}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 品目カテゴリ管理 */}
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                品目カテゴリ管理
+                <span className="ml-2 text-sm text-gray-500">
+                  ({flowerItemCategories.length}/30)
+                </span>
+              </h2>
+              {flowerItemCategories.length < 30 && (
                 <button
-                  onClick={addItem}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  onClick={() => setShowAddFlowerItem(true)}
+                  className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
+                  <Plus className="w-4 h-4 mr-1" />
                   追加
                 </button>
-              </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* 品目一覧 */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              品目・色一覧 ({filteredItems.length}件 / 全{productItems.length}件)
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品目名</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">カテゴリ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">色</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状態</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      品目が見つかりません
-                    </td>
-                  </tr>
-                ) : (
-                  filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingItem?.id === item.id ? (
+            {/* 品目カテゴリリスト */}
+            <div className="space-y-3">
+              {flowerItemCategories.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {editingFlowerItem?.id === item.id ? (
+                    <div className="flex-1 flex items-center space-x-2">
                           <input
                             type="text"
-                            value={editingItem.name}
-                            onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <span className="text-sm font-medium text-gray-900">{item.name}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingItem?.id === item.id ? (
-                          <select
-                            value={editingItem.category}
-                            onChange={(e) => setEditingItem({...editingItem, category: e.target.value})}
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            {productCategories.map(category => (
-                              <option key={category} value={category}>{category}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="text-sm text-gray-900">{item.category}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingItem?.id === item.id ? (
-                          <select
-                            value={editingItem.color}
-                            onChange={(e) => setEditingItem({...editingItem, color: e.target.value})}
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            {productColors.map(color => (
-                              <option key={color} value={color}>{color}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="text-sm text-gray-900">{item.color}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                        value={editingFlowerItem.name}
+                        onChange={(e) => setEditingFlowerItem({...editingFlowerItem, name: e.target.value})}
+                        className="flex-1 px-2 py-1 border rounded"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{item.name}</div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    {editingFlowerItem?.id === item.id ? (
+                      <>
                         <button
-                          onClick={() => toggleItemStatus(item)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            item.is_active
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
+                          onClick={saveFlowerItemCategory}
+                          disabled={saving}
+                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
                         >
-                          {item.is_active ? '有効' : '無効'}
+                          <Save className="w-4 h-4" />
                         </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {editingItem?.id === item.id ? (
+                        <button
+                          onClick={() => setEditingFlowerItem(null)}
+                          className="p-1 text-gray-600 hover:text-gray-800"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => editFlowerItemCategory(item)}
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteFlowerItemCategory(item.id)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 新規追加フォーム */}
+            {showAddFlowerItem && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">新規品目カテゴリ追加</h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={newFlowerItem.name}
+                    onChange={(e) => setNewFlowerItem({...newFlowerItem, name: e.target.value})}
+                    placeholder="品目名"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => updateItem(editingItem)}
-                              className="text-blue-600 hover:text-blue-900"
+                      onClick={addFlowerItemCategory}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                             >
-                              保存
+                      追加
                             </button>
                             <button
-                              onClick={() => setEditingItem(null)}
-                              className="text-gray-600 hover:text-gray-900"
+                      onClick={() => setShowAddFlowerItem(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
                             >
                               キャンセル
                             </button>
                           </div>
-                        ) : (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setEditingItem(item)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              編集
-                            </button>
-                            <button
-                              onClick={() => deleteItem(item.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              削除
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 色カテゴリ管理 */}
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                色カテゴリ管理
+                <span className="ml-2 text-sm text-gray-500">
+                  ({colorCategories.length}/10)
+                </span>
+              </h2>
+              {colorCategories.length < 10 && (
+                <button
+                  onClick={() => setShowAddColor(true)}
+                  className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  追加
+                </button>
+              )}
+            </div>
+
+            {/* 色カテゴリリスト */}
+            <div className="space-y-3">
+              {colorCategories.map((color) => (
+                <div key={color.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {editingColor?.id === color.id ? (
+                    <div className="flex-1 flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={editingColor.name}
+                        onChange={(e) => setEditingColor({...editingColor, name: e.target.value})}
+                        className="flex-1 px-2 py-1 border rounded"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center space-x-3">
+                      <div
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: color.hex_code }}
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{color.name}</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    {editingColor?.id === color.id ? (
+                      <>
+                        <button
+                          onClick={saveColorCategory}
+                          disabled={saving}
+                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                        >
+                          <Save className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditingColor(null)}
+                          className="p-1 text-gray-600 hover:text-gray-800"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => editColorCategory(color)}
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteColorCategory(color.id)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 新規追加フォーム */}
+            {showAddColor && (
+              <div className="mt-6 p-4 bg-purple-50 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">新規色カテゴリ追加</h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={newColor.name}
+                    onChange={(e) => setNewColor({...newColor, name: e.target.value})}
+                    placeholder="色名"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">色:</span>
+                    <input
+                      type="color"
+                      value={newColor.hex_code}
+                      onChange={(e) => setNewColor({...newColor, hex_code: e.target.value})}
+                      className="w-12 h-10 border rounded"
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={addColorCategory}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      追加
+                    </button>
+                    <button
+                      onClick={() => setShowAddColor(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                    >
+                      キャンセル
+                    </button>
+          </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 統計情報 */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">🌺</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">総品目数</p>
-                <p className="text-2xl font-semibold text-gray-900">{productItems.length}</p>
-              </div>
-            </div>
+        {/* 説明 */}
+        <div className="mt-8 bg-blue-50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">このページについて</h3>
+          <div className="text-gray-700 space-y-2">
+            <p>• 品目カテゴリは最大30個まで登録できます</p>
+            <p>• 色カテゴリは最大10個まで登録できます</p>
+            <p>• 登録した品目・色は、お客様会計ページで自動変換の候補として表示されます</p>
+            <p>• 品目名や色名を入力すると、登録済みのデータから自動的に候補が表示されます</p>
+            <p>• データは店舗ごとに管理され、Supabaseに保存されます</p>
+            <p>• 「全データ保存」ボタンで、変更内容を確実に保存できます</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">✅</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">有効品目</p>
-                <p className="text-2xl font-semibold text-gray-900">{productItems.filter(p => p.is_active).length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">🎨</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">カテゴリ数</p>
-                <p className="text-2xl font-semibold text-gray-900">{new Set(productItems.map(p => p.category)).size}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 使用方法の説明 */}
-        <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-2">📖 使用方法</h3>
-          <div className="text-sm text-green-700 space-y-2">
-            <p><strong>1. 品目・色の登録</strong></p>
-            <p>• よく使う花の品目（バラ、アルストロメリアなど）と色（赤、白、ピンクなど）の組み合わせを登録</p>
-            <p>• 最大30種類まで登録可能</p>
-            <p><strong>2. 会計時の使用</strong></p>
-            <p>• 会計画面で品目名を入力すると、登録済みの品目が候補として表示</p>
-            <p>• 色も選択できるので、正確な商品特定が可能</p>
-            <p>• 価格や本数は会計時にその場で入力</p>
-          </div>
-        </div>
-
-        {/* 今後の予定 */}
-        <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-yellow-800 mb-2">🚀 今後の開発予定</h3>
-          <ul className="text-sm text-yellow-700 space-y-1">
-            <li>• 会計画面との連携（品目候補の自動表示）</li>
-            <li>• 品目使用頻度の統計</li>
-            <li>• 季節別品目の管理</li>
-            <li>• データエクスポート機能</li>
-          </ul>
         </div>
       </div>
     </div>
