@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { stripePromise, SUBSCRIPTION_PRODUCTS } from '../lib/stripe';
+import { stripePromise, SUBSCRIPTION_PRODUCTS, TEST_STRIPE_PRICE_ID } from '../lib/stripe';
 import type { SubscriptionStatus, PaymentMethod } from '../lib/stripe';
 
 export class StripeService {
@@ -7,47 +7,76 @@ export class StripeService {
   static async createSubscription(priceId: string, customerEmail: string) {
     try {
       console.log('Stripe Checkout開始:', { priceId, customerEmail });
+      console.log('使用する商品ID:', TEST_STRIPE_PRICE_ID);
       
-      // クライアントサイド統合を使用（Client-only integrationが有効）
+      // クライアントサイド統合を使用
       const stripe = await stripePromise;
       console.log('Stripeインスタンス:', stripe ? '初期化済み' : '未初期化');
       
-      if (stripe) {
-        // テスト用の簡易版（最小限のパラメータ）
-        const checkoutParams = {
-          lineItems: [
-            {
-              price: priceId,
-              quantity: 1,
-            },
-          ],
-          mode: 'subscription',
-          successUrl: `${window.location.origin}/subscription-management?success=true`,
-          cancelUrl: `${window.location.origin}/subscription-management?canceled=true`,
-        };
-        
-        console.log('Checkoutパラメータ:', checkoutParams);
-        
-        const { error } = await stripe.redirectToCheckout(checkoutParams);
-        
-        if (error) {
-          console.error('Stripe Checkoutエラー:', error);
-          throw new Error(error.message);
-        }
-        
-        console.log('Stripe Checkout成功 - リダイレクト中...');
-      } else {
-        throw new Error('Stripeが初期化されていません');
+      if (!stripe) {
+        throw new Error('Stripeが初期化されていません。公開キーを確認してください。');
       }
+
+      // Stripe Checkoutセッションを作成
+      const checkoutParams = {
+        lineItems: [
+          {
+            price: TEST_STRIPE_PRICE_ID, // テスト用の商品IDを使用
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        successUrl: `${window.location.origin}/subscription-management?success=true`,
+        cancelUrl: `${window.location.origin}/subscription-management?canceled=true`,
+        customerEmail: customerEmail,
+        billingAddressCollection: 'required',
+        allowPromotionCodes: true,
+        metadata: {
+          storeId: 'test-store-id', // 後で実際のストアIDに置き換え
+          planType: 'monthly'
+        }
+      };
+      
+      console.log('Checkoutパラメータ:', checkoutParams);
+      
+      const { error } = await stripe.redirectToCheckout(checkoutParams);
+      
+      if (error) {
+        console.error('Stripe Checkoutエラー:', error);
+        console.error('エラー詳細:', {
+          type: error.type,
+          message: error.message,
+          code: error.code
+        });
+        throw new Error(`Stripe Checkoutエラー: ${error.message}`);
+      }
+      
+      console.log('Stripe Checkout成功 - リダイレクト中...');
     } catch (error) {
       console.error('サブスクリプション作成エラー:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw new Error(`サブスクリプション作成に失敗しました: ${error.message}`);
+      } else {
+        throw new Error('サブスクリプション作成に失敗しました');
+      }
     }
   }
 
   // サブスクリプション状態の取得
-  static async getSubscriptionStatus(storeId: string): Promise<SubscriptionStatus | null> {
+  static async getSubscriptionStatus(userEmail: string): Promise<SubscriptionStatus | null> {
     try {
+      // ユーザーのメールアドレスから店舗IDを取得
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (storeError || !storeData) {
+        console.log('店舗が見つかりません:', storeError);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('subscriptions')
         .select(`
@@ -61,7 +90,7 @@ export class StripeService {
           plan_name,
           plan_price
         `)
-        .eq('store_id', storeId)
+        .eq('store_id', storeData.id)
         .single();
 
       if (error) {
@@ -100,8 +129,20 @@ export class StripeService {
   }
 
   // 支払い方法の取得
-  static async getPaymentMethods(storeId: string): Promise<PaymentMethod[]> {
+  static async getPaymentMethods(userEmail: string): Promise<PaymentMethod[]> {
     try {
+      // ユーザーのメールアドレスから店舗IDを取得
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (storeError || !storeData) {
+        console.log('店舗が見つかりません:', storeError);
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('payment_methods')
         .select(`
@@ -112,7 +153,7 @@ export class StripeService {
           card_exp_month,
           card_exp_year
         `)
-        .eq('store_id', storeId);
+        .eq('store_id', storeData.id);
 
       if (error) {
         // テーブルが存在しない場合は空配列を返す（エラーを出さない）
@@ -141,15 +182,26 @@ export class StripeService {
   }
 
   // サブスクリプションキャンセル
-  static async cancelSubscription(storeId: string) {
+  static async cancelSubscription(userEmail: string) {
     try {
+      // ユーザーのメールアドレスから店舗IDを取得
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (storeError || !storeData) {
+        throw new Error('店舗が見つかりません');
+      }
+
       const response = await fetch('/api/cancel-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          storeId,
+          storeId: storeData.id,
         }),
       });
 

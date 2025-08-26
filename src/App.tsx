@@ -16,7 +16,8 @@ const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
 const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
 const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
-const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement').then(module => ({ default: module.SubscriptionManagement })));
+const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
+const StripeTest = React.lazy(() => import('./pages/StripeTest'));
 
 
 // 認証ページ
@@ -55,6 +56,7 @@ function App() {
               <Route path="/signup" element={<SignUpForm />} />
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
+              <Route path="/stripe-test" element={<StripeTest />} />
               
               {/* 保護されたルート */}
             <Route path="/menu" element={

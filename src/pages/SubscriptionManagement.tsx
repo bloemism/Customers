@@ -1,363 +1,250 @@
 import React, { useState, useEffect } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
-import { useSearchParams } from 'react-router-dom';
-import { PageHeader, PageLayout, Card } from '../components/common';
-import { theme } from '../styles/theme';
-import { StripeService } from '../services/stripeService';
-import { SUBSCRIPTION_PRODUCTS } from '../lib/stripe';
-import type { SubscriptionStatus, PaymentMethod } from '../lib/stripe';
-import { 
-  CreditCard, 
-  Calendar, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  Crown,
-  Star,
-  Zap,
-  ArrowRight,
-  RefreshCw,
-  Settings,
-  Shield
-} from 'lucide-react';
+import { SimpleStripeService } from '../services/simpleStripeService';
+import type { EligibilityCheck } from '../services/simpleStripeService';
+import { SUBSCRIPTION_PRODUCTS, AVAILABLE_FEATURES } from '../lib/stripe';
 
-export const SubscriptionManagement: React.FC = () => {
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  planType: 'FLORIST' | 'FLOWER_SCHOOL';
+  eligibilityCheck?: EligibilityCheck;
+}
+
+const SubscriptionManagement: React.FC = () => {
   const { user } = useSimpleAuth();
-  const [searchParams] = useSearchParams();
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [eligibilityChecks, setEligibilityChecks] = useState<{[key: string]: EligibilityCheck}>({});
+
+  // 2つのプランを定義
+  const subscriptionPlans: SubscriptionPlan[] = [
+    {
+      id: SUBSCRIPTION_PRODUCTS.FLORIST.id,
+      name: SUBSCRIPTION_PRODUCTS.FLORIST.name,
+      description: SUBSCRIPTION_PRODUCTS.FLORIST.description,
+      price: SUBSCRIPTION_PRODUCTS.FLORIST.price,
+      planType: 'FLORIST'
+    },
+    {
+      id: SUBSCRIPTION_PRODUCTS.FLOWER_SCHOOL.id,
+      name: SUBSCRIPTION_PRODUCTS.FLOWER_SCHOOL.name,
+      description: SUBSCRIPTION_PRODUCTS.FLOWER_SCHOOL.description,
+      price: SUBSCRIPTION_PRODUCTS.FLOWER_SCHOOL.price,
+      planType: 'FLOWER_SCHOOL'
+    }
+  ];
 
   useEffect(() => {
-    if (user?.email) {
-      loadSubscriptionData();
-    }
+    loadData();
   }, [user]);
 
-  // URLパラメータから成功・キャンセルメッセージを処理
-  useEffect(() => {
-    const success = searchParams.get('success');
-    const canceled = searchParams.get('canceled');
-    const sessionId = searchParams.get('session_id');
-
-    if (success === 'true') {
-      setSuccessMessage('サブスクリプションが正常に開始されました！');
-      // 成功時はデータを再読み込み
-      if (user?.email) {
-        loadSubscriptionData();
-      }
-    } else if (canceled === 'true') {
-      setError('サブスクリプションの開始がキャンセルされました。');
+  const loadData = async () => {
+    if (!user?.email) {
+      console.log('ユーザーが認証されていません');
+      return;
     }
-  }, [searchParams, user]);
 
-  const loadSubscriptionData = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // 店舗IDを取得（emailをキーとして使用）
-      const storeId = user?.email || '';
+      console.log('データ読み込み開始:', user.email);
       
-      const [subscriptionData, paymentMethodsData] = await Promise.all([
-        StripeService.getSubscriptionStatus(storeId),
-        StripeService.getPaymentMethods(storeId)
+      // サブスクリプション状態とペイメントメソッドを取得
+      const [status, methods] = await Promise.all([
+        SimpleStripeService.getSubscriptionStatus(user.email),
+        SimpleStripeService.getPaymentMethods(user.email)
       ]);
 
-      setSubscription(subscriptionData);
-      setPaymentMethods(paymentMethodsData);
-    } catch (err) {
-      console.error('サブスクリプションデータ読み込みエラー:', err);
-      setError('データの読み込みに失敗しました');
+      console.log('取得したデータ:', { status, methods });
+      setSubscriptionStatus(status);
+      setPaymentMethods(methods);
+
+      // 各プランの条件チェックを実行
+      const checks: {[key: string]: EligibilityCheck} = {};
+      
+      for (const plan of subscriptionPlans) {
+        try {
+          if (plan.planType === 'FLORIST') {
+            checks[plan.id] = await SimpleStripeService.checkFloristEligibility(user.email);
+          } else {
+            checks[plan.id] = await SimpleStripeService.checkFlowerSchoolEligibility(user.email);
+          }
+          console.log(`${plan.name}の条件チェック結果:`, checks[plan.id]);
+        } catch (error) {
+          console.error(`${plan.name}の条件チェックエラー:`, error);
+          checks[plan.id] = {
+            isEligible: false,
+            reason: '条件チェック中にエラーが発生しました'
+          };
+        }
+      }
+
+      setEligibilityChecks(checks);
+      console.log('すべての条件チェック完了:', checks);
+    } catch (error) {
+      console.error('データ読み込みエラー:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubscribe = async (planId: string) => {
-    try {
-      setProcessing(true);
-      setError(null);
-
-      const plan = SUBSCRIPTION_PRODUCTS[planId as keyof typeof SUBSCRIPTION_PRODUCTS];
-      if (!plan) {
-        throw new Error('プランが見つかりません');
-      }
-
-      await StripeService.createSubscription(plan.id, user?.email || '');
-    } catch (err) {
-      console.error('サブスクリプション作成エラー:', err);
-      setError('サブスクリプションの作成に失敗しました');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!subscription || !confirm('サブスクリプションをキャンセルしますか？')) {
+  const handleSubscribe = async (planType: 'FLORIST' | 'FLOWER_SCHOOL') => {
+    if (!user?.email) {
+      alert('ログインが必要です');
       return;
     }
 
     try {
-      setProcessing(true);
-      setError(null);
-
-      const storeId = user?.email || '';
-      await StripeService.cancelSubscription(storeId);
-      
-      // データを再読み込み
-      await loadSubscriptionData();
-    } catch (err) {
-      console.error('サブスクリプションキャンセルエラー:', err);
-      setError('サブスクリプションのキャンセルに失敗しました');
-    } finally {
-      setProcessing(false);
+      await SimpleStripeService.createSubscription(user.email, planType);
+    } catch (error) {
+      console.error('サブスクリプション作成エラー:', error);
+      alert(error instanceof Error ? error.message : 'サブスクリプション作成に失敗しました');
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'canceled':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'past_due':
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
-      default:
-        return <AlertCircle className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'アクティブ';
-      case 'canceled':
-        return 'キャンセル済み';
-      case 'past_due':
-        return '支払い遅延';
-      case 'unpaid':
-        return '未払い';
-      default:
-        return '不明';
-    }
-  };
-
-  const getPlanIcon = (planId: string) => {
-    switch (planId) {
-      case 'price_basic_monthly':
-        return <Zap className="h-6 w-6 text-blue-500" />;
-      case 'price_premium_monthly':
-        return <Star className="h-6 w-6 text-yellow-500" />;
-      case 'price_enterprise_monthly':
-        return <Crown className="h-6 w-6 text-purple-500" />;
-      default:
-        return <Shield className="h-6 w-6 text-gray-500" />;
-    }
+  const cancelSubscription = async () => {
+    // TODO: サブスクリプションキャンセル機能を実装
+    console.log('サブスクリプションキャンセル機能は後で実装します');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">読み込み中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      <PageHeader
-        title="サブスクリプション管理"
-        subtitle="月額プランの管理と支払い方法の設定"
-        icon={<CreditCard className="h-6 w-6" />}
-        bgGradient={theme.pageGradients.subscriptionManagement || 'from-blue-500 to-purple-600'}
-      />
-      
-      <PageLayout>
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <p className="text-red-700">{error}</p>
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">サブスクリプション管理</h1>
+          <p className="text-gray-600">プランを選択してサービスを開始してください</p>
+        </div>
 
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-              <p className="text-green-700">{successMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {/* 現在のサブスクリプション状況 */}
-        <Card 
-          title="現在のサブスクリプション"
-          icon={<CreditCard className="h-5 w-5 text-blue-500" />}
-          className="mb-8"
-        >
-          {subscription ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  {getPlanIcon(subscription.planId)}
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{subscription.planName}</h3>
-                    <p className="text-sm text-gray-600">¥{subscription.planPrice.toLocaleString()}/月</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getStatusIcon(subscription.status)}
-                  <span className="text-sm font-medium">{getStatusText(subscription.status)}</span>
-                </div>
+        {/* 現在のサブスクリプション状態 */}
+        {subscriptionStatus && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">現在のサブスクリプション</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">ステータス</p>
+                <p className="font-medium">{subscriptionStatus.status}</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-600">プラン</p>
+                <p className="font-medium">{subscriptionStatus.planName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">開始日</p>
+                <p className="font-medium">{new Date(subscriptionStatus.currentPeriodStart).toLocaleDateString('ja-JP')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">終了日</p>
+                <p className="font-medium">{new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString('ja-JP')}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-700">現在の期間</span>
+        {/* プラン選択 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {subscriptionPlans.map((plan) => {
+            const eligibilityCheck = eligibilityChecks[plan.id];
+            const isEligible = eligibilityCheck?.isEligible ?? false;
+            const planDetails = SUBSCRIPTION_PRODUCTS[plan.planType];
+            
+            return (
+              <div key={plan.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  <p className="text-gray-600 mb-4">{plan.description}</p>
+                  
+                  <div className="text-3xl font-bold text-blue-600 mb-6">
+                    ¥{plan.price.toLocaleString()}
+                    <span className="text-lg font-normal text-gray-500">/月</span>
                   </div>
-                  <p className="text-sm text-blue-600">
-                    {new Date(subscription.currentPeriodStart).toLocaleDateString('ja-JP')} 〜 {new Date(subscription.currentPeriodEnd).toLocaleDateString('ja-JP')}
-                  </p>
-                </div>
 
-                {subscription.cancelAtPeriodEnd && (
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm font-medium text-yellow-700">期間終了時にキャンセル</span>
+                  {/* プラン機能一覧 */}
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">利用可能な機能</h4>
+                    <div className="space-y-2">
+                      {planDetails.features.map((feature) => (
+                        <div key={feature} className="flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                          <span className="text-sm text-gray-700">{AVAILABLE_FEATURES[feature as keyof typeof AVAILABLE_FEATURES]}</span>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-sm text-yellow-600">
-                      {new Date(subscription.currentPeriodEnd).toLocaleDateString('ja-JP')} で終了予定
-                    </p>
                   </div>
-                )}
-              </div>
 
-              {subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
-                <button
-                  onClick={handleCancelSubscription}
-                  disabled={processing}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                >
-                  {processing ? '処理中...' : 'サブスクリプションをキャンセル'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">サブスクリプションがありません</h3>
-              <p className="text-gray-600 mb-6">プランを選択してサブスクリプションを開始してください</p>
-            </div>
-          )}
-        </Card>
-
-        {/* 利用可能なプラン */}
-        <Card 
-          title="87app 月額プラン"
-          icon={<Settings className="h-5 w-5 text-green-500" />}
-          className="mb-8"
-        >
-          <div className="max-w-2xl mx-auto">
-            {Object.entries(SUBSCRIPTION_PRODUCTS).map(([key, plan]) => (
-              <div
-                key={key}
-                className={`p-8 rounded-lg border-2 transition-all ${
-                  subscription?.planId === plan.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3 mb-6">
-                  <Crown className="h-8 w-8 text-purple-500" />
-                  <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
-                </div>
-
-                <div className="mb-6 text-center">
-                  <span className="text-4xl font-bold text-gray-900">¥{plan.price.toLocaleString()}</span>
-                  <span className="text-lg text-gray-600">/月（税込）</span>
-                </div>
-
-                <div className="mb-8">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">含まれる機能</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {plan.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <span className="text-sm text-gray-700">{feature}</span>
+                  {/* 条件チェック結果 */}
+                  {eligibilityCheck && (
+                    <div className={`p-4 rounded-lg mb-4 ${
+                      isEligible ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <div className="flex items-center">
+                        <div className={`w-4 h-4 rounded-full mr-3 ${
+                          isEligible ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <div>
+                          <p className={`font-medium ${
+                            isEligible ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {isEligible ? '条件を満たしています' : '条件を満たしていません'}
+                          </p>
+                          {!isEligible && eligibilityCheck.reason && (
+                            <p className="text-sm text-red-600 mt-1">{eligibilityCheck.reason}</p>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {subscription?.planId === plan.id ? (
-                  <div className="text-center py-3 bg-blue-100 text-blue-700 rounded-lg font-medium text-lg">
-                    現在のプラン
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleSubscribe(key)}
-                    disabled={processing}
-                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2 text-lg font-medium"
-                  >
-                    {processing ? (
-                      <RefreshCw className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <>
-                        <span>プランを開始</span>
-                        <ArrowRight className="h-5 w-5" />
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* 支払い方法 */}
-        <Card 
-          title="支払い方法"
-          icon={<CreditCard className="h-5 w-5 text-purple-500" />}
-        >
-          {paymentMethods.length > 0 ? (
-            <div className="space-y-4">
-              {paymentMethods.map((method) => (
-                <div key={method.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <CreditCard className="h-5 w-5 text-gray-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {method.card.brand} •••• {method.card.last4}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        有効期限: {method.card.expMonth}/{method.card.expYear}
-                      </p>
                     </div>
+                  )}
+
+                  <button
+                    onClick={() => handleSubscribe(plan.planType)}
+                    disabled={!isEligible}
+                    className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                      isEligible
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isEligible ? 'プラン開始' : '条件未達成'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ペイメントメソッド */}
+        {paymentMethods.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">登録済みの支払い方法</h2>
+            <div className="space-y-4">
+              {paymentMethods.map((method, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{method.brand} •••• {method.last4}</p>
+                    <p className="text-sm text-gray-600">有効期限: {method.expMonth}/{method.expYear}</p>
                   </div>
-                  <span className="text-sm text-green-600 font-medium">デフォルト</span>
+                  <span className="text-sm text-gray-500">デフォルト</span>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">支払い方法が登録されていません</p>
-            </div>
-          )}
-        </Card>
-      </PageLayout>
-    </>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
+
+export default SubscriptionManagement;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { PageLayout, Card } from '../components/common';
@@ -20,10 +20,171 @@ import {
   TrendingUp,
   CreditCard
 } from 'lucide-react';
+import { checkFeatureAccess, AVAILABLE_FEATURES } from '../lib/stripe';
+import { supabase } from '../lib/supabase';
+
+// メニュー項目の型定義
+interface MenuItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  color: string;
+  route: string;
+  requiredFeature: keyof typeof AVAILABLE_FEATURES;
+}
 
 export const SimpleMenuScreen: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useSimpleAuth();
+  const [userPlan, setUserPlan] = useState<'FLORIST' | 'FLOWER_SCHOOL' | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // メニュー項目の定義（機能制限付き）
+  const menuItems: MenuItem[] = [
+    {
+      id: 'checkout',
+      title: 'お客様会計',
+      description: '品目自動変換・ポイント管理・QR決済',
+      icon: ShoppingCart,
+      color: 'from-green-500 to-emerald-600',
+      route: '/checkout',
+      requiredFeature: 'CUSTOMER_CHECKOUT'
+    },
+    {
+      id: 'product-management',
+      title: '商品管理',
+      description: '品目・色・価格の管理',
+      icon: Flower,
+      color: 'from-pink-500 to-rose-600',
+      route: '/product-management',
+      requiredFeature: 'PRODUCT_MANAGEMENT'
+    },
+    {
+      id: 'florist-map',
+      title: '全国フローリストマップ',
+      description: 'GPS位置情報で花屋を検索',
+      icon: MapPin,
+      color: 'from-blue-500 to-cyan-600',
+      route: '/florist-map',
+      requiredFeature: 'FLORIST_MAP'
+    },
+    {
+      id: 'customer-management',
+      title: '顧客管理',
+      description: 'お客様データ・ポイント・販売履歴',
+      icon: Users,
+      color: 'from-purple-500 to-indigo-600',
+      route: '/customer-management',
+      requiredFeature: 'CUSTOMER_MANAGEMENT'
+    },
+    {
+      id: 'store-management',
+      title: '店舗データ管理',
+      description: 'GPS位置・店舗情報のカスタマイズ',
+      icon: Store,
+      color: 'from-orange-500 to-red-600',
+      route: '/store-registration',
+      requiredFeature: 'STORE_DATA_MANAGEMENT'
+    },
+    {
+      id: 'flower-lesson-map',
+      title: 'フラワーレッスンマップ',
+      description: 'レッスンスクールの位置情報検索',
+      icon: Map,
+      color: 'from-teal-500 to-green-600',
+      route: '/flower-lesson-map',
+      requiredFeature: 'FLOWER_LESSON_MAP'
+    },
+    {
+      id: 'lesson-school-management',
+      title: 'レッスンスクール管理',
+      description: 'スクール情報・講師・レッスン内容',
+      icon: GraduationCap,
+      color: 'from-violet-500 to-purple-600',
+      route: '/lesson-school-management',
+      requiredFeature: 'LESSON_SCHOOL_MANAGEMENT'
+    },
+    {
+      id: 'lesson-schedule-management',
+      title: 'レッスンスケジュール管理',
+      description: 'レッスン日程・予約・参加者管理',
+      icon: Calendar,
+      color: 'from-amber-500 to-yellow-600',
+      route: '/lesson-schedule-management',
+      requiredFeature: 'LESSON_SCHEDULE_MANAGEMENT'
+    },
+    {
+      id: 'popularity-rankings',
+      title: '人気ランキング',
+      description: '全国の購入データを元にした月次ランキング',
+      icon: TrendingUp,
+      color: 'from-yellow-500 to-orange-600',
+      route: '/popularity-rankings',
+      requiredFeature: 'POPULARITY_RANKINGS'
+    },
+    {
+      id: 'subscription-management',
+      title: 'サブスクリプション管理',
+      description: '月額プランの管理と支払い方法の設定',
+      icon: CreditCard,
+      color: 'from-indigo-500 to-purple-600',
+      route: '/subscription-management',
+      requiredFeature: 'FLORIST_MAP' // 常に表示
+    }
+  ];
+
+  useEffect(() => {
+    // ユーザーのプランを判定（実際のデータベース構造に合わせて修正）
+    const determineUserPlan = async () => {
+      if (!user?.email) return;
+
+      try {
+        console.log('プラン判定開始:', user.email);
+        
+        // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
+        const { data: storeData, error: storeError } = await supabase
+          .from('stores')
+          .select('id, name, email, address, phone')
+          .eq('email', user.email)
+          .single();
+
+        console.log('storesテーブル情報:', storeData, 'エラー:', storeError);
+
+        // スクール情報をチェック
+        const { data: schoolData, error: schoolError } = await supabase
+          .from('lesson_schools')
+          .select('id, name, store_email')
+          .eq('store_email', user.email)
+          .single();
+
+        console.log('lesson_schoolsテーブル情報:', schoolData, 'エラー:', schoolError);
+
+        // プラン判定ロジック（実際のデータに基づく）
+        if (storeData && storeData.id) {
+          // storesテーブルにデータがある場合はフローリストプラン
+          console.log('フローリストプランに設定（storesテーブルにデータあり）');
+          setUserPlan('FLORIST');
+        } else if (schoolData && schoolData.id) {
+          // lesson_schoolsテーブルにデータがある場合はフラワースクールプラン
+          console.log('フラワースクールプランに設定（lesson_schoolsテーブルにデータあり）');
+          setUserPlan('FLOWER_SCHOOL');
+        } else {
+          // どちらにもデータがない場合はデフォルトでフラワースクールプラン
+          console.log('デフォルトでフラワースクールプランに設定（データなし）');
+          setUserPlan('FLOWER_SCHOOL');
+        }
+      } catch (error) {
+        console.error('プラン判定エラー:', error);
+        // エラーの場合はデフォルトでフラワースクールプラン
+        setUserPlan('FLOWER_SCHOOL');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    determineUserPlan();
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -34,88 +195,22 @@ export const SimpleMenuScreen: React.FC = () => {
     }
   };
 
-  const menuItems = [
-    {
-      id: 'checkout',
-      title: 'お客様会計',
-      description: '品目自動変換・ポイント管理・QR決済',
-      icon: ShoppingCart,
-      color: 'from-green-500 to-emerald-600',
-      route: '/checkout'
-    },
-    {
-      id: 'product-management',
-      title: '商品管理',
-      description: '品目・色・価格の管理',
-      icon: Flower,
-      color: 'from-pink-500 to-rose-600',
-      route: '/product-management'
-    },
-    {
-      id: 'florist-map',
-      title: '全国フローリストマップ',
-      description: 'GPS位置情報で花屋を検索',
-      icon: MapPin,
-      color: 'from-blue-500 to-cyan-600',
-      route: '/florist-map'
-    },
-    {
-      id: 'customer-management',
-      title: '顧客管理',
-      description: 'お客様データ・ポイント・販売履歴',
-      icon: Users,
-      color: 'from-purple-500 to-indigo-600',
-      route: '/customer-management'
-    },
-    {
-      id: 'store-management',
-      title: '店舗データ管理',
-      description: 'GPS位置・店舗情報のカスタマイズ',
-      icon: Store,
-      color: 'from-orange-500 to-red-600',
-      route: '/store-registration'
-    },
-    {
-      id: 'flower-lesson-map',
-      title: 'フラワーレッスンマップ',
-      description: '全国のフラワーレッスンスクールを探す',
-      icon: BookOpen,
-      color: 'from-pink-500 to-rose-600',
-      route: '/flower-lesson-map'
-    },
-    {
-      id: 'lesson-school-management',
-      title: 'レッスンスクール管理',
-      description: 'フラワーレッスンスクールの情報を管理',
-      icon: GraduationCap,
-      color: 'from-teal-500 to-cyan-600',
-      route: '/lesson-school-management'
-    },
-    {
-      id: 'lesson-schedule-management',
-      title: 'レッスンスケジュール管理',
-      description: 'レッスンのスケジュールと生徒予約を管理',
-      icon: Calendar,
-      color: 'from-cyan-500 to-blue-600',
-      route: '/lesson-schedule-management'
-    },
-    {
-      id: 'popularity-rankings',
-      title: '人気ランキング',
-      description: '全国の購入データを元にした月次ランキング',
-      icon: TrendingUp,
-      color: 'from-yellow-500 to-orange-600',
-      route: '/popularity-rankings'
-    },
-    {
-      id: 'subscription-management',
-      title: 'サブスクリプション管理',
-      description: '月額プランの管理と支払い方法の設定',
-      icon: CreditCard,
-      color: 'from-indigo-500 to-purple-600',
-      route: '/subscription-management'
-    }
-  ];
+  // ユーザーのプランで利用可能なメニュー項目をフィルタリング
+  const availableMenuItems = menuItems.filter(item => {
+    if (item.id === 'subscription-management') return true; // 常に表示
+    return checkFeatureAccess(userPlan, item.requiredFeature);
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
@@ -124,28 +219,29 @@ export const SimpleMenuScreen: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-gradient-to-r from-pink-400 to-purple-500 rounded-lg flex items-center justify-center">
-                <Flower className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">87app</h1>
-                <p className="text-sm text-gray-500">花屋向け店舗管理システム</p>
-              </div>
+              <Flower className="h-8 w-8 text-pink-500" />
+              <h1 className="text-xl font-bold text-gray-900">87app</h1>
+              {userPlan && (
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  userPlan === 'FLORIST' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {userPlan === 'FLORIST' ? 'フローリスト' : 'フラワースクール'}
+                </span>
+              )}
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {user?.email || 'ユーザー'}
-                </p>
-                <p className="text-xs text-gray-500">店舗管理者</p>
+              <div className="text-sm text-gray-600">
+                {user?.email}
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                title="ログアウト"
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <LogOut className="h-5 w-5" />
+                <span>ログアウト</span>
               </button>
             </div>
           </div>
@@ -153,10 +249,49 @@ export const SimpleMenuScreen: React.FC = () => {
       </div>
 
       {/* メインコンテンツ */}
-      <PageLayout maxWidth="7xl" padding="lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* プラン情報 */}
+        {userPlan && (
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {userPlan === 'FLORIST' ? 'フローリストプラン' : 'フラワースクールプラン'}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {userPlan === 'FLORIST' 
+                ? '全機能が利用可能です（¥5,500/月）'
+                : '一部機能が利用可能です（¥3,300/月）'
+              }
+            </p>
+            
+            {/* デバッグ用プラン切り替え */}
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => setUserPlan('FLORIST')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  userPlan === 'FLORIST'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                フローリストプラン
+              </button>
+              <button
+                onClick={() => setUserPlan('FLOWER_SCHOOL')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  userPlan === 'FLOWER_SCHOOL'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                フラワースクールプラン
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* メニューグリッド */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menuItems.map((item) => {
+          {availableMenuItems.map((item) => {
             const IconComponent = item.icon;
             return (
               <button
@@ -182,61 +317,32 @@ export const SimpleMenuScreen: React.FC = () => {
                   <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
                     {item.description}
                   </p>
-                  
-                  {/* 矢印アイコン */}
-                  <div className="absolute top-6 right-6 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* クイックアクション */}
-        <div className="mt-12">
-          <Card 
-            title="クイックアクション"
-            icon={<Receipt className="h-5 w-5 text-green-500" />}
-            variant="elevated"
-          >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button 
-                onClick={() => navigate('/florist-map')}
-                className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+        {/* プランアップグレード案内 */}
+        {userPlan === 'FLOWER_SCHOOL' && (
+          <div className="mt-12 text-center">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200">
+              <h3 className="text-xl font-bold text-blue-900 mb-4">
+                フローリストプランにアップグレード
+              </h3>
+              <p className="text-blue-700 mb-6">
+                商品管理やお客様会計など、追加機能を利用できます
+              </p>
+              <button
+                onClick={() => navigate('/subscription-management')}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                <Map className="h-6 w-6 text-blue-500 mb-2" />
-                <span className="text-sm text-gray-600">地図表示</span>
-              </button>
-              <button 
-                onClick={() => navigate('/customer-management')}
-                className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-              >
-                <UserCheck className="h-6 w-6 text-purple-500 mb-2" />
-                <span className="text-sm text-gray-600">顧客検索</span>
-              </button>
-              <button 
-                onClick={() => navigate('/product-management')}
-                className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-              >
-                <Flower className="h-6 w-6 text-pink-500 mb-2" />
-                <span className="text-sm text-gray-600">商品管理</span>
-              </button>
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Settings className="h-6 w-6 text-orange-500 mb-2" />
-                <span className="text-sm text-gray-600">設定</span>
+                プラン変更
               </button>
             </div>
-          </Card>
-        </div>
-
-        {/* フッター */}
-        <div className="mt-16 text-center text-sm text-gray-500">
-          <p>© 2024 87app. 花屋向け店舗管理システム</p>
-        </div>
-      </PageLayout>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,37 +1,84 @@
 import { loadStripe } from '@stripe/stripe-js';
 
-// Stripe公開キー（環境変数から取得）
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+// Stripe設定
+export const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Rp9I8QlIIKeUOm9jjn3oygt';
 
-console.log('Stripe公開キー:', stripePublishableKey ? '設定済み' : '未設定');
+// 利用可能な機能の定義
+export const AVAILABLE_FEATURES = {
+  CUSTOMER_CHECKOUT: 'お客様会計',
+  PRODUCT_MANAGEMENT: '商品管理',
+  FLORIST_MAP: '全国フローリストマップ',
+  CUSTOMER_MANAGEMENT: '顧客管理',
+  STORE_DATA_MANAGEMENT: '店舗データ管理',
+  FLOWER_LESSON_MAP: 'フラワーレッスンマップ',
+  LESSON_SCHOOL_MANAGEMENT: 'レッスンスクール管理',
+  LESSON_SCHEDULE_MANAGEMENT: 'レッスンスケジュール管理',
+  POPULARITY_RANKINGS: '人気ランキング'
+} as const;
 
-if (!stripePublishableKey) {
-  console.warn('Stripe公開キーが設定されていません。環境変数 VITE_STRIPE_PUBLISHABLE_KEY を設定してください。');
-}
+export type FeatureKey = keyof typeof AVAILABLE_FEATURES;
 
-// Stripeインスタンスの初期化
-export const stripePromise = loadStripe(stripePublishableKey || '');
-
-// 月額プランの商品ID（定額制）
+// サブスクリプション商品情報
 export const SUBSCRIPTION_PRODUCTS = {
-  MONTHLY: {
-    id: 'price_1Rp9I8QlIIKeUOm9jjn3oygt', // 実際のStripe商品ID
-    name: '87app 月額プラン',
-    price: 5500, // 税込
+  FLORIST: {
+    id: 'prod_florist_registration',
+    name: 'フローリスト登録',
+    description: '花屋としての登録プラン（全機能利用可能）',
+    price: 5500,
+    stripePriceId: 'price_1S0JoVQlIIKeUOm9QZYE0n7M',
+    paymentLink: 'https://buy.stripe.com/dRm4gB7YjdMA6wY4q78Ra01',
     features: [
-      '商品管理（無制限）',
-      '顧客管理（高度な分析）',
-      'QR決済システム',
-      'フラワーレッスン管理',
-      '人気ランキング',
-      '詳細レポート',
-      '店舗マップ掲載',
-      '画像・掲示板・タグ機能',
-      '優先サポート',
-      '顧客決済手数料3%収益'
+      'CUSTOMER_CHECKOUT',
+      'PRODUCT_MANAGEMENT',
+      'FLORIST_MAP',
+      'CUSTOMER_MANAGEMENT',
+      'STORE_DATA_MANAGEMENT',
+      'FLOWER_LESSON_MAP',
+      'LESSON_SCHOOL_MANAGEMENT',
+      'LESSON_SCHEDULE_MANAGEMENT',
+      'POPULARITY_RANKINGS'
+    ] as FeatureKey[]
+  },
+  FLOWER_SCHOOL: {
+    id: 'prod_flower_school_registration',
+    name: 'フラワースクール登録',
+    description: 'フラワースクールとしての登録プラン（一部機能のみ）',
+    price: 3300,
+    stripePriceId: 'price_flower_school',
+    paymentLink: 'https://buy.stripe.com/14A14p0vR9wk3kM09R8Ra03',
+    features: [
+      'FLORIST_MAP',
+      'CUSTOMER_MANAGEMENT',
+      'FLOWER_LESSON_MAP',
+      'LESSON_SCHOOL_MANAGEMENT',
+      'LESSON_SCHEDULE_MANAGEMENT',
+      'POPULARITY_RANKINGS'
     ]
   }
 };
+
+// プラン別の機能制限をチェックする関数
+export const checkFeatureAccess = (
+  userPlan: keyof typeof SUBSCRIPTION_PRODUCTS | null,
+  feature: FeatureKey
+): boolean => {
+  if (!userPlan) return false;
+  
+  const plan = SUBSCRIPTION_PRODUCTS[userPlan];
+  return plan.features.includes(feature);
+};
+
+// テスト用Stripe Price ID
+export const TEST_STRIPE_PRICE_ID = 'price_1S0JoVQlIIKeUOm9QZYE0n7M';
+
+// Stripe商品情報
+export const STRIPE_PRODUCT_INFO = {
+  priceId: 'price_1S0JoVQlIIKeUOm9QZYE0n7M',
+  productId: 'prod_SwCCAXplRDcZly'
+};
+
+// Stripe初期化
+export const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 // 顧客決済手数料設定
 export const CUSTOMER_PAYMENT_FEE = {
