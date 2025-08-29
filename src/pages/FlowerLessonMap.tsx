@@ -62,6 +62,16 @@ const FlowerLessonMap: React.FC = () => {
   // 選択されたスクール
   const [selectedSchool, setSelectedSchool] = useState<LessonSchool | null>(null);
   
+  // 体験予約フォーム
+  const [showReservationForm, setShowReservationForm] = useState(false);
+  const [reservationForm, setReservationForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    preferredDate: '',
+    message: ''
+  });
+  
   // ローディング状態
   const [loading, setLoading] = useState(true);
 
@@ -392,15 +402,169 @@ const FlowerLessonMap: React.FC = () => {
                   閉じる
                 </button>
                 <button
-                  onClick={() => {
-                    // 体験予約ページへの遷移
-                    alert('体験予約機能は開発中です');
-                  }}
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => setShowReservationForm(true)}
+                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
                 >
-                  体験予約
+                  <Mail className="w-4 h-4 mr-2" />
+                  体験予約メール送信
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 体験予約フォームモーダル */}
+        {showReservationForm && selectedSchool && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  体験予約 - {selectedSchool.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowReservationForm(false);
+                    setReservationForm({
+                      name: '',
+                      email: '',
+                      phone: '',
+                      preferredDate: '',
+                      message: ''
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    お名前 *
+                  </label>
+                  <input
+                    type="text"
+                    value={reservationForm.name}
+                    onChange={(e) => setReservationForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    メールアドレス *
+                  </label>
+                  <input
+                    type="email"
+                    value={reservationForm.email}
+                    onChange={(e) => setReservationForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    電話番号
+                  </label>
+                  <input
+                    type="tel"
+                    value={reservationForm.phone}
+                    onChange={(e) => setReservationForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ご希望の日程
+                  </label>
+                  <input
+                    type="text"
+                    value={reservationForm.preferredDate}
+                    onChange={(e) => setReservationForm(prev => ({ ...prev, preferredDate: e.target.value }))}
+                    placeholder="例: 来週の水曜日、土曜日の午後など"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ご質問・ご要望
+                  </label>
+                  <textarea
+                    value={reservationForm.message}
+                    onChange={(e) => setReservationForm(prev => ({ ...prev, message: e.target.value }))}
+                    rows={3}
+                    placeholder="体験レッスンについてのご質問やご要望があればお聞かせください"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReservationForm(false);
+                      setReservationForm({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        preferredDate: '',
+                        message: ''
+                      });
+                    }}
+                    className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!reservationForm.name || !reservationForm.email) {
+                        alert('お名前とメールアドレスは必須です');
+                        return;
+                      }
+
+                      const subject = `体験レッスン予約のお問い合わせ - ${selectedSchool.name}`;
+                      const body = `お世話になっております。
+
+${selectedSchool.name}の体験レッスンについてお問い合わせいたします。
+
+【希望内容】
+・体験レッスンの予約
+・詳細な日程や料金について
+
+【お客様情報】
+・お名前: ${reservationForm.name}
+・メールアドレス: ${reservationForm.email}
+・電話番号: ${reservationForm.phone || '未入力'}
+・ご希望の日程: ${reservationForm.preferredDate || '未指定'}
+・ご質問等: ${reservationForm.message || '特になし'}
+
+よろしくお願いいたします。`;
+
+                      const mailtoUrl = `mailto:${selectedSchool.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                      window.open(mailtoUrl, '_blank');
+                      
+                      setShowReservationForm(false);
+                      setReservationForm({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        preferredDate: '',
+                        message: ''
+                      });
+                    }}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    メール送信
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
