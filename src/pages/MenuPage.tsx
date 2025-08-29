@@ -1,171 +1,201 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useCustomer } from '../contexts/CustomerContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { 
-  Map, 
+  MapPin, 
   BookOpen, 
   Calendar, 
   User, 
   QrCode, 
-  Gift, 
+  LogOut, 
+  Flower,
+  Receipt,
   TrendingUp, 
   CreditCard, 
-  FileText,
-  AlertCircle
+  History
 } from 'lucide-react';
 
-const MenuPage: React.FC = () => {
-  const { customer } = useCustomer();
+export const MenuPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('ログアウトエラー:', error);
+    }
+  };
 
   const menuItems = [
     {
+      id: 'florist-map',
       title: '全国フローリストマップ',
-      description: '全国の花屋を地図で検索',
-      icon: Map,
-      path: '/florist-map',
-      color: 'bg-blue-500 hover:bg-blue-600'
+      description: 'GPS位置情報で花屋を検索',
+      icon: MapPin,
+      color: 'from-blue-500 to-cyan-600',
+      route: '/florist-map'
     },
     {
+      id: 'lesson-map',
       title: 'フラワーレッスンマップ',
-      description: 'フラワースクールを地図で検索',
+      description: '全国のフラワーレッスンスクールを探す',
       icon: BookOpen,
-      path: '/lesson-map',
-      color: 'bg-purple-500 hover:bg-purple-600'
+      color: 'from-pink-500 to-rose-600',
+      route: '/lesson-map'
     },
     {
+      id: 'lesson-schedule',
       title: 'レッスンスケジュール',
-      description: '予約したレッスンの管理',
+      description: 'レッスンの予約・確認',
       icon: Calendar,
-      path: '/lesson-schedule',
-      color: 'bg-green-500 hover:bg-green-600'
+      color: 'from-green-500 to-emerald-600',
+      route: '/lesson-schedule'
     },
     {
+      id: 'profile',
       title: 'マイプロフィール',
-      description: 'プロフィール情報の管理',
+      description: '顧客情報・ポイント確認',
       icon: User,
-      path: '/profile',
-      color: 'bg-indigo-500 hover:bg-indigo-600'
+      color: 'from-purple-500 to-indigo-600',
+      route: '/profile'
     },
     {
-      title: 'マイQRコード',
-      description: 'ポイント情報のQRコード表示',
+      id: 'qr-code',
+      title: 'QRコード・ポイント',
+      description: 'QRコード表示・ポイント残高',
       icon: QrCode,
-      path: '/qr-code',
-      color: 'bg-yellow-500 hover:bg-yellow-600'
+      color: 'from-orange-500 to-red-600',
+      route: '/qr-code'
     },
     {
-      title: 'ポイント履歴',
-      description: 'ポイントの獲得・使用履歴',
-      icon: Gift,
-      path: '/point-history',
-      color: 'bg-pink-500 hover:bg-pink-600'
-    },
-    {
-      title: '人気ランキング',
-      description: '地域別花の人気ランキング',
-      icon: TrendingUp,
-      path: '/ranking',
-      color: 'bg-red-500 hover:bg-red-600'
-    },
-    {
+      id: 'payment',
       title: '決済',
-      description: '店舗QRコード読み取り決済',
+      description: '現金・クレジット決済',
       icon: CreditCard,
-      path: '/payment',
-      color: 'bg-emerald-500 hover:bg-emerald-600'
+      color: 'from-teal-500 to-cyan-600',
+      route: '/payment'
     },
     {
+      id: 'point-history',
+      title: 'ポイント履歴',
+      description: 'ポイント獲得・使用履歴',
+      icon: Receipt,
+      color: 'from-yellow-500 to-orange-600',
+      route: '/point-history'
+    },
+    {
+      id: 'payment-history',
       title: '決済履歴',
-      description: '決済履歴の確認',
-      icon: FileText,
-      path: '/payment-history',
-      color: 'bg-gray-500 hover:bg-gray-600'
+      description: '過去の決済履歴',
+      icon: History,
+      color: 'from-gray-500 to-slate-600',
+      route: '/payment-history'
     },
     {
-      title: '使い方ガイド',
-      description: 'アプリの使い方とルール',
-      icon: FileText,
-      path: '/readme',
-      color: 'bg-teal-500 hover:bg-teal-600'
+      id: 'ranking',
+      title: '人気ランキング',
+      description: '花屋・商品の人気ランキング',
+      icon: TrendingUp,
+      color: 'from-indigo-500 to-purple-600',
+      route: '/ranking'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
         {/* ヘッダー */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">87app</h1>
-          <p className="text-gray-600">花屋顧客向けアプリ</p>
-          
-          {customer && (
-            <div className="mt-4 p-4 bg-white rounded-lg shadow-md">
-              <div className="flex items-center justify-between">
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="h-10 w-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                <Flower className="h-6 w-6 text-white" />
+              </div>
                 <div>
-                  <p className="text-sm text-gray-600">現在のポイント</p>
-                  <p className="text-2xl font-bold text-green-600">{customer.points} pt</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">レベル</p>
-                  <p className="text-xl font-bold text-blue-600">Lv.{customer.level}</p>
-                </div>
+                <h1 className="text-xl font-bold text-gray-900">87app</h1>
+                <p className="text-sm text-gray-500">顧客向けアプリ</p>
               </div>
             </div>
-          )}
+            
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.email || 'ユーザー'}
+                </p>
+                <p className="text-xs text-gray-500">顧客</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                title="ログアウト"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* プロフィール未完了の場合のバナー */}
-          {customer && (!customer.name || !customer.phone || !customer.address) && (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-                <div className="flex-1">
-                  <p className="text-sm text-yellow-800">
-                    プロフィール情報が不完全です。ポイント獲得のため、詳細情報を登録してください。
-                  </p>
-                </div>
-                <Link 
-                  to="/profile" 
-                  className="ml-4 px-3 py-1 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700 transition-colors"
-                >
-                  登録する
-                </Link>
-              </div>
-            </div>
-          )}
+      {/* メインコンテンツ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* タイトル */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900">
+            87app 顧客メニュー
+          </h2>
+          <p className="mt-2 text-gray-600">
+            花屋でのお買い物をより楽しく、便利に
+          </p>
         </div>
 
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menuItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.path}
-              className="group block bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1"
-            >
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className={`p-3 rounded-lg ${item.color} text-white mr-4`}>
-                    <item.icon className="h-6 w-6" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {menuItems.map((item) => {
+            const IconComponent = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.route)}
+                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+              >
+                {/* グラデーション背景 */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                
+                <div className="relative p-8 text-left">
+                  {/* アイコン */}
+                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                    <IconComponent className="h-8 w-8" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
+                  
+                  {/* タイトル */}
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
                     {item.title}
                   </h3>
+                  
+                  {/* 説明 */}
+                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
+                    {item.description}
+                  </p>
+                  
+                  {/* 矢印アイコン */}
+                  <div className="absolute top-6 right-6 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
-                <p className="text-gray-600 text-sm">
-                  {item.description}
-                </p>
-              </div>
-            </Link>
-          ))}
+              </button>
+            );
+          })}
         </div>
 
         {/* フッター */}
-        <div className="mt-12 text-center text-gray-500 text-sm">
-          <p>© 2024 87app. All rights reserved.</p>
+        <div className="mt-16 text-center text-sm text-gray-500">
+          <p>© 2024 87app. 顧客向けアプリケーション</p>
         </div>
       </div>
     </div>
   );
 };
-
-export default MenuPage;

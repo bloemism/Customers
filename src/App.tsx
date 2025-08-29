@@ -1,43 +1,32 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
-import { SimpleAuthGuard } from './components/SimpleAuthGuard';
-import { LoadingSpinner } from './components/LoadingSpinner';
+import { AuthProvider } from './contexts/AuthContext';
+import { CustomerProvider } from './contexts/CustomerContext';
+import { MapProvider } from './contexts/MapContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
-// コード分割: ページコンポーネントを遅延読み込み
-const SimpleMenuScreen = React.lazy(() => import('./pages/SimpleMenuScreen').then(module => ({ default: module.SimpleMenuScreen })));
-const CheckoutScreen = React.lazy(() => import('./pages/CheckoutScreen'));
-const ProductManagement = React.lazy(() => import('./pages/ProductManagement'));
-const CustomerManagement = React.lazy(() => import('./pages/CustomerManagement').then(module => ({ default: module.CustomerManagement })));
-const StoreRegistration = React.lazy(() => import('./pages/StoreRegistration').then(module => ({ default: module.StoreRegistration })));
-const FloristMap = React.lazy(() => import('./pages/FloristMap').then(module => ({ default: module.FloristMap })));
+// 顧客アプリのページコンポーネント
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const RegisterPage = React.lazy(() => import('./pages/RegisterPage'));
+const MenuPage = React.lazy(() => import('./pages/MenuPage'));
+const FloristMap = React.lazy(() => import('./pages/FloristMap'));
 const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
-const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
-const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
-const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
-const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
-const StripeTest = React.lazy(() => import('./pages/StripeTest'));
-
-
-// 認証ページ
-const SimpleLoginForm = React.lazy(() => import('./components/auth/SimpleLoginForm').then(module => ({ default: module.SimpleLoginForm })));
-const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(module => ({ default: module.SignUpForm })));
-
-// その他のページ
-const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
-const Menu = React.lazy(() => import('./pages/Menu').then(module => ({ default: module.Menu })));
-const MenuScreen = React.lazy(() => import('./pages/MenuScreen').then(module => ({ default: module.MenuScreen })));
-const StoreOwnerRegistration = React.lazy(() => import('./pages/StoreOwnerRegistration').then(module => ({ default: module.StoreOwnerRegistration })));
-const CustomerRegistration = React.lazy(() => import('./pages/CustomerRegistration').then(module => ({ default: module.CustomerRegistration })));
-const TestRouting = React.lazy(() => import('./pages/TestRouting').then(module => ({ default: module.TestRouting })));
-const SupabaseTest = React.lazy(() => import('./components/SupabaseTest').then(module => ({ default: module.SupabaseTest })));
+const LessonSchedulePage = React.lazy(() => import('./pages/LessonSchedulePage'));
+const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
+const QRCodePage = React.lazy(() => import('./pages/QRCodePage'));
+const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
+const RankingPage = React.lazy(() => import('./pages/RankingPage'));
+const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
+const PaymentCompletePage = React.lazy(() => import('./pages/PaymentCompletePage'));
+const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
+const ReadmePage = React.lazy(() => import('./pages/ReadmePage'));
 
 // ローディングコンポーネント
 const PageLoader: React.FC = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
     <div className="text-center">
-      <LoadingSpinner />
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
       <p className="mt-4 text-gray-600">読み込み中...</p>
     </div>
   </div>
@@ -45,111 +34,94 @@ const PageLoader: React.FC = () => (
 
 function App() {
   return (
+    <div className="App">
+      <AuthProvider>
+        <CustomerProvider>
+          <MapProvider>
     <Router>
-    <SimpleAuthProvider>
-        <div className="App">
+              <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
           <Suspense fallback={<PageLoader />}>
           <Routes>
-              {/* 公開ルート */}
-              <Route path="/" element={<Home />} />
-            <Route path="/simple-login" element={<SimpleLoginForm />} />
-              <Route path="/signup" element={<SignUpForm />} />
-              <Route path="/test" element={<TestRouting />} />
-              <Route path="/supabase-test" element={<SupabaseTest />} />
-              <Route path="/stripe-test" element={<StripeTest />} />
+                    {/* 認証ページ */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
               
               {/* 保護されたルート */}
-            <Route path="/menu" element={
-              <SimpleAuthGuard>
-                  <SimpleMenuScreen />
-              </SimpleAuthGuard>
-            } />
-            <Route path="/simple-menu" element={
-              <SimpleAuthGuard>
-                <SimpleMenuScreen />
-              </SimpleAuthGuard>
-            } />
-            <Route path="/checkout" element={
-              <SimpleAuthGuard>
-                <CheckoutScreen />
-              </SimpleAuthGuard>
-            } />
-              <Route path="/product-management" element={
-                <SimpleAuthGuard>
-                  <ProductManagement />
-                </SimpleAuthGuard>
-              } />
-            <Route path="/customer-management" element={
-              <SimpleAuthGuard>
-                <CustomerManagement />
-              </SimpleAuthGuard>
-            } />
-              <Route path="/store-registration" element={
-              <SimpleAuthGuard>
-                <StoreRegistration />
-              </SimpleAuthGuard>
-            } />
+                    <Route path="/" element={
+                      <ProtectedRoute>
+                        <MenuPage />
+                      </ProtectedRoute>
+                    } />
+                    
               <Route path="/florist-map" element={
-                <SimpleAuthGuard>
+                      <ProtectedRoute>
                   <FloristMap />
-                </SimpleAuthGuard>
+                      </ProtectedRoute>
               } />
-              <Route path="/flower-lesson-map" element={
-                <SimpleAuthGuard>
+                    
+                    <Route path="/lesson-map" element={
+                      <ProtectedRoute>
                   <FlowerLessonMap />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/lesson-school-management" element={
-                <SimpleAuthGuard>
-                  <LessonSchoolManagement />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/lesson-schedule-management" element={
-                <SimpleAuthGuard>
-                  <LessonScheduleManagement />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/popularity-rankings" element={
-                <SimpleAuthGuard>
-                  <PopularityRankings />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/subscription-management" element={
-                <SimpleAuthGuard>
-                  <SubscriptionManagement />
-                </SimpleAuthGuard>
-              } />
-
-              
-              {/* レガシールート */}
-              <Route path="/old-menu" element={
-                <SimpleAuthGuard>
-                  <Menu />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/menu-screen" element={
-                <SimpleAuthGuard>
-                  <MenuScreen />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/store-owner-registration" element={
-                <SimpleAuthGuard>
-                  <StoreOwnerRegistration />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/customer-registration" element={
-              <SimpleAuthGuard>
-                  <CustomerRegistration />
-              </SimpleAuthGuard>
-            } />
-              
-              {/* デフォルトルート */}
-              <Route path="*" element={<Home />} />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/lesson-schedule" element={
+                      <ProtectedRoute>
+                        <LessonSchedulePage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/profile" element={
+                      <ProtectedRoute>
+                        <CustomerProfilePage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/qr-code" element={
+                      <ProtectedRoute>
+                        <QRCodePage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/point-history" element={
+                      <ProtectedRoute>
+                        <PointHistoryPage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/ranking" element={
+                      <ProtectedRoute>
+                        <RankingPage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/payment" element={
+                      <ProtectedRoute>
+                        <PaymentPage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/payment-complete" element={
+                      <ProtectedRoute>
+                        <PaymentCompletePage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/payment-history" element={
+                      <ProtectedRoute>
+                        <PaymentHistoryPage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/readme" element={<ReadmePage />} />
           </Routes>
           </Suspense>
         </div>
-      </SimpleAuthProvider>
       </Router>
+          </MapProvider>
+        </CustomerProvider>
+      </AuthProvider>
+    </div>
   );
 }
 
