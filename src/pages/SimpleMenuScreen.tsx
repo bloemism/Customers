@@ -151,51 +151,61 @@ export const SimpleMenuScreen: React.FC = () => {
         console.log('=== データベース接続テスト ===');
         
         // storesテーブルの存在確認
+        console.log('storesテーブルクエリ開始...');
         const { data: storesTest, error: storesTestError } = await supabase
           .from('stores')
           .select('*')
           .limit(1);
-        console.log('storesテーブルテスト:', storesTest, 'エラー:', storesTestError);
+        console.log('storesテーブルテスト完了:', storesTest, 'エラー:', storesTestError);
         
         // lesson_schoolsテーブルの存在確認
+        console.log('lesson_schoolsテーブルクエリ開始...');
         const { data: schoolsTest, error: schoolsTestError } = await supabase
           .from('lesson_schools')
           .select('*')
           .limit(1);
-        console.log('lesson_schoolsテーブルテスト:', schoolsTest, 'エラー:', schoolsTestError);
+        console.log('lesson_schoolsテーブルテスト完了:', schoolsTest, 'エラー:', schoolsTestError);
         
         // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
+        console.log('ユーザー固有のstoresテーブルクエリ開始...');
         const { data: storeData, error: storeError } = await supabase
           .from('stores')
           .select('id, name, email, address, phone')
           .eq('email', user.email)
           .single();
 
-        console.log('storesテーブル情報:', storeData, 'エラー:', storeError);
+        console.log('storesテーブル情報取得完了:', storeData, 'エラー:', storeError);
 
         // スクール情報をチェック
+        console.log('ユーザー固有のlesson_schoolsテーブルクエリ開始...');
         const { data: schoolData, error: schoolError } = await supabase
           .from('lesson_schools')
           .select('id, name, store_email')
           .eq('store_email', user.email)
           .single();
 
-        console.log('lesson_schoolsテーブル情報:', schoolData, 'エラー:', schoolError);
+        console.log('lesson_schoolsテーブル情報取得完了:', schoolData, 'エラー:', schoolError);
 
         // プラン判定ロジック（実際のデータに基づく）
+        console.log('プラン判定ロジック開始...');
         if (storeData && storeData.id) {
           // storesテーブルにデータがある場合はフローリストプラン
           console.log('フローリストプランに設定（storesテーブルにデータあり）');
           setUserPlan('FLORIST');
+          console.log('setUserPlan("FLORIST")実行完了');
         } else if (schoolData && schoolData.id) {
           // lesson_schoolsテーブルにデータがある場合はフラワースクールプラン
           console.log('フラワースクールプランに設定（lesson_schoolsテーブルにデータあり）');
           setUserPlan('FLOWER_SCHOOL');
+          console.log('setUserPlan("FLOWER_SCHOOL")実行完了');
         } else {
           // どちらにもデータがない場合はデフォルトでフラワースクールプラン
           console.log('デフォルトでフラワースクールプランに設定（データなし）');
           setUserPlan('FLOWER_SCHOOL');
+          console.log('setUserPlan("FLOWER_SCHOOL")実行完了');
         }
+        
+        console.log('プラン判定ロジック完了');
       } catch (error) {
         console.error('プラン判定エラー:', error);
         // エラーの場合はデフォルトでフラワースクールプラン
