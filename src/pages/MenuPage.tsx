@@ -35,31 +35,8 @@ export const MenuPage: React.FC = () => {
       description: 'GPS位置情報で花屋を検索',
       icon: MapPin,
       color: 'from-blue-500 to-cyan-600',
-      route: '/florist-map'
-    },
-    {
-      id: 'lesson-map',
-      title: 'フラワーレッスンマップ',
-      description: '全国のフラワーレッスンスクールを探す',
-      icon: BookOpen,
-      color: 'from-pink-500 to-rose-600',
-      route: '/lesson-map'
-    },
-    {
-      id: 'lesson-schedule',
-      title: 'レッスンスケジュール',
-      description: 'レッスンの予約・確認',
-      icon: Calendar,
-      color: 'from-green-500 to-emerald-600',
-      route: '/lesson-schedule'
-    },
-    {
-      id: 'profile',
-      title: 'マイプロフィール',
-      description: '顧客情報・ポイント確認',
-      icon: User,
-      color: 'from-purple-500 to-indigo-600',
-      route: '/profile'
+      route: '/florist-map',
+      enabled: true
     },
     {
       id: 'qr-code',
@@ -67,7 +44,8 @@ export const MenuPage: React.FC = () => {
       description: 'QRコード表示・ポイント残高',
       icon: QrCode,
       color: 'from-orange-500 to-red-600',
-      route: '/qr-code'
+      route: '/qr-code',
+      enabled: true
     },
     {
       id: 'payment',
@@ -75,7 +53,35 @@ export const MenuPage: React.FC = () => {
       description: '現金・クレジット決済',
       icon: CreditCard,
       color: 'from-teal-500 to-cyan-600',
-      route: '/payment'
+      route: '/payment',
+      enabled: true
+    },
+    {
+      id: 'lesson-map',
+      title: 'フラワーレッスンマップ',
+      description: '全国のフラワーレッスンスクールを探す',
+      icon: BookOpen,
+      color: 'from-pink-500 to-rose-600',
+      route: '/lesson-map',
+      enabled: false
+    },
+    {
+      id: 'lesson-schedule',
+      title: 'レッスンスケジュール',
+      description: 'レッスンの予約・確認',
+      icon: Calendar,
+      color: 'from-green-500 to-emerald-600',
+      route: '/lesson-schedule',
+      enabled: false
+    },
+    {
+      id: 'profile',
+      title: 'マイプロフィール',
+      description: '顧客情報・ポイント確認',
+      icon: User,
+      color: 'from-purple-500 to-indigo-600',
+      route: '/profile',
+      enabled: false
     },
     {
       id: 'point-history',
@@ -83,7 +89,8 @@ export const MenuPage: React.FC = () => {
       description: 'ポイント獲得・使用履歴',
       icon: Receipt,
       color: 'from-yellow-500 to-orange-600',
-      route: '/point-history'
+      route: '/point-history',
+      enabled: false
     },
     {
       id: 'payment-history',
@@ -91,7 +98,8 @@ export const MenuPage: React.FC = () => {
       description: '過去の決済履歴',
       icon: History,
       color: 'from-gray-500 to-slate-600',
-      route: '/payment-history'
+      route: '/payment-history',
+      enabled: false
     },
     {
       id: 'ranking',
@@ -99,7 +107,8 @@ export const MenuPage: React.FC = () => {
       description: '花屋・商品の人気ランキング',
       icon: TrendingUp,
       color: 'from-indigo-500 to-purple-600',
-      route: '/ranking'
+      route: '/ranking',
+      enabled: false
     }
   ];
 
@@ -157,8 +166,13 @@ export const MenuPage: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                onClick={() => item.enabled ? navigate(item.route) : null}
+                disabled={!item.enabled}
+                className={`group relative bg-white rounded-2xl shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden ${
+                  item.enabled 
+                    ? 'hover:shadow-xl transform hover:-translate-y-1 cursor-pointer' 
+                    : 'opacity-50 cursor-not-allowed'
+                }`}
               >
                 {/* グラデーション背景 */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
@@ -179,8 +193,19 @@ export const MenuPage: React.FC = () => {
                     {item.description}
                   </p>
                   
+                  {/* Coming Soon 表示 */}
+                  {!item.enabled && (
+                    <div className="mt-3 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Coming Soon
+                    </div>
+                  )}
+                  
                   {/* 矢印アイコン */}
-                  <div className="absolute top-6 right-6 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
+                  <div className={`absolute top-6 right-6 transition-colors duration-200 ${
+                    item.enabled 
+                      ? 'text-gray-300 group-hover:text-gray-400' 
+                      : 'text-gray-200'
+                  }`}>
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
