@@ -3,24 +3,25 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CustomerProvider } from './contexts/CustomerContext';
 import { MapProvider } from './contexts/MapContext';
+import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 // 顧客アプリのページコンポーネント
-const LoginPage = React.lazy(() => import('./pages/LoginPage'));
-const RegisterPage = React.lazy(() => import('./pages/RegisterPage'));
-const MenuPage = React.lazy(() => import('./pages/MenuPage'));
-const FloristMap = React.lazy(() => import('./pages/FloristMap'));
-const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
-const LessonSchedulePage = React.lazy(() => import('./pages/LessonSchedulePage'));
-const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
-const QRCodePage = React.lazy(() => import('./pages/QRCodePage'));
-const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
-const RankingPage = React.lazy(() => import('./pages/RankingPage'));
-const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
-const PaymentCompletePage = React.lazy(() => import('./pages/PaymentCompletePage'));
-const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
-const ReadmePage = React.lazy(() => import('./pages/ReadmePage'));
+const SimpleLoginForm = React.lazy(() => import('./components/auth/SimpleLoginForm').then(module => ({ default: module.SimpleLoginForm })));
+const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(module => ({ default: module.SignUpForm })));
+const MenuPage = React.lazy(() => import('./pages/MenuPage').then(module => ({ default: module.MenuPage })));
+const FloristMap = React.lazy(() => import('./pages/FloristMap').then(module => ({ default: module.FloristMap })));
+// const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap').then(module => ({ default: module.FlowerLessonMap })));
+// const LessonSchedulePage = React.lazy(() => import('./pages/LessonSchedulePage'));
+// const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
+const QRCodePage = React.lazy(() => import('./pages/QRCodePage').then(module => ({ default: module.QRCodePage })));
+// const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
+// const RankingPage = React.lazy(() => import('./pages/RankingPage'));
+const PaymentPage = React.lazy(() => import('./pages/PaymentPage').then(module => ({ default: module.PaymentPage })));
+// const PaymentCompletePage = React.lazy(() => import('./pages/PaymentCompletePage'));
+// const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
+// const ReadmePage = React.lazy(() => import('./pages/ReadmePage'));
 
 // ローディングコンポーネント
 const PageLoader: React.FC = () => (
@@ -35,16 +36,17 @@ const PageLoader: React.FC = () => (
 function App() {
   return (
     <div className="App">
-      <AuthProvider>
+              <AuthProvider>
         <CustomerProvider>
-          <MapProvider>
+        <MapProvider>
+        <SimpleAuthProvider>
     <Router>
               <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
           <Suspense fallback={<PageLoader />}>
           <Routes>
                     {/* 認証ページ */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/login" element={<SimpleLoginForm />} />
+                    <Route path="/signup" element={<SignUpForm />} />
               
               {/* 保護されたルート */}
                     <Route path="/" element={
@@ -55,27 +57,27 @@ function App() {
                     
               <Route path="/florist-map" element={
                       <ProtectedRoute>
-                  <FloristMap />
+                        <FloristMap />
                       </ProtectedRoute>
               } />
                     
-                    <Route path="/lesson-map" element={
+                    {/* <Route path="/lesson-map" element={
                       <ProtectedRoute>
-                  <FlowerLessonMap />
+                        <FlowerLessonMap />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
-                    <Route path="/lesson-schedule" element={
+                    {/* <Route path="/lesson-schedule" element={
                       <ProtectedRoute>
                         <LessonSchedulePage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
-                    <Route path="/profile" element={
+                    {/* <Route path="/profile" element={
                       <ProtectedRoute>
                         <CustomerProfilePage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
                     <Route path="/qr-code" element={
                       <ProtectedRoute>
@@ -83,17 +85,17 @@ function App() {
                       </ProtectedRoute>
                     } />
                     
-                    <Route path="/point-history" element={
+                    {/* <Route path="/point-history" element={
                       <ProtectedRoute>
                         <PointHistoryPage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
-                    <Route path="/ranking" element={
+                    {/* <Route path="/ranking" element={
                       <ProtectedRoute>
                         <RankingPage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
                     <Route path="/payment" element={
                       <ProtectedRoute>
@@ -101,23 +103,24 @@ function App() {
                       </ProtectedRoute>
                     } />
                     
-                    <Route path="/payment-complete" element={
+                    {/* <Route path="/payment-complete" element={
                       <ProtectedRoute>
                         <PaymentCompletePage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
-                    <Route path="/payment-history" element={
+                    {/* <Route path="/payment-history" element={
                       <ProtectedRoute>
                         <PaymentHistoryPage />
                       </ProtectedRoute>
-                    } />
+                    } /> */}
                     
-                    <Route path="/readme" element={<ReadmePage />} />
+                    {/* <Route path="/readme" element={<ReadmePage />} /> */}
           </Routes>
           </Suspense>
         </div>
       </Router>
+        </SimpleAuthProvider>
           </MapProvider>
         </CustomerProvider>
       </AuthProvider>

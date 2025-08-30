@@ -60,11 +60,73 @@ export class StoreService {
     try {
       console.log('=== StoreService.getAllStores 開始 ===');
       
-      const { data, error } = await supabase
+      console.log('📍 Supabase接続確認...');
+      console.log('📍 Supabase クライアント状態:', !!supabase);
+      
+      // 環境変数の確認
+      console.log('📍 環境変数確認:');
+      console.log('  - VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('  - VITE_SUPABASE_ANON_KEY設定:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      console.log('  - VITE_SUPABASE_ANON_KEY長さ:', import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0);
+      
+      // 基本的な接続テスト
+      try {
+        console.log('📍 基本的な接続テスト開始...');
+        const { data: testData, error: testError } = await supabase
+          .from('stores')
+          .select('count')
+          .limit(1);
+        
+        console.log('✅ 基本的な接続テスト成功:', { testData, testError });
+      } catch (testErr) {
+        console.error('❌ 基本的な接続テスト失敗:', testErr);
+        throw testErr;
+      }
+      
+      console.log('📍 Supabaseクエリ実行前...');
+      
+      // タイムアウト付きでクエリを実行
+      console.log('📍 シンプルクエリでテスト開始...');
+      
+      // まずシンプルなクエリでテスト
+      const testQueryPromise = supabase
+        .from('stores')
+        .select('count');
+      
+      const testTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('テストクエリタイムアウト（10秒）')), 10000)
+      );
+      
+      try {
+        const { data: testData, error: testError } = await Promise.race([
+          testQueryPromise,
+          testTimeoutPromise
+        ]) as any;
+        
+        console.log('✅ テストクエリ成功:', { testData, testError });
+      } catch (testErr) {
+        console.error('❌ テストクエリ失敗:', testErr);
+        throw testErr;
+      }
+      
+      console.log('📍 本格クエリ開始...');
+      const queryPromise = supabase
         .from('stores')
         .select('*')
         .eq('is_active', true)
         .order('store_name');
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('クエリタイムアウト（30秒）')), 30000)
+      );
+      
+      console.log('📍 クエリ実行中...');
+      const { data, error } = await Promise.race([
+        queryPromise,
+        timeoutPromise
+      ]) as any;
+      
+      console.log('📍 クエリ完了:', { hasData: !!data, hasError: !!error, dataLength: data?.length });
 
       if (error) {
         console.error('Supabaseエラー:', error);
@@ -75,7 +137,7 @@ export class StoreService {
       console.log('データ件数:', data?.length);
       
       if (data && data.length > 0) {
-        data.forEach((store, index) => {
+        data.forEach((store: any, index: number) => {
           console.log(`生データ${index + 1}:`, {
             id: store.id,
             store_name: store.store_name,

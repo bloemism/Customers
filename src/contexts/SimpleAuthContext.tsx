@@ -11,6 +11,7 @@ interface SimpleAuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -43,9 +44,11 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
           };
           setUser(userData);
           localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+          console.log('✅ セッション認証成功:', userData);
         } else {
           setUser(null);
           localStorage.removeItem('simpleAuthUser');
+          console.log('🔓 セッション終了');
         }
         setLoading(false);
       }
@@ -61,6 +64,9 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
         };
         setUser(userData);
         localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        console.log('✅ 初期セッション認証成功:', userData);
+      } else {
+        console.log('🔓 初期セッションなし');
       }
       setLoading(false);
     });
@@ -68,14 +74,49 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  const signUp = async (email: string, password: string, name: string) => {
+    try {
+      console.log('🔧 Supabase新規登録開始:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            name: name
+          }
+        }
+      });
+
+      if (error) {
+        console.error('新規登録エラー:', error);
+        return { error: error.message };
+      }
+
+      if (data.user) {
+        console.log('✅ 新規登録成功:', data.user.email);
+        return { error: undefined };
+      }
+
+      return { error: 'アカウント作成に失敗しました' };
+    } catch (error) {
+      console.error('新規登録エラー:', error);
+      return { error: 'アカウント作成に失敗しました' };
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('🔧 Supabaseログイン開始:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error('ログインエラー:', error);
         return { error: error.message };
       }
 
@@ -87,6 +128,7 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
         };
         setUser(userData);
         localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        console.log('✅ ログイン成功:', userData);
         return { error: undefined };
       }
 
@@ -128,7 +170,7 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   return (
-    <SimpleAuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>
+    <SimpleAuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
       {children}
     </SimpleAuthContext.Provider>
   );

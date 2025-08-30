@@ -118,6 +118,14 @@ export const FloristMap: React.FC = () => {
 
   // Google Maps JavaScript APIキー
   const GOOGLE_MAPS_API_KEY = 'AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g';
+  
+  // デバッグ用：APIキーの値を確認
+  console.log('🔑 GOOGLE_MAPS_API_KEY確認:', {
+    key: GOOGLE_MAPS_API_KEY,
+    hasKey: !!GOOGLE_MAPS_API_KEY,
+    keyLength: GOOGLE_MAPS_API_KEY?.length,
+    keyStartsWith: GOOGLE_MAPS_API_KEY?.startsWith('AIza')
+  });
 
   useEffect(() => {
     loadStores();
@@ -158,8 +166,31 @@ export const FloristMap: React.FC = () => {
     const loadGoogleMapsAPI = () => {
       if (window.google && window.google.maps) {
         console.log('Google Maps API already loaded');
-        if (stores.length > 0) {
-          initializeMap();
+        console.log('🔍 Google Maps API既に読み込み済みの状況:', {
+          storesLength: stores.length,
+          hasMap: !!map,
+          hasMapRef: !!mapRef.current
+        });
+        
+        if (!map) {
+          console.log('🚀 Google Maps API既に読み込み済み - 地図初期化開始');
+          // mapRefの準備状況を確認
+          if (mapRef.current) {
+            console.log('✅ mapRef準備完了 - 地図初期化実行');
+            initializeMap();
+          } else {
+            console.log('⏳ mapRef未準備 - 100ms後に再試行');
+            setTimeout(() => {
+              if (mapRef.current) {
+                console.log('✅ mapRef準備完了（遅延） - 地図初期化実行');
+                initializeMap();
+              } else {
+                console.log('❌ mapRefがまだ準備できていません');
+              }
+            }, 100);
+          }
+        } else {
+          console.log('⏳ Google Maps API既に読み込み済み - Map instance既に存在');
         }
         return;
       }
@@ -176,8 +207,32 @@ export const FloristMap: React.FC = () => {
       script.defer = true;
       script.onload = () => {
         console.log('Google Maps API loaded successfully');
-        if (stores.length > 0) {
-          initializeMap();
+        console.log('🔍 Google Maps API読み込み完了時の状況:', {
+          storesLength: stores.length,
+          hasMap: !!map,
+          hasMapRef: !!mapRef.current
+        });
+        
+        // Google Maps API読み込み完了後、地図を初期化
+        if (!map) {
+          console.log('🚀 Google Maps API読み込み完了 - 地図初期化開始');
+          // mapRefの準備状況を確認
+          if (mapRef.current) {
+            console.log('✅ mapRef準備完了 - 地図初期化実行');
+            initializeMap();
+          } else {
+            console.log('⏳ mapRef未準備 - 100ms後に再試行');
+            setTimeout(() => {
+              if (mapRef.current) {
+                console.log('✅ mapRef準備完了（遅延） - 地図初期化実行');
+                initializeMap();
+              } else {
+                console.log('❌ mapRefがまだ準備できていません');
+              }
+            }, 100);
+          }
+        } else {
+          console.log('⏳ Google Maps API読み込み完了 - Map instance既に存在');
         }
       };
       script.onerror = () => {
@@ -197,9 +252,45 @@ export const FloristMap: React.FC = () => {
     }
   }, [stores.length, map]);
 
+  // mapRefが準備完了後に地図を初期化
+  useEffect(() => {
+    // コンポーネントのマウント完了を待つ
+    const timer = setTimeout(() => {
+      if (mapRef.current && window.google && window.google.maps && !map) {
+        console.log('🚀 mapRef準備完了 - 地図初期化開始');
+        initializeMap();
+      } else {
+        console.log('🔍 mapRef準備状況:', {
+          hasMapRef: !!mapRef.current,
+          hasGoogle: !!window.google,
+          hasGoogleMaps: !!(window.google && window.google.maps),
+          hasMap: !!map
+        });
+      }
+    }, 100); // 100ms待機
+
+    return () => clearTimeout(timer);
+  }, [map]);
+
   // 地図の初期化
   const initializeMap = () => {
-    if (!mapRef.current || !window.google) return;
+    console.log('🚀 initializeMap開始:', {
+      hasMapRef: !!mapRef.current,
+      hasGoogle: !!window.google,
+      hasGoogleMaps: !!(window.google && window.google.maps),
+      mapRefElement: mapRef.current?.tagName,
+      mapRefClassName: mapRef.current?.className
+    });
+    
+    if (!mapRef.current || !window.google) {
+      console.log('❌ initializeMap失敗: 必要な要素が不足');
+      console.log('🔍 詳細:', {
+        mapRefCurrent: mapRef.current,
+        windowGoogle: !!window.google,
+        windowGoogleMaps: !!(window.google && window.google.maps)
+      });
+      return;
+    }
 
     try {
       console.log('Initializing Google Maps...');
@@ -251,9 +342,22 @@ export const FloristMap: React.FC = () => {
         suppressMarkers: true
       }));
       
-      console.log('Map initialization completed');
-    } catch (error) {
-      console.error('Error initializing map:', error);
+      console.log('✅ Map initialization completed');
+      console.log('🗺️ Map instance set successfully:', {
+        mapExists: !!mapInstance,
+        mapType: typeof mapInstance,
+        mapCenter: mapInstance.getCenter?.(),
+        mapZoom: mapInstance.getZoom?.()
+      });
+      
+      // 地図初期化完了後の確認
+      console.log('🎉 地図初期化完了 - 地図表示開始');
+    } catch (error: any) {
+      console.error('❌ Error initializing map:', error);
+      console.error('🔍 エラー詳細:', {
+        message: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -982,7 +1086,7 @@ export const FloristMap: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 地図エリア */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -995,6 +1099,41 @@ export const FloristMap: React.FC = () => {
               </div>
               
               <div className="relative">
+                {(() => {
+                  console.log('🔍 条件付きレンダリング確認:', {
+                    GOOGLE_MAPS_API_KEY,
+                    hasKey: !!GOOGLE_MAPS_API_KEY,
+                    keyLength: GOOGLE_MAPS_API_KEY?.length
+                  });
+                  return null;
+                })()}
+                
+                {/* 強制デバッグ表示 */}
+                <div className="bg-red-100 border border-red-400 text-red-700 p-2 mb-4 rounded">
+                  <strong>デバッグ情報:</strong><br/>
+                  API Key: {GOOGLE_MAPS_API_KEY ? '設定済み' : '未設定'}<br/>
+                  Key Length: {GOOGLE_MAPS_API_KEY?.length || 0}<br/>
+                  Condition: {GOOGLE_MAPS_API_KEY ? 'true' : 'false'}
+                </div>
+                
+                {/* 強制レンダリングテスト */}
+                <div className="bg-blue-100 border border-blue-400 text-blue-700 p-2 mb-4 rounded">
+                  <strong>強制レンダリングテスト:</strong><br/>
+                  mapRef存在: {mapRef.current ? 'Yes' : 'No'}<br/>
+                  mapRef要素: {mapRef.current?.tagName || 'N/A'}<br/>
+                  mapRefクラス: {mapRef.current?.className || 'N/A'}
+                </div>
+                
+                {(() => {
+                  console.log('🎯 条件付きレンダリング詳細:', {
+                    GOOGLE_MAPS_API_KEY,
+                    shouldRender: !!GOOGLE_MAPS_API_KEY,
+                    keyLength: GOOGLE_MAPS_API_KEY?.length,
+                    keyStartsWith: GOOGLE_MAPS_API_KEY?.startsWith('AIza'),
+                    keyEndsWith: GOOGLE_MAPS_API_KEY?.endsWith('4g')
+                  });
+                  return null;
+                })()}
                 {GOOGLE_MAPS_API_KEY ? (
                   <div className="relative">
                     {/* 住所検索バー */}
@@ -1046,6 +1185,14 @@ export const FloristMap: React.FC = () => {
                     </div>
                     
                     {/* 動的なGoogle Maps */}
+                    {(() => {
+                      console.log('🗺️ mapRef要素確認:', {
+                        hasMapRef: !!mapRef.current,
+                        mapRefElement: mapRef.current?.tagName,
+                        mapRefClassName: mapRef.current?.className
+                      });
+                      return null;
+                    })()}
                     <div 
                       ref={mapRef} 
                       className="w-full h-[70vh] sm:h-[600px] md:h-[700px] lg:h-[800px] rounded-lg overflow-hidden bg-gray-100"
@@ -1128,6 +1275,14 @@ export const FloristMap: React.FC = () => {
                   </div>
                 )}
                 
+                {(() => {
+                  console.log('🎯 条件付きレンダリング完了:', {
+                    rendered: !!GOOGLE_MAPS_API_KEY,
+                    mapRefExists: !!mapRef.current
+                  });
+                  return null;
+                })()}
+                
                 {/* 店舗リストオーバーレイ */}
                 <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs z-10">
                   <h3 className="font-semibold text-gray-900 mb-3">店舗一覧</h3>
@@ -1157,8 +1312,8 @@ export const FloristMap: React.FC = () => {
             </div>
           </div>
 
-          {/* 店舗詳細サイドバー */}
-          <div className="lg:col-span-1">
+          {/* 店舗詳細サイドバー（PC用） */}
+          <div className="hidden lg:block lg:col-span-1">
             {selectedStore ? (
               <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
                 <div className="flex items-center justify-between mb-4">
@@ -1474,6 +1629,244 @@ export const FloristMap: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* モバイル用店舗詳細オーバーレイ */}
+      {selectedStore && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto">
+            {/* ヘッダー */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 rounded-t-3xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">店舗詳細</h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={shareStore}
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    title="共有"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedStore(null)}
+                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors duration-200"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* コンテンツ */}
+            <div className="p-4 space-y-6">
+              {/* 店舗画像 */}
+              <div>
+                <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                  <Image className="h-4 w-4 mr-2 text-green-500" />
+                  店舗写真
+                </h5>
+                
+                {/* 画像表示 */}
+                {selectedStore.photos && selectedStore.photos.length > 0 ? (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-2">
+                      表示中: {selectedStore.photos.length}枚 (最大4枚表示)
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedStore.photos.slice(0, 4).map((photo, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-1">
+                          <img
+                            src={photo}
+                            alt={`${selectedStore.store_name}の写真${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                            onError={(e) => console.error('画像読み込みエラー:', photo, e)}
+                            onLoad={() => console.log('画像読み込み成功:', photo)}
+                          />
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            {photo}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 bg-gray-100 p-2 rounded">
+                    画像がありません
+                  </div>
+                )}
+              </div>
+
+              {/* 店舗名 */}
+              <div>
+                <h4 className="text-xl font-bold text-gray-900 mb-2">
+                  {selectedStore.store_name}
+                </h4>
+                <p className="text-gray-600">{selectedStore.address}</p>
+                
+                {/* アクションボタン */}
+                <div className="flex items-center space-x-2 mt-3">
+                  <button
+                    onClick={toggleRoute}
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      showRoute 
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Route className="h-4 w-4" />
+                    <span>{showRoute ? '経路非表示' : '経路表示'}</span>
+                  </button>
+                  
+                  {userLocation && (
+                    <button
+                      onClick={openDirections}
+                      className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors duration-200"
+                    >
+                      <Map className="h-4 w-4" />
+                      <span>経路案内</span>
+                    </button>
+                  )}
+                </div>
+                
+                {/* 距離表示 */}
+                {userLocation && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <Navigation className="h-4 w-4 inline mr-1" />
+                      現在地からの距離: {calculateDistance(userLocation.lat, userLocation.lng, selectedStore.latitude, selectedStore.longitude).toFixed(1)}km
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 連絡先 */}
+              <div className="space-y-3">
+                <h5 className="font-semibold text-gray-900 flex items-center">
+                  <Phone className="h-4 w-4 mr-2 text-green-500" />
+                  連絡先
+                </h5>
+                <div className="space-y-2">
+                  {selectedStore.phone && (
+                    <div className="flex items-center space-x-2">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">{selectedStore.phone}</span>
+                    </div>
+                  )}
+                  {selectedStore.email && (
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">{selectedStore.email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 営業時間 */}
+              {selectedStore.business_hours && (
+                <div>
+                  <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                    営業時間
+                  </h5>
+                  <p className="text-sm text-gray-600">{selectedStore.business_hours}</p>
+                </div>
+              )}
+
+              {/* タグ */}
+              {selectedStore.tags && selectedStore.tags.length > 0 && (
+                <div>
+                  <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                    <Info className="h-4 w-4 mr-2 text-purple-500" />
+                    特徴
+                  </h5>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedStore.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 店舗タイプ */}
+              {selectedStore.business_type && (
+                <div>
+                  <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                    <Flower className="h-4 w-4 mr-2 text-pink-500" />
+                    店舗タイプ
+                  </h5>
+                  <p className="text-sm text-gray-600">{selectedStore.business_type}</p>
+                </div>
+              )}
+
+              {/* 駐車場 */}
+              <div>
+                <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                  <Car className="h-4 w-4 mr-2 text-orange-500" />
+                  駐車場
+                </h5>
+                <p className="text-sm text-gray-600">
+                  {selectedStore.has_parking ? 'あり' : 'なし'}
+                </p>
+              </div>
+
+              {/* リンク */}
+              <div className="space-y-3">
+                <h5 className="font-semibold text-gray-900 flex items-center">
+                  <Globe className="h-4 w-4 mr-2 text-purple-500" />
+                  リンク
+                </h5>
+                <div className="space-y-2">
+                  {selectedStore.website && (
+                    <a
+                      href={selectedStore.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>公式サイト</span>
+                    </a>
+                  )}
+                  {selectedStore.instagram && (
+                    <a
+                      href={selectedStore.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 text-sm text-pink-600 hover:text-pink-800 transition-colors duration-200"
+                    >
+                      <Instagram className="h-4 w-4" />
+                      <span>Instagram</span>
+                    </a>
+                  )}
+                  {selectedStore.online_shop && (
+                    <a
+                      href={selectedStore.online_shop}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 text-sm text-green-600 hover:text-green-800 transition-colors duration-200"
+                    >
+                      <Flower className="h-4 w-4" />
+                      <span>オンラインショップ</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* 説明 */}
+              {selectedStore.description && (
+                <div>
+                  <h5 className="font-semibold text-gray-900 mb-2">店舗説明</h5>
+                  <p className="text-sm text-gray-600">{selectedStore.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

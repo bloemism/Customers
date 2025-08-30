@@ -1,467 +1,210 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Store, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  MapPin, 
-  Phone, 
-  Globe,
-  Upload,
-  ArrowLeft
-} from 'lucide-react';
-
-interface StoreData {
-  name: string;
-  description: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  latitude: number;
-  longitude: number;
-  businessHours: {
-    monday: string;
-    tuesday: string;
-    wednesday: string;
-    thursday: string;
-    friday: string;
-    saturday: string;
-    sunday: string;
-  };
-  specialties: string[];
-  imageUrl: string;
-}
+import { useSimpleAuth } from '../../contexts/SimpleAuthContext';
+import { Mail, Lock, User, LogIn, ArrowLeft } from 'lucide-react';
 
 export const SignUpForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    showPassword: false,
-    showConfirmPassword: false
-  });
-  
-  const [storeData, setStoreData] = useState<StoreData>({
-    name: '',
-    description: '',
-    address: '',
-    phone: '',
-    email: '',
-    website: '',
-    latitude: 0,
-    longitude: 0,
-    businessHours: {
-      monday: '09:00-18:00',
-      tuesday: '09:00-18:00',
-      wednesday: '09:00-18:00',
-      thursday: '09:00-18:00',
-      friday: '09:00-18:00',
-      saturday: '09:00-17:00',
-      sunday: '10:00-16:00'
-    },
-    specialties: [],
-    imageUrl: ''
-  });
-  
-  const [isLoading, setIsLoading] = useState(false);
+  const { signUp, signInWithGoogle } = useSimpleAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const [currentStep, setCurrentStep] = useState(1);
-
-  const specialties = [
-    '花束', 'アレンジメント', '観葉植物', 'ギフト', 'ウェディング', 
-    'イベント装飾', '和風アレンジ', '季節の花', 'プレゼント', 'オフィス装飾'
-  ];
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleStoreDataChange = (field: string, value: any) => {
-    setStoreData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSpecialtyToggle = (specialty: string) => {
-    setStoreData(prev => ({
-      ...prev,
-      specialties: prev.specialties.includes(specialty)
-        ? prev.specialties.filter(s => s !== specialty)
-        : [...prev.specialties, specialty]
-    }));
-  };
+  const [success, setSuccess] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
     setError('');
+    setSuccess('');
 
-    // バリデーション
-    if (formData.password !== formData.confirmPassword) {
+    // パスワード確認
+    if (password !== confirmPassword) {
       setError('パスワードが一致しません');
-      setIsLoading(false);
+      setLoading(false);
       return;
     }
 
-    if (formData.password.length < 6) {
+    // パスワードの長さチェック
+    if (password.length < 6) {
       setError('パスワードは6文字以上で入力してください');
-      setIsLoading(false);
+      setLoading(false);
       return;
     }
 
     try {
-      const result = await signUp(formData.email, formData.password, {
-        ...storeData,
-        userType: 'store_owner',
-        createdAt: new Date().toISOString()
-      });
-      
+      const result = await signUp(email, password, name);
       if (result.error) {
-        setError('アカウント登録に失敗しました。');
+        setError(result.error);
       } else {
-        // 登録成功時はメニュー画面に遷移
-        navigate('/menu');
+        setSuccess('アカウントが作成されました！確認メールをチェックしてください。');
+        // 3秒後にログイン画面にリダイレクト
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
       }
     } catch (error) {
-      setError('アカウント登録中にエラーが発生しました。');
-    }
-    
-    setIsLoading(false);
-  };
-
-  const nextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
+      setError('アカウント作成に失敗しました');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        setError(result.error);
+      }
+    } catch (error) {
+      setError('Googleログインに失敗しました');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
         {/* ヘッダー */}
-        <div className="text-center">
-          <button 
-            onClick={() => navigate('/login')}
-            className="absolute top-4 left-4 p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </button>
-          <Store className="mx-auto h-12 w-12 text-green-600" />
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">店舗アカウント登録</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            花屋の店舗情報を登録して、全国フローリストマップに掲載しましょう
-          </p>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            87app
+          </h1>
+          <p className="text-purple-200">新規アカウント作成</p>
         </div>
 
-        {/* ステップインジケーター */}
-        <div className="flex items-center justify-center space-x-4">
-          {[1, 2, 3].map((step) => (
-            <div key={step} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step <= currentStep 
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-gray-200 text-gray-600'
-              }`}>
-                {step}
-              </div>
-              {step < 3 && (
-                <div className={`w-12 h-1 mx-2 ${
-                  step < currentStep ? 'bg-green-600' : 'bg-gray-200'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
+        {/* 戻るボタン */}
+        <button
+          onClick={() => navigate('/login')}
+          className="absolute top-8 left-8 text-white/80 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="h-6 w-6" />
+        </button>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-              {error}
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
+              <p className="text-red-200 text-sm">{error}</p>
             </div>
           )}
 
-          {/* ステップ1: 基本情報 */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">基本情報</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  店舗名 *
-                </label>
-                <input
-                  type="text"
-                  value={storeData.name}
-                  onChange={(e) => handleStoreDataChange('name', e.target.value)}
-                  className="input-field"
-                  placeholder="花の森 渋谷店"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  店舗説明
-                </label>
-                <textarea
-                  value={storeData.description}
-                  onChange={(e) => handleStoreDataChange('description', e.target.value)}
-                  className="input-field"
-                  rows={3}
-                  placeholder="店舗の特徴やサービスについて説明してください"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  住所 *
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    value={storeData.address}
-                    onChange={(e) => handleStoreDataChange('address', e.target.value)}
-                    className="input-field pl-10"
-                    placeholder="東京都渋谷区渋谷1-1-1"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    電話番号 *
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="tel"
-                      value={storeData.phone}
-                      onChange={(e) => handleStoreDataChange('phone', e.target.value)}
-                      className="input-field pl-10"
-                      placeholder="03-1234-5678"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    メールアドレス *
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="email"
-                      value={storeData.email}
-                      onChange={(e) => handleStoreDataChange('email', e.target.value)}
-                      className="input-field pl-10"
-                      placeholder="info@example.com"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ウェブサイト
-                </label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="url"
-                    value={storeData.website}
-                    onChange={(e) => handleStoreDataChange('website', e.target.value)}
-                    className="input-field pl-10"
-                    placeholder="https://example.com"
-                  />
-                </div>
-              </div>
+          {success && (
+            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3">
+              <p className="text-green-200 text-sm">{success}</p>
             </div>
           )}
 
-          {/* ステップ2: 専門分野 */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">専門分野</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  取り扱い商品・サービス（複数選択可）
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {specialties.map((specialty) => (
-                    <label key={specialty} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={storeData.specialties.includes(specialty)}
-                        onChange={() => handleSpecialtyToggle(specialty)}
-                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                      <span className="text-sm text-gray-700">{specialty}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  店舗画像
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-600">
-                    店舗の外観や商品の写真をアップロードしてください
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="mt-2 hidden"
-                    onChange={(e) => {
-                      // 画像アップロード処理（実装予定）
-                      console.log('Image upload:', e.target.files?.[0]);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="mt-2 btn-secondary"
-                    onClick={() => document.querySelector('input[type="file"]')?.click()}
-                  >
-                    画像を選択
-                  </button>
-                </div>
-              </div>
+          <div className="space-y-4">
+            {/* 名前 */}
+            <div className="relative">
+              <User className="absolute left-3 top-3 text-purple-300" size={20} />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="お名前"
+                className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:border-purple-400"
+                required
+              />
             </div>
-          )}
 
-          {/* ステップ3: アカウント情報 */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">アカウント情報</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  メールアドレス（ログイン用） *
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="input-field pl-10"
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  パスワード *
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type={formData.showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    className="input-field pl-10 pr-10"
-                    placeholder="パスワードを入力"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleInputChange('showPassword', !formData.showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {formData.showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  パスワード確認 *
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type={formData.showConfirmPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    className="input-field pl-10 pr-10"
-                    placeholder="パスワードを再入力"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleInputChange('showConfirmPassword', !formData.showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {formData.showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
+            {/* メールアドレス */}
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 text-purple-300" size={20} />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="メールアドレス"
+                className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:border-purple-400"
+                required
+              />
             </div>
-          )}
 
-          {/* ナビゲーションボタン */}
-          <div className="flex justify-between">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={prevStep}
-                className="btn-secondary"
-              >
-                前へ
-              </button>
-            )}
-            
-            {currentStep < 3 ? (
-              <button
-                type="button"
-                onClick={nextStep}
-                className="btn-primary ml-auto"
-              >
-                次へ
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn-primary ml-auto flex items-center space-x-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : null}
-                <span>アカウント登録</span>
-              </button>
-            )}
+            {/* パスワード */}
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-purple-300" size={20} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="パスワード（6文字以上）"
+                className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:border-purple-400"
+                required
+              />
+            </div>
+
+            {/* パスワード確認 */}
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-purple-300" size={20} />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="パスワード確認"
+                className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:border-purple-400"
+                required
+              />
+            </div>
           </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white py-3 rounded-lg font-medium hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+            ) : (
+              <User className="h-5 w-5 mr-2" />
+            )}
+            {loading ? 'アカウント作成中...' : 'アカウント作成'}
+          </button>
         </form>
 
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            既にアカウントをお持ちの方は{' '}
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/20"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-transparent text-purple-200">または</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className="w-full mt-4 bg-white text-gray-800 py-3 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+          >
+            {googleLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800 mr-2"></div>
+            ) : (
+              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+            )}
+            {googleLoading ? 'Google認証中...' : 'Googleで認証'}
+          </button>
+        </div>
+
+        {/* ログイン画面へのリンク */}
+        <div className="mt-6 text-center">
+          <p className="text-purple-200 text-sm">
+            既にアカウントをお持ちですか？{' '}
             <button
               onClick={() => navigate('/login')}
-              className="text-green-600 hover:text-green-500 font-medium"
+              className="text-white hover:text-purple-300 underline transition-colors"
             >
               ログイン
             </button>

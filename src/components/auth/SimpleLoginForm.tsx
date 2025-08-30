@@ -22,7 +22,7 @@ export const SimpleLoginForm: React.FC = () => {
       if (result.error) {
         setError(result.error);
       } else {
-        navigate('/simple-menu');
+        navigate('/');
       }
     } catch (error) {
       setError('ログインに失敗しました');
@@ -130,6 +130,19 @@ export const SimpleLoginForm: React.FC = () => {
             )}
             {googleLoading ? 'Googleログイン中...' : 'Googleでログイン'}
           </button>
+        </div>
+
+        {/* 新規登録へのリンク */}
+        <div className="mt-6 text-center">
+          <p className="text-purple-200 text-sm">
+            アカウントをお持ちでないですか？{' '}
+            <button
+              onClick={() => navigate('/signup')}
+              className="text-white hover:text-purple-300 underline transition-colors"
+            >
+              新規登録
+            </button>
+          </p>
         </div>
       </div>
     </div>
