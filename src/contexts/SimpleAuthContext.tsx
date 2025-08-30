@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface User {
@@ -31,6 +32,19 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ローカルストレージから認証状態を復元
+    const savedUser = localStorage.getItem('simpleAuthUser');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        console.log('✅ ローカルストレージから認証状態を復元:', userData);
+      } catch (error) {
+        console.error('ローカルストレージ復元エラー:', error);
+        localStorage.removeItem('simpleAuthUser');
+      }
+    }
+
     // Supabaseのセッション状態を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {

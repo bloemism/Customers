@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!user) {
     console.log('❌ ProtectedRoute: 未認証 - ログインページへリダイレクト');
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/simple-login" replace />;
   }
 
   console.log('✅ ProtectedRoute: 認証済み - コンテンツ表示');
