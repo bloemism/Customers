@@ -168,22 +168,60 @@ export const SimpleMenuScreen: React.FC = () => {
         
         // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
         console.log('ユーザー固有のstoresテーブルクエリ開始...');
-        const { data: storeData, error: storeError } = await supabase
-          .from('stores')
-          .select('id, name, email, address, phone')
-          .eq('email', user.email)
-          .single();
-
+        let storeData = null;
+        let storeError = null;
+        
+        try {
+          const storeQueryPromise = supabase
+            .from('stores')
+            .select('id, name, email, address, phone')
+            .eq('email', user.email)
+            .single();
+          
+          const storeQueryTimeout = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('ユーザー固有storesテーブルクエリタイムアウト')), 5000)
+          );
+          
+          const storeQueryResult = await Promise.race([
+            storeQueryPromise,
+            storeQueryTimeout
+          ]);
+          storeData = storeQueryResult.data;
+          storeError = storeQueryResult.error;
+        } catch (storeQueryError) {
+          console.error('ユーザー固有storesテーブルクエリエラー:', storeQueryError);
+          storeError = storeQueryError;
+        }
+        
         console.log('storesテーブル情報取得完了:', storeData, 'エラー:', storeError);
 
         // スクール情報をチェック
         console.log('ユーザー固有のlesson_schoolsテーブルクエリ開始...');
-        const { data: schoolData, error: schoolError } = await supabase
-          .from('lesson_schools')
-          .select('id, name, store_email')
-          .eq('store_email', user.email)
-          .single();
-
+        let schoolData = null;
+        let schoolError = null;
+        
+        try {
+          const schoolQueryPromise = supabase
+            .from('lesson_schools')
+            .select('id, name, store_email')
+            .eq('store_email', user.email)
+            .single();
+          
+          const schoolQueryTimeout = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('ユーザー固有lesson_schoolsテーブルクエリタイムアウト')), 5000)
+          );
+          
+          const schoolQueryResult = await Promise.race([
+            schoolQueryPromise,
+            schoolQueryTimeout
+          ]);
+          schoolData = schoolQueryResult.data;
+          schoolError = schoolQueryResult.error;
+        } catch (schoolQueryError) {
+          console.error('ユーザー固有lesson_schoolsテーブルクエリエラー:', schoolQueryError);
+          schoolError = schoolQueryError;
+        }
+        
         console.log('lesson_schoolsテーブル情報取得完了:', schoolData, 'エラー:', schoolError);
 
         // プラン判定ロジック（実際のデータに基づく）
