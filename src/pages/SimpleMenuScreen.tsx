@@ -141,6 +141,28 @@ export const SimpleMenuScreen: React.FC = () => {
 
       try {
         console.log('プラン判定開始:', user.email);
+        console.log('ユーザー情報詳細:', {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        });
+        
+        // データベース接続テスト開始...
+        console.log('=== データベース接続テスト ===');
+        
+        // storesテーブルの存在確認
+        const { data: storesTest, error: storesTestError } = await supabase
+          .from('stores')
+          .select('*')
+          .limit(1);
+        console.log('storesテーブルテスト:', storesTest, 'エラー:', storesTestError);
+        
+        // lesson_schoolsテーブルの存在確認
+        const { data: schoolsTest, error: schoolsTestError } = await supabase
+          .from('lesson_schools')
+          .select('*')
+          .limit(1);
+        console.log('lesson_schoolsテーブルテスト:', schoolsTest, 'エラー:', schoolsTestError);
         
         // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
         const { data: storeData, error: storeError } = await supabase
