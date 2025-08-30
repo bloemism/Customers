@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
-import { PageLayout, Card } from '../components/common';
-import { theme } from '../styles/theme';
 import { 
   ShoppingCart, 
   MapPin, 
@@ -12,8 +10,6 @@ import {
   Flower,
   Receipt,
   Map,
-  UserCheck,
-  Settings,
   BookOpen,
   Calendar,
   GraduationCap,
@@ -21,7 +17,6 @@ import {
   CreditCard
 } from 'lucide-react';
 import { checkFeatureAccess, AVAILABLE_FEATURES } from '../lib/stripe';
-import { supabase } from '../lib/supabase';
 
 // メニュー項目の型定義
 interface MenuItem {
@@ -130,12 +125,12 @@ export const SimpleMenuScreen: React.FC = () => {
       icon: CreditCard,
       color: 'from-indigo-500 to-purple-600',
       route: '/subscription-management',
-      requiredFeature: 'FLORIST_MAP' // 常に表示
+      requiredFeature: 'CUSTOMER_MANAGEMENT'
     }
   ];
 
+  // ユーザーのプランを判定（緊急修正版）
   useEffect(() => {
-    // ユーザーのプランを判定（実際のデータベース構造に合わせて修正）
     const determineUserPlan = async () => {
       if (!user?.email) return;
 
@@ -147,120 +142,13 @@ export const SimpleMenuScreen: React.FC = () => {
           name: user.name
         });
         
-        // 緊急修正: データベースクエリを一時的に無効化
-        console.log('緊急修正: データベースクエリをスキップしてデフォルトプランを設定');
-        
-        // 強制的にフローリストプランを設定（全機能利用可能）
-        console.log('強制的にフローリストプランを設定');
+        // 緊急修正: 強制的にフローリストプランを設定（全機能利用可能）
+        console.log('緊急修正: フローリストプランを強制設定');
         setUserPlan('FLORIST');
         console.log('setUserPlan("FLORIST")実行完了');
         
-        console.log('緊急修正完了');
-        
-        /* 元のデータベースクエリ（一時的にコメントアウト）
-        // データベース接続テスト開始...
-        console.log('=== データベース接続テスト ===');
-        
-        // storesテーブルの存在確認
-        console.log('storesテーブルクエリ開始...');
-        const { data: storesTest, error: storesTestError } = await supabase
-          .from('stores')
-          .select('*')
-          .limit(1);
-        console.log('storesテーブルテスト完了:', storesTest, 'エラー:', storesTestError);
-        
-        // lesson_schoolsテーブルの存在確認
-        console.log('lesson_schoolsテーブルクエリ開始...');
-        const { data: schoolsTest, error: schoolsTestError } = await supabase
-          .from('lesson_schools')
-          .select('*')
-          .limit(1);
-        console.log('lesson_schoolsテーブルテスト完了:', schoolsTest, 'エラー:', schoolsTestError);
-        
-        // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
-        console.log('ユーザー固有のstoresテーブルクエリ開始...');
-        let storeData = null;
-        let storeError = null;
-        
-        try {
-          const storeQueryPromise = supabase
-            .from('stores')
-            .select('id, name, email, address, phone')
-            .eq('email', user.email)
-            .single();
-          
-          const storeQueryTimeout = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('ユーザー固有storesテーブルクエリタイムアウト')), 5000)
-          );
-          
-          const storeQueryResult = await Promise.race([
-            storeQueryPromise,
-            storeQueryTimeout
-          ]);
-          storeData = storeQueryResult.data;
-          storeError = storeQueryResult.error;
-        } catch (storeQueryError) {
-          console.error('ユーザー固有storesテーブルクエリエラー:', storeQueryError);
-          storeError = storeQueryError;
-        }
-        
-        console.log('storesテーブル情報取得完了:', storeData, 'エラー:', storeError);
-
-        // スクール情報をチェック
-        console.log('ユーザー固有のlesson_schoolsテーブルクエリ開始...');
-        let schoolData = null;
-        let schoolError = null;
-        
-        try {
-          const schoolQueryPromise = supabase
-            .from('lesson_schools')
-            .select('id, name, store_email')
-            .eq('store_email', user.email)
-            .single();
-          
-          const schoolQueryTimeout = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('ユーザー固有lesson_schoolsテーブルクエリタイムアウト')), 5000)
-          );
-          
-          const schoolQueryResult = await Promise.race([
-            schoolQueryPromise,
-            schoolQueryTimeout
-          ]);
-          schoolData = schoolQueryResult.data;
-          schoolError = schoolQueryResult.error;
-        } catch (schoolQueryError) {
-          console.error('ユーザー固有lesson_schoolsテーブルクエリエラー:', schoolQueryError);
-          schoolError = schoolQueryError;
-        }
-        
-        console.log('lesson_schoolsテーブル情報取得完了:', schoolData, 'エラー:', schoolError);
-
-        // プラン判定ロジック（実際のデータに基づく）
-        console.log('プラン判定ロジック開始...');
-        if (storeData && storeData.id) {
-          // storesテーブルにデータがある場合はフローリストプラン
-          console.log('フローリストプランに設定（storesテーブルにデータあり）');
-          setUserPlan('FLORIST');
-          console.log('setUserPlan("FLORIST")実行完了');
-        } else if (schoolData && schoolData.id) {
-          // lesson_schoolsテーブルにデータがある場合はフラワースクールプラン
-          console.log('フラワースクールプランに設定（lesson_schoolsテーブルにデータあり）');
-          setUserPlan('FLOWER_SCHOOL');
-          console.log('setUserPlan("FLOWER_SCHOOL")実行完了');
-        } else {
-          // どちらにもデータがない場合はデフォルトでフラワースクールプラン
-          console.log('デフォルトでフラワースクールプランに設定（データなし）');
-          setUserPlan('FLOWER_SCHOOL');
-          console.log('setUserPlan("FLOWER_SCHOOL")実行完了');
-        }
-        
-        console.log('プラン判定ロジック完了');
-        */
-        
       } catch (error) {
         console.error('プラン判定エラー:', error);
-        // エラーの場合はデフォルトでフローリストプラン
-        console.log('エラーによりデフォルトでフローリストプランを設定');
         setUserPlan('FLORIST');
       } finally {
         setLoading(false);
@@ -283,12 +171,8 @@ export const SimpleMenuScreen: React.FC = () => {
   const availableMenuItems = menuItems.filter(item => {
     if (item.id === 'subscription-management') return true; // 常に表示
     const hasAccess = checkFeatureAccess(userPlan, item.requiredFeature);
-    console.log(`メニュー項目 "${item.title}": プラン=${userPlan}, 機能=${item.requiredFeature}, アクセス=${hasAccess}`);
     return hasAccess;
   });
-
-  console.log('利用可能なメニュー項目数:', availableMenuItems.length);
-  console.log('ユーザープラン:', userPlan);
 
   if (loading) {
     return (
@@ -351,30 +235,6 @@ export const SimpleMenuScreen: React.FC = () => {
                 : '一部機能が利用可能です（¥3,300/月）'
               }
             </p>
-            
-            {/* デバッグ用プラン切り替え */}
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={() => setUserPlan('FLORIST')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  userPlan === 'FLORIST'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                フローリストプラン
-              </button>
-              <button
-                onClick={() => setUserPlan('FLOWER_SCHOOL')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  userPlan === 'FLOWER_SCHOOL'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                フラワースクールプラン
-              </button>
-            </div>
           </div>
         )}
 
@@ -420,33 +280,14 @@ export const SimpleMenuScreen: React.FC = () => {
               <p className="text-gray-600 mb-4">
                 現在のプランでは利用可能な機能がありません。
               </p>
-              <div className="text-sm text-gray-500">
-                <p>ユーザープラン: {userPlan || '未設定'}</p>
-                <p>利用可能なメニュー項目数: {availableMenuItems.length}</p>
-              </div>
             </div>
           </div>
         )}
 
-        {/* プランアップグレード案内 */}
-        {userPlan === 'FLOWER_SCHOOL' && (
-          <div className="mt-12 text-center">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200">
-              <h3 className="text-xl font-bold text-blue-900 mb-4">
-                フローリストプランにアップグレード
-              </h3>
-              <p className="text-blue-700 mb-6">
-                商品管理やお客様会計など、追加機能を利用できます
-              </p>
-              <button
-                onClick={() => navigate('/subscription-management')}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                プラン変更
-              </button>
-            </div>
-          </div>
-        )}
+        {/* フッター */}
+        <div className="mt-16 text-center text-sm text-gray-500">
+          <p>© 2024 87app. 花屋向け店舗管理システム</p>
+        </div>
       </div>
     </div>
   );
