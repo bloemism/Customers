@@ -198,8 +198,13 @@ export const SimpleMenuScreen: React.FC = () => {
   // ユーザーのプランで利用可能なメニュー項目をフィルタリング
   const availableMenuItems = menuItems.filter(item => {
     if (item.id === 'subscription-management') return true; // 常に表示
-    return checkFeatureAccess(userPlan, item.requiredFeature);
+    const hasAccess = checkFeatureAccess(userPlan, item.requiredFeature);
+    console.log(`メニュー項目 "${item.title}": プラン=${userPlan}, 機能=${item.requiredFeature}, アクセス=${hasAccess}`);
+    return hasAccess;
   });
+
+  console.log('利用可能なメニュー項目数:', availableMenuItems.length);
+  console.log('ユーザープラン:', userPlan);
 
   if (loading) {
     return (
@@ -290,38 +295,54 @@ export const SimpleMenuScreen: React.FC = () => {
         )}
 
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {availableMenuItems.map((item) => {
-            const IconComponent = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
-              >
-                {/* グラデーション背景 */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                
-                <div className="relative p-8 text-left">
-                  {/* アイコン */}
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="h-8 w-8" />
+        {availableMenuItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {availableMenuItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.route)}
+                  className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                >
+                  {/* グラデーション背景 */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                  
+                  <div className="relative p-8 text-left">
+                    {/* アイコン */}
+                    <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                      <IconComponent className="h-8 w-8" />
+                    </div>
+                    
+                    {/* タイトル */}
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
+                      {item.title}
+                    </h3>
+                    
+                    {/* 説明 */}
+                    <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
+                      {item.description}
+                    </p>
                   </div>
-                  
-                  {/* タイトル */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
-                    {item.title}
-                  </h3>
-                  
-                  {/* 説明 */}
-                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
-                    {item.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl p-8 border border-gray-200">
+              <Flower className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">メニュー項目が見つかりません</h3>
+              <p className="text-gray-600 mb-4">
+                現在のプランでは利用可能な機能がありません。
+              </p>
+              <div className="text-sm text-gray-500">
+                <p>ユーザープラン: {userPlan || '未設定'}</p>
+                <p>利用可能なメニュー項目数: {availableMenuItems.length}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* プランアップグレード案内 */}
         {userPlan === 'FLOWER_SCHOOL' && (
