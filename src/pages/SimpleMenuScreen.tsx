@@ -147,6 +147,17 @@ export const SimpleMenuScreen: React.FC = () => {
           name: user.name
         });
         
+        // 緊急修正: データベースクエリを一時的に無効化
+        console.log('緊急修正: データベースクエリをスキップしてデフォルトプランを設定');
+        
+        // 強制的にフローリストプランを設定（全機能利用可能）
+        console.log('強制的にフローリストプランを設定');
+        setUserPlan('FLORIST');
+        console.log('setUserPlan("FLORIST")実行完了');
+        
+        console.log('緊急修正完了');
+        
+        /* 元のデータベースクエリ（一時的にコメントアウト）
         // データベース接続テスト開始...
         console.log('=== データベース接続テスト ===');
         
@@ -244,10 +255,13 @@ export const SimpleMenuScreen: React.FC = () => {
         }
         
         console.log('プラン判定ロジック完了');
+        */
+        
       } catch (error) {
         console.error('プラン判定エラー:', error);
-        // エラーの場合はデフォルトでフラワースクールプラン
-        setUserPlan('FLOWER_SCHOOL');
+        // エラーの場合はデフォルトでフローリストプラン
+        console.log('エラーによりデフォルトでフローリストプランを設定');
+        setUserPlan('FLORIST');
       } finally {
         setLoading(false);
       }
