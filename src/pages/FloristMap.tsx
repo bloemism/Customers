@@ -451,12 +451,7 @@ export const FloristMap: React.FC = () => {
         <div style="background: rgba(255, 255, 255, 0.8); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ced4da; backdrop-filter: blur(5px);">
           <h4 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 14px; font-weight: 600; border-bottom: 2px solid #3498db; padding-bottom: 4px;">店舗情報</h4>
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${store.phone ? `
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #5f6368; font-size: 12px;">📞</span>
-                <a href="tel:${store.phone}" style="color: #1a73e8; text-decoration: none; font-size: 12px; font-weight: 500;">${store.phone}</a>
-              </div>
-            ` : ''}
+
             ${store.business_hours ? `
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="color: #5f6368; font-size: 12px;">🕒</span>
