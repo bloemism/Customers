@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface User {
@@ -11,6 +11,7 @@ interface SimpleAuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -97,6 +98,35 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const signUp = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            email,
+          },
+        },
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      // ユーザー登録成功
+      if (data.user) {
+        return { error: undefined };
+      }
+
+      return { error: 'ユーザー登録に失敗しました' };
+    } catch (error) {
+      console.error('ユーザー登録エラー:', error);
+      return { error: 'ユーザー登録に失敗しました' };
+    }
+  };
+
   const signInWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -128,7 +158,7 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   return (
-    <SimpleAuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>
+    <SimpleAuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
       {children}
     </SimpleAuthContext.Provider>
   );

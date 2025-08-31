@@ -447,11 +447,7 @@ const CheckoutScreen: React.FC = () => {
     }
   };
 
-  // Stripe決済（開発中）
-  const handleStripePayment = () => {
-    alert('Stripe決済は開発中です。');
-    // 実際のStripe決済ロジックをここに実装
-  };
+
 
   // 伝票全体のQRコード生成
   const generateReceiptQRCode = async () => {
@@ -613,8 +609,8 @@ const CheckoutScreen: React.FC = () => {
           <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">品目追加</h2>
 
-            {/* 品目・色選択 */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* 品目・色選択（モバイル対応・縦並び） */}
+            <div className="space-y-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   品目 <span className="text-red-500">*</span>
@@ -622,9 +618,9 @@ const CheckoutScreen: React.FC = () => {
                 <select
                   value={newItem.flower_item_category_id}
                   onChange={(e) => setNewItem(prev => ({ ...prev, flower_item_category_id: e.target.value }))}
-                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 >
-                  <option value="">選択</option>
+                  <option value="">選択してください</option>
                   {flowerItemCategories.map(item => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -640,59 +636,61 @@ const CheckoutScreen: React.FC = () => {
                 <select
                   value={newItem.color_category_id}
                   onChange={(e) => setNewItem(prev => ({ ...prev, color_category_id: e.target.value }))}
-                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 >
-                  <option value="">選択</option>
+                  <option value="">選択してください</option>
                   {colorCategories.map(color => (
                     <option key={color.id} value={color.id}>
                       {color.name}
                     </option>
                   ))}
                 </select>
-                    </div>
-                </div>
+              </div>
+            </div>
 
-            {/* 数量・単価入力（横並び） */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
+            {/* 数量・単価・ポイント入力（モバイル対応・縦並び） */}
+            <div className="space-y-4 mb-4">
+              {/* 数量入力 */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   数量 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={newItem.quantity || ''}
                     placeholder="数量"
-                    className={`flex-1 px-2 py-2 border rounded-lg text-sm ${
+                    className={`flex-1 px-3 py-3 border rounded-lg text-base ${
                       selectedField === 'quantity'
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
                     }`}
                     readOnly
                   />
-                    <button
+                  <button
                     onClick={() => setSelectedField('quantity')}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                    className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
                       selectedField === 'quantity'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
                     設定
-                    </button>
-                  </div>
+                  </button>
                 </div>
+              </div>
 
-                <div>
+              {/* 単価入力 */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   単価 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={newItem.unit_price || ''}
                     placeholder="単価"
-                    className={`flex-1 px-2 py-2 border rounded-lg text-sm ${
+                    className={`flex-1 px-3 py-3 border rounded-lg text-base ${
                       selectedField === 'price'
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
@@ -701,7 +699,7 @@ const CheckoutScreen: React.FC = () => {
                   />
                   <button
                     onClick={() => setSelectedField('price')}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                    className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
                       selectedField === 'price'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -711,19 +709,19 @@ const CheckoutScreen: React.FC = () => {
                   </button>
                 </div>
               </div>
-                </div>
+            </div>
 
             {/* ポイント入力 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 使用ポイント
               </label>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={pointsToUse || ''}
                   placeholder="使用ポイント"
-                  className={`flex-1 px-2 py-2 border rounded-lg text-sm ${
+                  className={`flex-1 px-3 py-3 border rounded-lg text-base ${
                     selectedField === 'points'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
@@ -732,7 +730,7 @@ const CheckoutScreen: React.FC = () => {
                 />
                 <button
                   onClick={() => setSelectedField('points')}
-                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                  className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
                     selectedField === 'points'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -743,21 +741,21 @@ const CheckoutScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* コンパクトな電卓 */}
+            {/* モバイル対応電卓 */}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 電卓
               </label>
-              <div className="bg-gray-100 p-3 rounded-lg">
-                <div className="bg-white p-2 rounded border mb-2 text-right text-sm font-mono">
+              <div className="bg-gray-100 p-4 rounded-lg">
+                <div className="bg-white p-3 rounded border mb-3 text-right text-base font-mono">
                   {calculatorValue || '0'}
                 </div>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-2">
                   {[7, 8, 9, 4, 5, 6, 1, 2, 3, 0, '00', '='].map((value) => (
                     <button
                       key={value}
                       onClick={() => handleCalculatorClick(value.toString())}
-                      className={`p-2 rounded text-sm font-medium ${
+                      className={`p-3 rounded text-base font-medium ${
                         typeof value === 'number'
                           ? 'bg-white hover:bg-gray-50 text-gray-900'
                           : value === '='
@@ -769,19 +767,22 @@ const CheckoutScreen: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                <div className="mt-2">
+                <div className="mt-3">
                   <button
                     onClick={() => setCalculatorValue('')}
-                    className="w-full py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
+                    className="w-full py-3 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
                   >
                     クリア (C)
                   </button>
-          </div>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  1. 設定したい場所の「設定」ボタンを押す<br/>
-                  2. 電卓で数字を入力<br/>
-                  3. 「確定」ボタンを押す
-                </p>
+                </div>
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800 text-center leading-relaxed">
+                    <strong>使い方:</strong><br/>
+                    1. 設定したい場所の「設定」ボタンを押す<br/>
+                    2. 電卓で数字を入力<br/>
+                    3. 「確定」ボタンを押す
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -951,13 +952,7 @@ const CheckoutScreen: React.FC = () => {
                   クレジットカード URL生成
                         </button>
                 
-                            <button
-                  onClick={() => handleStripePayment()}
-                  className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center text-sm"
-                            >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Stripe決済（開発中）
-                            </button>
+
               </div>
             </div>
                       </div>

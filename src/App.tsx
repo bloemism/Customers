@@ -17,11 +17,13 @@ const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolMana
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
 const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
 const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
+const ReadmePage = React.lazy(() => import('./pages/ReadmePage').then(module => ({ default: module.ReadmePage })));
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
 
 
 // 認証ページ
 const SimpleLoginForm = React.lazy(() => import('./components/auth/SimpleLoginForm').then(module => ({ default: module.SimpleLoginForm })));
+const SimpleSignUpForm = React.lazy(() => import('./components/auth/SimpleSignUpForm').then(module => ({ default: module.SimpleSignUpForm })));
 const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(module => ({ default: module.SignUpForm })));
 
 // その他のページ
@@ -52,7 +54,8 @@ function App() {
           <Routes>
               {/* 公開ルート */}
               <Route path="/" element={<Home />} />
-            <Route path="/simple-login" element={<SimpleLoginForm />} />
+                          <Route path="/simple-login" element={<SimpleLoginForm />} />
+              <Route path="/simple-signup" element={<SimpleSignUpForm />} />
               <Route path="/signup" element={<SignUpForm />} />
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
@@ -117,6 +120,11 @@ function App() {
               <Route path="/subscription-management" element={
                 <SimpleAuthGuard>
                   <SubscriptionManagement />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/readme" element={
+                <SimpleAuthGuard>
+                  <ReadmePage />
                 </SimpleAuthGuard>
               } />
 

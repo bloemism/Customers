@@ -293,7 +293,7 @@ export const FloristMap: React.FC = () => {
       id: store.id,
       store_name: store.store_name || '',
       owner_name: '', // 必要に応じて設定
-      address: store.address,
+      address: '', // 住所は表示しない
       latitude: store.latitude,
       longitude: store.longitude,
       phone: store.phone || null,
@@ -370,7 +370,7 @@ export const FloristMap: React.FC = () => {
           // InfoWindowを作成
           const infoWindow = new window.google.maps.InfoWindow({
             content: infoWindowContent,
-            maxWidth: 300
+            maxWidth: 250
           });
 
           // マーカークリック時にInfoWindowを開く
@@ -405,11 +405,10 @@ export const FloristMap: React.FC = () => {
   // InfoWindowのコンテンツを作成
   const createInfoWindowContent = (store: Store) => {
     return `
-      <div style="padding: 16px; max-width: 380px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
+      <div style="padding: 12px; max-width: 250px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
         <!-- ヘッダー部分 -->
         <div style="margin-bottom: 16px;">
           <h3 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 18px; font-weight: 600; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${store.store_name}</h3>
-          <p style="margin: 0 0 4px 0; color: #495057; font-size: 14px; line-height: 1.3; font-weight: 500;">${store.address}</p>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="color: #6c757d; font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.7); padding: 2px 6px; border-radius: 4px;">${store.business_type || '花屋'}</span>
           </div>
@@ -1128,29 +1127,39 @@ export const FloristMap: React.FC = () => {
                   </div>
                 )}
                 
-                {/* 店舗リストオーバーレイ */}
-                <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs z-10">
-                  <h3 className="font-semibold text-gray-900 mb-3">店舗一覧</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {stores.map((store, index) => (
-                      <button
-                        key={store.id}
-                        onClick={() => handleStoreSelect(store)}
-                        className={`w-full text-left p-2 rounded-lg transition-colors duration-200 ${
-                          selectedStore?.id === store.id
-                            ? 'bg-pink-100 text-pink-700'
-                            : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-3 h-3 rounded-full ${
-                            selectedStore?.id === store.id ? 'bg-red-500' : 'bg-blue-500'
-                          }`}></div>
-                          <span className="text-sm font-medium">{store.store_name}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">{store.address}</p>
-                      </button>
-                    ))}
+                {/* 店舗リストオーバーレイ（屋号のみ・横長表示・モバイル対応） */}
+                <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white rounded-lg shadow-lg p-2 sm:p-3 max-w-[280px] sm:max-w-sm z-10">
+                  <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">店舗一覧</h3>
+                  <div className="space-y-1 sm:space-y-2 max-h-32 sm:max-h-48 overflow-y-auto">
+                    {stores.map((store, index) => {
+                      // 様々な色のパレット
+                      const colors = [
+                        'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 
+                        'bg-indigo-500', 'bg-teal-500', 'bg-orange-500', 'bg-red-500',
+                        'bg-yellow-500', 'bg-emerald-500', 'bg-cyan-500', 'bg-rose-500'
+                      ];
+                      const colorIndex = index % colors.length;
+                      const bgColor = colors[colorIndex];
+                      
+                      return (
+                        <button
+                          key={store.id}
+                          onClick={() => handleStoreSelect(store)}
+                          className={`w-full text-left p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
+                            selectedStore?.id === store.id
+                              ? 'ring-2 ring-pink-400 shadow-md transform scale-105'
+                              : 'hover:shadow-sm hover:scale-102'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-1.5 sm:space-x-2">
+                            <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${bgColor}`}></div>
+                            <span className="text-xs font-medium text-gray-800 truncate leading-tight">
+                              {store.store_name}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1225,7 +1234,6 @@ export const FloristMap: React.FC = () => {
                     <h4 className="text-xl font-bold text-gray-900 mb-2">
                       {selectedStore.store_name}
                     </h4>
-                    <p className="text-gray-600">{selectedStore.address}</p>
                     
                     {/* アクションボタン */}
                     <div className="flex items-center space-x-2 mt-3">

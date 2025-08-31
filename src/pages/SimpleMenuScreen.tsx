@@ -131,6 +131,15 @@ export const SimpleMenuScreen: React.FC = () => {
       color: 'from-indigo-500 to-purple-600',
       route: '/subscription-management',
       requiredFeature: 'FLORIST_MAP' // 常に表示
+    },
+    {
+      id: 'readme',
+      title: 'Read me',
+      description: '使い方・システム詳細・利用規約',
+      icon: BookOpen,
+      color: 'from-gray-500 to-slate-600',
+      route: '/readme',
+      requiredFeature: 'FLORIST_MAP' // 常に表示
     }
   ];
 

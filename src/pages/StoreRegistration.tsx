@@ -69,6 +69,20 @@ interface StoreTag {
   created_at: string;
 }
 
+// 銀行口座情報の型定義
+interface BankAccount {
+  id: string;
+  store_id: string;
+  bank_name: string;
+  branch_name: string;
+  account_type: string; // '普通' | '当座'
+  account_number: string;
+  account_holder: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // フォームデータの型定義
 interface StoreFormData {
   store_name: string; // nameではなくstore_name
@@ -77,9 +91,16 @@ interface StoreFormData {
   email: string; // メールアドレス
   website: string; // ウェブサイト
   instagram: string; // Instagram
+  online_shop: string; // オンラインショップ
   business_hours: string; // 営業時間
   parking: boolean; // 駐車場
   description: string; // 店舗説明
+  // 銀行口座情報
+  bank_name: string;
+  branch_name: string;
+  account_type: string;
+  account_number: string;
+  account_holder: string;
 }
 
 export const StoreRegistration: React.FC = () => {
@@ -113,15 +134,22 @@ export const StoreRegistration: React.FC = () => {
     email: '',
     website: '',
     instagram: '',
+    online_shop: '',
     business_hours: '',
     parking: false,
-    description: ''
+    description: '',
+    // 銀行口座情報
+    bank_name: '',
+    branch_name: '',
+    account_type: '普通',
+    account_number: '',
+    account_holder: ''
   });
 
   // 既存の店舗情報を読み込み
   useEffect(() => {
     if (user) {
-    loadExistingStore();
+      loadExistingStore();
       loadAvailableTags();
     }
   }, [user]);
@@ -158,15 +186,23 @@ export const StoreRegistration: React.FC = () => {
           email: stores.email || user.email || '',
           website: stores.website || '',
           instagram: stores.instagram || '',
+          online_shop: stores.online_shop || '',
           business_hours: stores.business_hours || '',
           parking: stores.parking || false,
-          description: stores.description || ''
+          description: stores.description || '',
+          // 銀行口座情報（既存データがない場合は空文字）
+          bank_name: stores.bank_name || '',
+          branch_name: stores.branch_name || '',
+          account_type: stores.account_type || '普通',
+          account_number: stores.account_number || '',
+          account_holder: stores.account_holder || ''
         });
 
-        // 店舗画像、掲示板、タグを読み込み
+        // 店舗画像、掲示板、タグ、銀行口座情報を読み込み
         await loadStoreImages(stores.id);
         await loadStoreBulletins(stores.id);
         await loadStoreTags(stores.id);
+        await loadBankAccountInfo(stores.id);
       }
     } catch (err) {
       console.error('店舗情報読み込みエラー:', err);
@@ -315,6 +351,56 @@ export const StoreRegistration: React.FC = () => {
     }
   };
 
+  // 銀行口座情報を読み込み
+  const loadBankAccountInfo = async (storeId: string) => {
+    try {
+      console.log('銀行口座情報読み込み開始:', storeId);
+      
+      const { data, error } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('card_type', 'bank_account')
+        .eq('is_active', true)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // データが見つからない場合（新規作成時）
+          console.log('銀行口座情報が見つかりません（新規作成時）');
+          return;
+        }
+        console.error('銀行口座情報読み込みエラー:', error);
+        return;
+      }
+
+      console.log('銀行口座情報読み込み成功:', data);
+      
+      // フォームデータに銀行口座情報を設定
+      // credit_cardsテーブルのデータをフォームフィールドにマッピング
+      const updatedFormData = {
+        bank_name: data.bank_name || '',
+        branch_name: data.branch_name || '',
+        account_type: data.account_type || '普通',
+        account_number: data.account_number || '',
+        account_holder: data.card_holder_name || '' // card_holder_nameフィールドを使用
+      };
+      
+      console.log('更新する銀行口座情報:', updatedFormData);
+      
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          ...updatedFormData
+        };
+        console.log('更新後のフォームデータ:', newFormData);
+        return newFormData;
+      });
+    } catch (err) {
+      console.error('銀行口座情報読み込みエラー:', err);
+    }
+  };
+
   const handleInputChange = (field: keyof StoreFormData, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
@@ -339,6 +425,23 @@ export const StoreRegistration: React.FC = () => {
     }
     if (!formData.email.trim()) {
       setError('メールアドレスを入力してください');
+      return false;
+    }
+    // 銀行口座情報の必須チェック
+    if (!formData.bank_name.trim()) {
+      setError('銀行名を入力してください');
+      return false;
+    }
+    if (!formData.branch_name.trim()) {
+      setError('支店名を入力してください');
+      return false;
+    }
+    if (!formData.account_number.trim()) {
+      setError('口座番号を入力してください');
+      return false;
+    }
+    if (!formData.account_holder.trim()) {
+      setError('口座名義を入力してください');
       return false;
     }
     return true;
@@ -366,6 +469,7 @@ export const StoreRegistration: React.FC = () => {
           email: formData.email,
           website: formData.website || null,
           instagram: formData.instagram || null,
+          online_shop: formData.online_shop || null,
           business_hours: formData.business_hours || null,
           description: formData.description || null,
           updated_at: new Date().toISOString()
@@ -393,6 +497,9 @@ export const StoreRegistration: React.FC = () => {
         setExistingStore(updatedStore);
         setSuccess('店舗情報を更新しました');
         
+        // 銀行口座情報をcredit_cardsテーブルに保存
+        await saveBankAccountInfo(existingStore.id);
+        
         // タグも更新
         await updateStoreTags(existingStore.id);
       } else {
@@ -406,6 +513,7 @@ export const StoreRegistration: React.FC = () => {
           email: formData.email,
           website: formData.website || null,
           instagram: formData.instagram || null,
+          online_shop: formData.online_shop || null,
           business_hours: formData.business_hours || null,
           description: formData.description || null,
           is_active: true
@@ -431,6 +539,9 @@ export const StoreRegistration: React.FC = () => {
         console.log('店舗作成成功:', data);
         setExistingStore(data);
         setSuccess('店舗を登録しました');
+        
+        // 銀行口座情報をcredit_cardsテーブルに保存
+        await saveBankAccountInfo(data.id);
         
         // 新規作成時はタグを更新
         await updateStoreTags(data.id);
@@ -494,6 +605,68 @@ export const StoreRegistration: React.FC = () => {
       }
     } catch (err) {
       console.error('タグ更新エラー:', err);
+    }
+  };
+
+  // 銀行口座情報をcredit_cardsテーブルに保存
+  const saveBankAccountInfo = async (storeId: string) => {
+    try {
+      console.log('銀行口座情報保存開始:', storeId);
+      
+      // 既存の銀行口座情報を確認
+      const { data: existingCards, error: selectError } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('is_active', true);
+
+      if (selectError) {
+        console.error('銀行口座情報確認エラー:', selectError);
+        return;
+      }
+
+      // 既存のカードを無効化
+      if (existingCards && existingCards.length > 0) {
+        const { error: updateError } = await supabase
+          .from('credit_cards')
+          .update({ is_active: false })
+          .eq('store_id', storeId);
+
+        if (updateError) {
+          console.error('既存カード無効化エラー:', updateError);
+        }
+      }
+
+      // 新しい銀行口座情報を追加
+      const bankAccountData = {
+        store_id: storeId,
+        card_type: 'bank_account', // 銀行口座として識別
+        last_four_digits: formData.account_number.slice(-4), // 口座番号の最後4桁
+        expiry_month: 12, // 銀行口座なので有効期限は設定しない
+        expiry_year: 2099, // 銀行口座なので有効期限は設定しない
+        card_holder_name: formData.account_holder,
+        // 銀行口座の詳細情報を追加
+        bank_name: formData.bank_name,
+        branch_name: formData.branch_name,
+        account_number: formData.account_number,
+        account_type: formData.account_type,
+        is_default: true,
+        is_active: true
+      };
+
+      const { error: insertError } = await supabase
+        .from('credit_cards')
+        .insert([bankAccountData]);
+
+      if (insertError) {
+        console.error('銀行口座情報保存エラー:', insertError);
+        setError('銀行口座情報の保存に失敗しました');
+      } else {
+        console.log('銀行口座情報保存成功');
+      }
+    } catch (err) {
+      console.error('銀行口座情報保存エラー:', err);
+      setError('銀行口座情報の保存に失敗しました');
     }
   };
 
@@ -808,6 +981,19 @@ export const StoreRegistration: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  オンラインショップ
+                </label>
+                <input
+                  type="url"
+                  value={formData.online_shop}
+                  onChange={(e) => handleInputChange('online_shop', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/shop..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   営業時間
                 </label>
                 <input
@@ -855,6 +1041,85 @@ export const StoreRegistration: React.FC = () => {
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="店舗の特徴やサービスについて..."
+                />
+              </div>
+
+              {/* 銀行口座情報 */}
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <span className="text-green-600 mr-2">🏦</span>
+                  銀行口座情報 <span className="text-red-500 text-sm">（必須）</span>
+                </h3>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  銀行名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.bank_name}
+                  onChange={(e) => handleInputChange('bank_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例：みずほ銀行"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  支店名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.branch_name}
+                  onChange={(e) => handleInputChange('branch_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例：渋谷支店"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  口座種別 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.account_type}
+                  onChange={(e) => handleInputChange('account_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="普通">普通</option>
+                  <option value="当座">当座</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  口座番号 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.account_number}
+                  onChange={(e) => handleInputChange('account_number', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例：1234567"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  口座名義 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.account_holder}
+                  onChange={(e) => handleInputChange('account_holder', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例：株式会社○○花店"
+                  required
                 />
               </div>
 
@@ -961,54 +1226,66 @@ export const StoreRegistration: React.FC = () => {
         )}
 
           {/* 店舗掲示板管理 */}
-          {existingStore && (
-            <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <MessageSquare className="w-5 h-5 mr-2" />
-                店舗掲示板管理
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-              <button
-                    onClick={() => setShowBulletinModal(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                    <Plus className="w-4 h-4 mr-2" />
-                    新規投稿
-              </button>
-                  <p className="text-sm text-gray-600">お客様へのお知らせを投稿できます</p>
-            </div>
-                {storeBulletins.length > 0 ? (
-                  <div className="space-y-3">
-                    {storeBulletins.map((bulletin) => (
-                      <div key={bulletin.id} className="bg-white rounded-lg p-4 border">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-gray-900">{bulletin.title}</h4>
-                          <div className="flex items-center space-x-2">
-                            {bulletin.is_pinned && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">ピン留め</span>
-                            )}
-                      <button
-                              onClick={() => handleDeleteBulletin(bulletin.id)}
-                              className="text-red-500 hover:text-red-700"
-                      >
-                              <X className="w-4 h-4" />
-                      </button>
-                    </div>
+          <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <MessageSquare className="w-5 h-5 mr-2" />
+              店舗掲示板管理
+            </h3>
+            <div className="space-y-4">
+              {!existingStore ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">掲示板を使用するには、まず店舗情報を保存してください</p>
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    店舗情報を保存
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => setShowBulletinModal(true)}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      新規投稿
+                    </button>
+                    <p className="text-sm text-gray-600">お客様へのお知らせを投稿できます</p>
                   </div>
-                        <p className="text-gray-600 text-sm">{bulletin.content}</p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(bulletin.created_at).toLocaleDateString('ja-JP')}
-                        </p>
-                </div>
-              ))}
-                </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-8">掲示板の投稿がありません</p>
+                  {storeBulletins.length > 0 ? (
+                    <div className="space-y-3">
+                      {storeBulletins.map((bulletin) => (
+                        <div key={bulletin.id} className="bg-white rounded-lg p-4 border">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-gray-900">{bulletin.title}</h4>
+                            <div className="flex items-center space-x-2">
+                              {bulletin.is_pinned && (
+                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">ピン留め</span>
+                              )}
+                              <button
+                                onClick={() => handleDeleteBulletin(bulletin.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-gray-600 text-sm">{bulletin.content}</p>
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(bulletin.created_at).toLocaleDateString('ja-JP')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">掲示板の投稿がありません</p>
+                  )}
+                </>
               )}
             </div>
           </div>
-        )}
             </div>
 
         {/* 掲示板作成モーダル */}
@@ -1096,9 +1373,10 @@ export const StoreRegistration: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-3">このページについて</h3>
           <div className="text-gray-700 space-y-2">
             <p>• 店舗の基本情報を登録・編集できます</p>
-            <p>• 必須項目（店舗名、住所、電話番号、メールアドレス）を入力してください</p>
+            <p>• 必須項目（店舗名、住所、電話番号、メールアドレス、銀行口座情報）を入力してください</p>
+            <p>• 銀行口座情報は振り込み決済に必要です</p>
             <p>• 店舗タグを選択して、店舗の特徴を表現できます</p>
-            <p>• 店舗画像をアップロードして、お客様に店舗の雰囲気を伝えられます</p>
+            <p>• 店舗画像を5枚までアップロードして、お客様に店舗の雰囲気を伝えられます</p>
             <p>• 店舗掲示板でお客様へのお知らせを投稿できます</p>
             <p>• 登録した店舗情報は、商品管理やお客様会計で使用されます</p>
             <p>• データはSupabaseに保存され、店舗ごとに管理されます</p>
