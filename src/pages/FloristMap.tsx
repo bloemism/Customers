@@ -1638,7 +1638,7 @@ export const FloristMap: React.FC = () => {
                       駐車場
                     </h5>
                     <p className="text-sm text-gray-600">
-                      {selectedStore.parking || '不明'}
+                      {selectedStore.parking === null ? '不明' : selectedStore.parking === true ? 'あり' : selectedStore.parking === false ? 'なし' : selectedStore.parking}
                     </p>
                   </div>
                   

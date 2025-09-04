@@ -17,7 +17,7 @@ export interface Store {
   business_type: string | null;
   tags: string[] | null;
   has_parking: boolean;
-  parking: string | null;
+  parking: boolean | null;
   photos: string[] | null;
   is_verified: boolean;
   is_active: boolean;
@@ -43,7 +43,7 @@ export interface StoreDetails {
   business_type: string | null;
   tags: string[] | null;
   has_parking: boolean;
-  parking: string | null;
+  parking: boolean | null;
   photos: string[] | null;
   is_verified: boolean;
   is_active: boolean;
