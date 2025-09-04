@@ -385,21 +385,22 @@ export const FloristMap: React.FC = () => {
             }
           });
 
-          // InfoWindowのコンテンツを作成
-          const infoWindowContent = createInfoWindowContent(store);
-
-          // InfoWindowを作成（モバイルでは無効化）
-          const infoWindow = new window.google.maps.InfoWindow({
-            content: infoWindowContent,
-            maxWidth: isMobile ? 0 : 320, // 13.3インチに最適化
-            maxHeight: isMobile ? 0 : 250, // 高さ制限を調整
-            pixelOffset: isMobile ? new window.google.maps.Size(0, 0) : new window.google.maps.Size(-160, 0) // 左側オフセット調整
-          });
+          // InfoWindowを作成（モバイルでは作成しない）
+          let infoWindow = null;
+          if (!isMobile) {
+            const infoWindowContent = createInfoWindowContent(store);
+            infoWindow = new window.google.maps.InfoWindow({
+              content: infoWindowContent,
+              maxWidth: 320, // 13.3インチに最適化
+              maxHeight: 250, // 高さ制限を調整
+              pixelOffset: new window.google.maps.Size(-160, 0) // 左側オフセット調整
+            });
+          }
 
           // マーカークリック時の処理
           marker.addListener('click', () => {
             // モバイルではInfoWindowを開かない
-            if (!isMobile) {
+            if (!isMobile && infoWindow) {
               // 他のInfoWindowを閉じる
               infoWindows.forEach(iw => iw.close());
               
@@ -415,7 +416,9 @@ export const FloristMap: React.FC = () => {
           });
 
           newMarkers.push(marker);
-          infoWindows.push(infoWindow);
+          if (infoWindow) {
+            infoWindows.push(infoWindow);
+          }
         } catch (error) {
           console.error('Error creating marker for store:', store.store_name, error);
         }
