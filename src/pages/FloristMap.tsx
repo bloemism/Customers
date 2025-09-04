@@ -1104,7 +1104,7 @@ export const FloristMap: React.FC = () => {
                     )}
                     
                     {/* 地図コントロール（モバイルでは簡素化） */}
-                    <div className={`absolute ${isMobile ? 'top-32 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
+                    <div className={`absolute ${isMobile ? 'top-1/2 right-2 transform -translate-y-1/2' : 'top-4 right-4'} flex flex-col space-y-2`}>
                       {!isMobile && (
                         <>
                           <button
