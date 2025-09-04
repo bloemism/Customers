@@ -140,14 +140,12 @@ export const FloristMap: React.FC = () => {
             lng: position.coords.longitude
           };
           setUserLocation(location);
-          // モバイルの場合は現在地を中心に設定
-          if (window.innerWidth < 768) {
-            setMapCenter(location);
-            // 地図が既に初期化されている場合は即座に移動
-            if (map) {
-              map.setCenter(location);
-              map.setZoom(15);
-            }
+          // 現在地を中心に設定（PC・モバイル共通）
+          setMapCenter(location);
+          // 地図が既に初期化されている場合は即座に移動
+          if (map) {
+            map.setCenter(location);
+            map.setZoom(isMobile ? 15 : 13);
           }
         },
         (error) => {
@@ -258,11 +256,9 @@ export const FloristMap: React.FC = () => {
       // 現在地マーカーを表示
       if (userLocation) {
         addUserLocationMarker(mapInstance, userLocation);
-        // モバイルの場合は現在地を中心に設定
-        if (isMobile) {
-          mapInstance.setCenter(userLocation);
-          mapInstance.setZoom(15);
-        }
+        // 現在地を中心に設定（PC・モバイル共通）
+        mapInstance.setCenter(userLocation);
+        mapInstance.setZoom(isMobile ? 15 : 13);
       }
       
       window.google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
