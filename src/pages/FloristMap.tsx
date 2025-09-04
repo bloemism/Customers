@@ -257,6 +257,11 @@ export const FloristMap: React.FC = () => {
       // 現在地マーカーを表示
       if (userLocation) {
         addUserLocationMarker(mapInstance, userLocation);
+        // モバイルの場合は現在地を中心に設定
+        if (isMobile) {
+          mapInstance.setCenter(userLocation);
+          mapInstance.setZoom(15);
+        }
       }
       
       window.google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
@@ -1103,7 +1108,7 @@ export const FloristMap: React.FC = () => {
                     )}
                     
                     {/* 地図コントロール（モバイルでは簡素化） */}
-                    <div className={`absolute ${isMobile ? 'top-2 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
+                    <div className={`absolute ${isMobile ? 'top-20 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
                       {!isMobile && (
                         <>
                           <button
@@ -1529,10 +1534,10 @@ export const FloristMap: React.FC = () => {
             )}
             </div>
           ) : (
-            /* モバイル用の下部店舗情報表示 */
+            // モバイル用の下部店舗情報表示
             selectedStore && (
-              <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 max-h-[50vh] overflow-y-auto">
-                <div className="p-4">
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 max-h-[60vh] overflow-y-auto">
+                <div className="p-4 pb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900">店舗詳細</h3>
                     <button
@@ -1616,6 +1621,92 @@ export const FloristMap: React.FC = () => {
                         <Navigation className="h-4 w-4 inline mr-1" />
                         現在地からの距離: {calculateDistance(userLocation.lat, userLocation.lng, selectedStore.latitude, selectedStore.longitude).toFixed(1)}km
                       </p>
+                    </div>
+                  )}
+                  
+                  {/* 店舗タイプ */}
+                  {selectedStore.business_type && (
+                    <div className="mt-3">
+                      <h5 className="font-semibold text-gray-900 flex items-center mb-1">
+                        <Flower className="h-4 w-4 mr-2 text-pink-500" />
+                        店舗タイプ
+                      </h5>
+                      <p className="text-sm text-gray-600">{selectedStore.business_type}</p>
+                    </div>
+                  )}
+                  
+                  {/* 駐車場 */}
+                  <div className="mt-3">
+                    <h5 className="font-semibold text-gray-900 flex items-center mb-1">
+                      <Car className="h-4 w-4 mr-2 text-orange-500" />
+                      駐車場
+                    </h5>
+                    <p className="text-sm text-gray-600">
+                      {selectedStore.has_parking ? 'あり' : 'なし'}
+                    </p>
+                  </div>
+                  
+                  {/* リンク */}
+                  <div className="mt-3">
+                    <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                      <Globe className="h-4 w-4 mr-2 text-purple-500" />
+                      リンク
+                    </h5>
+                    <div className="space-y-2">
+                      {selectedStore.website && (
+                        <a
+                          href={selectedStore.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          <span>公式サイト</span>
+                        </a>
+                      )}
+                      {selectedStore.instagram && (
+                        <a
+                          href={selectedStore.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-2 text-sm text-pink-600 hover:text-pink-800"
+                        >
+                          <Instagram className="h-4 w-4" />
+                          <span>Instagram</span>
+                        </a>
+                      )}
+                      {selectedStore.online_shop && (
+                        <a
+                          href={selectedStore.online_shop}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-2 text-sm text-green-600 hover:text-green-800"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          <span>オンラインショップ</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* 説明 */}
+                  {selectedStore.description && (
+                    <div className="mt-3">
+                      <h5 className="font-semibold text-gray-900 mb-1">店舗説明</h5>
+                      <p className="text-sm text-gray-600">{selectedStore.description}</p>
+                    </div>
+                  )}
+                  
+                  {/* 掲示板 */}
+                  {selectedStore.bulletin_board && (
+                    <div className="mt-3">
+                      <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                        <MessageSquare className="h-4 w-4 mr-2 text-blue-500" />
+                        お知らせ
+                      </h5>
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-gray-900">{selectedStore.bulletin_board}</p>
+                      </div>
                     </div>
                   )}
                 </div>
