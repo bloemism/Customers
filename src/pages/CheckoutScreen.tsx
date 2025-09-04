@@ -669,10 +669,10 @@ const CheckoutScreen: React.FC = () => {
                   />
                   <button
                     onClick={() => setSelectedField('quantity')}
-                    className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
+                    className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
                       selectedField === 'quantity'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
                     }`}
                   >
                     設定
@@ -699,10 +699,10 @@ const CheckoutScreen: React.FC = () => {
                   />
                   <button
                     onClick={() => setSelectedField('price')}
-                    className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
+                    className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
                       selectedField === 'price'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-green-600 text-white shadow-md'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
                     }`}
                   >
                     設定
@@ -730,10 +730,10 @@ const CheckoutScreen: React.FC = () => {
                 />
                 <button
                   onClick={() => setSelectedField('points')}
-                  className={`px-4 py-3 text-sm rounded-lg transition-colors whitespace-nowrap ${
+                  className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
                     selectedField === 'points'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
                   }`}
                 >
                   設定
