@@ -391,7 +391,9 @@ export const FloristMap: React.FC = () => {
           // InfoWindowを作成（モバイルでは無効化）
           const infoWindow = new window.google.maps.InfoWindow({
             content: infoWindowContent,
-            maxWidth: isMobile ? 0 : 250 // モバイルでは非表示
+            maxWidth: isMobile ? 0 : 400, // PCでは横長に拡大
+            maxHeight: isMobile ? 0 : 300, // 高さ制限を追加
+            pixelOffset: isMobile ? new window.google.maps.Size(0, 0) : new window.google.maps.Size(-200, 0) // 左側にオフセット
           });
 
           // マーカークリック時の処理
@@ -429,7 +431,7 @@ export const FloristMap: React.FC = () => {
   // InfoWindowのコンテンツを作成
   const createInfoWindowContent = (store: Store) => {
     return `
-      <div style="padding: 12px; max-width: 250px; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
+      <div style="padding: 12px; max-width: 380px; max-height: 280px; overflow-y: auto; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
         <!-- ヘッダー部分 -->
         <div style="margin-bottom: 16px;">
           <h3 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 18px; font-weight: 600; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${store.store_name}</h3>
@@ -473,7 +475,7 @@ export const FloristMap: React.FC = () => {
         <!-- Supabase連携の店舗情報 -->
         <div style="background: rgba(255, 255, 255, 0.8); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ced4da; backdrop-filter: blur(5px);">
           <h4 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 14px; font-weight: 600; border-bottom: 2px solid #3498db; padding-bottom: 4px;">店舗情報</h4>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start;">
             ${store.phone ? `
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="color: #5f6368; font-size: 12px;">📞</span>
