@@ -293,22 +293,16 @@ const FlowerLessonMap: React.FC = () => {
                           <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
                             {region.name} ({schoolsInRegion.length}校)
                           </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2">
                             {schoolsInRegion.map(school => (
                               <div
                                 key={school.id}
-                                className={`p-4 rounded-lg transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
+                                className={`p-2 rounded-lg transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
                                 onClick={() => setSelectedSchool(school)}
                                 title={`${school.name} (${school.prefecture} ${school.city})`}
                               >
-                                <div className="text-lg font-semibold text-white mb-2 drop-shadow-sm">
+                                <div className="text-sm font-semibold text-white drop-shadow-sm leading-tight">
                                   {school.name}
-                                </div>
-                                <div className="text-sm text-white/90 mb-2">
-                                  {school.prefecture} {school.city}
-                                </div>
-                                <div className="text-xs text-white/80 bg-white/20 rounded-full px-3 py-1 inline-block">
-                                  詳細を見る
                                 </div>
                               </div>
                             ))}
