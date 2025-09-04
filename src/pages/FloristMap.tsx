@@ -142,6 +142,11 @@ export const FloristMap: React.FC = () => {
           // モバイルの場合は現在地を中心に設定
           if (window.innerWidth < 768) {
             setMapCenter(location);
+            // 地図が既に初期化されている場合は即座に移動
+            if (map) {
+              map.setCenter(location);
+              map.setZoom(15);
+            }
           }
         },
         (error) => {
@@ -1169,10 +1174,10 @@ export const FloristMap: React.FC = () => {
                   </div>
                 )}
                 
-                {/* 店舗リストオーバーレイ（屋号のみ・横長表示・モバイル対応） */}
-                <div className={`absolute ${isMobile ? 'top-2 left-2' : 'top-2 left-2 sm:top-4 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-[200px]' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
+                {/* 店舗リストオーバーレイ（モバイルでは下部に配置） */}
+                <div className={`absolute ${isMobile ? 'bottom-4 left-2 right-2' : 'top-2 left-2 sm:top-4 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-none' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
                   <h3 className={`font-semibold text-gray-900 mb-2 sm:mb-3 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>店舗一覧</h3>
-                  <div className={`space-y-1 sm:space-y-2 ${isMobile ? 'max-h-24' : 'max-h-32 sm:max-h-48'} overflow-y-auto`}>
+                  <div className={`space-y-1 sm:space-y-2 ${isMobile ? 'max-h-20' : 'max-h-32 sm:max-h-48'} overflow-y-auto`}>
                     {stores.map((store, index) => {
                       // 様々な色のパレット
                       const colors = [
@@ -1208,8 +1213,8 @@ export const FloristMap: React.FC = () => {
             </div>
           </div>
 
-          {/* 店舗詳細サイドバー（モバイルでは非表示） */}
-          {!isMobile && (
+          {/* 店舗詳細サイドバー（PC）または下部表示（モバイル） */}
+          {!isMobile ? (
             <div className="lg:col-span-1">
             {selectedStore ? (
               <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
@@ -1523,6 +1528,99 @@ export const FloristMap: React.FC = () => {
               </div>
             )}
             </div>
+          ) : (
+            /* モバイル用の下部店舗情報表示 */
+            selectedStore && (
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 max-h-[50vh] overflow-y-auto">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900">店舗詳細</h3>
+                    <button
+                      onClick={() => setSelectedStore(null)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  {/* 店舗名 */}
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">
+                    {selectedStore.store_name}
+                  </h4>
+                  
+                  {/* 連絡先 */}
+                  <div className="space-y-2 mb-3">
+                    {selectedStore.phone && (
+                      <div className="flex items-center space-x-2">
+                        <Phone className="h-4 w-4 text-green-500" />
+                        <a
+                          href={`tel:${selectedStore.phone}`}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {selectedStore.phone}
+                        </a>
+                      </div>
+                    )}
+                    {selectedStore.email && (
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-blue-500" />
+                        <a
+                          href={`mailto:${selectedStore.email}`}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {selectedStore.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 営業時間 */}
+                  {selectedStore.business_hours && (
+                    <div className="mb-3">
+                      <h5 className="font-semibold text-gray-900 flex items-center mb-1">
+                        <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                        営業時間
+                      </h5>
+                      <p className="text-sm text-gray-600">{selectedStore.business_hours}</p>
+                    </div>
+                  )}
+                  
+                  {/* アクションボタン */}
+                  <div className="flex space-x-2">
+                    {userLocation && (
+                      <button
+                        onClick={openDirections}
+                        className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                      >
+                        <Map className="h-4 w-4" />
+                        <span>経路案内</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={toggleRoute}
+                      className={`flex-1 flex items-center justify-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium ${
+                        showRoute 
+                          ? 'bg-blue-100 text-blue-700 border border-blue-300' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Route className="h-4 w-4" />
+                      <span>{showRoute ? '経路非表示' : '経路表示'}</span>
+                    </button>
+                  </div>
+                  
+                  {/* 距離表示 */}
+                  {userLocation && (
+                    <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <Navigation className="h-4 w-4 inline mr-1" />
+                        現在地からの距離: {calculateDistance(userLocation.lat, userLocation.lng, selectedStore.latitude, selectedStore.longitude).toFixed(1)}km
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>
