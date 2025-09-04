@@ -23,7 +23,8 @@ import {
   ZoomIn,
   ZoomOut,
   Image,
-  MessageSquare
+  MessageSquare,
+  Camera
 } from 'lucide-react';
 import { StoreService } from '../services/storeService';
 import { supabase } from '../lib/supabase';
@@ -715,18 +716,10 @@ export const FloristMap: React.FC = () => {
 
   const handleStoreClick = async (store: Store) => {
     try {
-      // 既に読み込んだenrichedStoresから該当する店舗を探す
-      const enrichedStore = stores.find(s => s.id === store.id);
-      if (enrichedStore) {
-        // StoreDetails型に変換
-        const storeDetails: StoreDetails = {
-          ...enrichedStore,
-          business_hours_details: [],
-          services: [],
-          recommended_flowers: [],
-          active_posts: []
-        };
-        
+      // 店舗詳細情報を取得（関連データ含む）
+      const storeDetails = await StoreService.getStoreDetails(store.id);
+      
+      if (storeDetails) {
         // デバッグ情報を出力
         console.log('Selected store details:', {
           id: storeDetails.id,
@@ -735,7 +728,7 @@ export const FloristMap: React.FC = () => {
           photos_length: storeDetails.photos?.length || 0,
           photo_urls: storeDetails.photos,
           bulletin_board: storeDetails.bulletin_board,
-          tags: storeDetails.tags
+          description: storeDetails.description
         });
         
         setSelectedStore(storeDetails);
@@ -1697,6 +1690,29 @@ export const FloristMap: React.FC = () => {
                     </div>
                   )}
                   
+                  {/* 画像ギャラリー */}
+                  {selectedStore.photos && selectedStore.photos.length > 0 && (
+                    <div className="mt-3">
+                      <h5 className="font-semibold text-gray-900 flex items-center mb-2">
+                        <Camera className="h-4 w-4 mr-2 text-green-500" />
+                        店舗画像
+                      </h5>
+                      <div className="flex space-x-2 overflow-x-auto pb-2">
+                        {selectedStore.photos.map((photo, index) => (
+                          <img
+                            key={index}
+                            src={photo}
+                            alt={`店舗画像 ${index + 1}`}
+                            className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* 掲示板 */}
                   {selectedStore.bulletin_board && (
                     <div className="mt-3">
@@ -1705,7 +1721,7 @@ export const FloristMap: React.FC = () => {
                         お知らせ
                       </h5>
                       <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-gray-900">{selectedStore.bulletin_board}</p>
+                        <p className="text-sm text-gray-900 whitespace-pre-line">{selectedStore.bulletin_board}</p>
                       </div>
                     </div>
                   )}

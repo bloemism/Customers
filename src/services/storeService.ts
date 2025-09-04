@@ -98,18 +98,55 @@ export class StoreService {
     }
   }
 
-  // 店舗詳細情報取得
+  // 店舗詳細情報取得（関連データ含む）
   static async getStoreDetails(storeId: string): Promise<StoreDetails | null> {
     try {
-      const { data, error } = await supabase
+      // 店舗基本情報を取得
+      const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('*')
         .eq('id', storeId)
         .single();
 
-      if (error) throw error;
-      
-      return data;
+      if (storeError) throw storeError;
+      if (!storeData) return null;
+
+      // 掲示板情報を取得
+      const { data: bulletinsData, error: bulletinsError } = await supabase
+        .from('store_bulletins')
+        .select('title, content')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+
+      if (bulletinsError) {
+        console.warn('掲示板データ取得エラー:', bulletinsError);
+      }
+
+      // 画像情報を取得
+      const { data: imagesData, error: imagesError } = await supabase
+        .from('store_images')
+        .select('image_url, alt_text')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: true });
+
+      if (imagesError) {
+        console.warn('画像データ取得エラー:', imagesError);
+      }
+
+      // データを統合
+      const enrichedData: StoreDetails = {
+        ...storeData,
+        bulletin_board: bulletinsData && bulletinsData.length > 0 
+          ? `${bulletinsData[0].title}\n${bulletinsData[0].content}` 
+          : null,
+        photos: imagesData ? imagesData.map(img => img.image_url) : null,
+        business_hours_details: [],
+        services: [],
+        recommended_flowers: [],
+        active_posts: []
+      };
+
+      return enrichedData;
     } catch (error) {
       console.error('店舗詳細取得エラー:', error);
       throw new Error('店舗詳細の取得中にエラーが発生しました。');
