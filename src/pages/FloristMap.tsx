@@ -1176,7 +1176,7 @@ export const FloristMap: React.FC = () => {
                 )}
                 
                 {/* 店舗リストオーバーレイ（モバイルでは下部に配置） */}
-                <div className={`absolute ${isMobile ? 'bottom-4 left-2 right-2' : 'top-2 left-2 sm:top-4 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-none' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
+                <div className={`absolute ${isMobile ? 'bottom-4 left-2 right-2' : 'top-20 left-2 sm:top-24 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-none' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
                   <h3 className={`font-semibold text-gray-900 mb-2 sm:mb-3 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>店舗一覧</h3>
                   <div className={`space-y-1 sm:space-y-2 ${isMobile ? 'max-h-20' : 'max-h-32 sm:max-h-48'} overflow-y-auto`}>
                     {stores.map((store, index) => {
