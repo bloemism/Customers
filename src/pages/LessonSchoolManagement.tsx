@@ -311,8 +311,8 @@ const LessonSchoolManagement: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg p-4 sm:p-6 mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => window.history.back()}
@@ -321,15 +321,15 @@ const LessonSchoolManagement: React.FC = () => {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-white">レッスンスクール管理</h1>
-                <p className="text-teal-100">フラワーレッスンスクールの情報を管理</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-white">レッスンスクール管理</h1>
+                <p className="text-teal-100 text-sm sm:text-base hidden sm:block">フラワーレッスンスクールの情報を管理</p>
               </div>
             </div>
             
             {!isEditing && (
               <button
                 onClick={startCreate}
-                className="px-4 py-2 bg-white text-teal-600 rounded-lg hover:bg-teal-50 transition-colors flex items-center"
+                className="w-full sm:w-auto px-4 py-2 bg-white text-teal-600 rounded-lg hover:bg-teal-50 transition-colors flex items-center justify-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 新規作成
@@ -357,12 +357,12 @@ const LessonSchoolManagement: React.FC = () => {
 
         {/* 編集・作成フォーム */}
         {isEditing && (
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 mb-8">
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-4 sm:p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               {editingSchool ? 'レッスンスクール編集' : '新規レッスンスクール作成'}
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-6">
               {/* 基本情報 */}
               <div className="space-y-4">
                 <div>
@@ -378,7 +378,7 @@ const LessonSchoolManagement: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       都道府県 <span className="text-red-500">*</span>
@@ -418,7 +418,7 @@ const LessonSchoolManagement: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       メールアドレス
@@ -491,7 +491,7 @@ const LessonSchoolManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     主な開催曜日
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                     {['月', '火', '水', '木', '金', '土', '日'].map(day => (
                       <button
                         key={day}
@@ -522,7 +522,7 @@ const LessonSchoolManagement: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       体験料金
@@ -560,16 +560,16 @@ const LessonSchoolManagement: React.FC = () => {
             </div>
 
             {/* ボタン */}
-            <div className="flex space-x-3 mt-6">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
               <button
                 onClick={cancelEdit}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
               >
                 キャンセル
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
               >
                 <Save className="w-4 h-4 mr-2" />
                 {editingSchool ? '更新' : '作成'}
@@ -579,7 +579,7 @@ const LessonSchoolManagement: React.FC = () => {
         )}
 
         {/* レッスンスクール一覧 */}
-        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">登録済みレッスンスクール</h2>
           
           {lessonSchools.length === 0 ? (
@@ -595,12 +595,12 @@ const LessonSchoolManagement: React.FC = () => {
                   key={school.id}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-3 sm:space-y-0">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         {school.name}
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
                         <div className="flex items-center space-x-2">
                           <MapPin className="w-4 h-4" />
                           <span>{school.prefecture} {school.city}</span>
@@ -624,7 +624,7 @@ const LessonSchoolManagement: React.FC = () => {
                           : school.lesson_content
                         }
                       </div>
-                      <div className="mt-2 flex items-center space-x-4 text-sm">
+                      <div className="mt-2 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm">
                         <span className="text-green-600 font-medium">
                           体験料金: ¥{school.trial_price.toLocaleString()}
                         </span>
@@ -633,17 +633,17 @@ const LessonSchoolManagement: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="ml-4 flex space-x-2">
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 sm:ml-4">
                       <button
                         onClick={() => startEdit(school)}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center"
+                        className="w-full sm:w-auto px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center"
                       >
                         <Edit className="w-4 h-4 mr-1" />
                         編集
                       </button>
                       <button
                         onClick={() => handleDelete(school.id)}
-                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center"
+                        className="w-full sm:w-auto px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center justify-center"
                       >
                         <Trash2 className="w-4 h-4 mr-1" />
                         削除
