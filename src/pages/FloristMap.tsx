@@ -1034,7 +1034,7 @@ export const FloristMap: React.FC = () => {
                 {GOOGLE_MAPS_API_KEY ? (
                   <div className="relative">
                     {/* 住所検索バー */}
-                    <div className="absolute top-4 left-4 z-10" style={{ width: 'calc(100% - 120px)' }}>
+                    <div className="absolute top-4 left-4 z-10" style={{ width: 'calc(100% - 80px)' }}>
                       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-2">
                         <div className="flex items-center space-x-2">
                           <MapPin className="h-5 w-5 text-gray-400 flex-shrink-0" />
