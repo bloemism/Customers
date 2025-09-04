@@ -1,8 +1,4 @@
 {
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm ci --prefer-offline --no-audit",
   "rewrites": [
     {
       "source": "/(.*)",
@@ -40,13 +36,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
