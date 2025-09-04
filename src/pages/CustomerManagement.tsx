@@ -305,7 +305,7 @@ export const CustomerManagement: React.FC = () => {
       {/* ヘッダー */}
       <div className="bg-gradient-to-r from-purple-500 to-indigo-600 shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/menu')}
@@ -315,21 +315,21 @@ export const CustomerManagement: React.FC = () => {
               </button>
               <div>
                 <h1 className="text-xl font-bold text-white">顧客管理</h1>
-                <p className="text-sm text-purple-100">お客様データ・ポイント・販売履歴</p>
+                <p className="text-sm text-purple-100 hidden sm:block">お客様データ・ポイント・販売履歴</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowQRScanner(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-white hover:bg-purple-50 transition-colors duration-200"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-white hover:bg-purple-50 transition-colors duration-200"
               >
                 <QrCode className="h-4 w-4 mr-2" />
                 QR読み取り
               </button>
               <button
                 onClick={handleAddCustomer}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-700 hover:bg-purple-800 transition-colors duration-200"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-700 hover:bg-purple-800 transition-colors duration-200"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 新規顧客
@@ -375,10 +375,37 @@ export const CustomerManagement: React.FC = () => {
             顧客検索
           </h2>
           
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="flex rounded-md shadow-sm">
-                <div className="relative flex items-stretch flex-grow focus-within:z-10">
+          <div className="space-y-4">
+            {/* 検索タイプ選択 */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSearchType('email')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                  searchType === 'email'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <Mail className="h-4 w-4 mr-2 inline" />
+                メール検索
+              </button>
+              <button
+                onClick={() => setSearchType('phone')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                  searchType === 'phone'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <Phone className="h-4 w-4 mr-2 inline" />
+                電話検索
+              </button>
+            </div>
+
+            {/* 検索入力とボタン */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     {searchType === 'email' ? (
                       <Mail className="h-5 w-5 text-gray-400" />
@@ -391,44 +418,37 @@ export const CustomerManagement: React.FC = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={searchType === 'email' ? 'メールアドレスで検索' : '電話番号で検索'}
-                    className="focus:ring-purple-500 focus:border-purple-500 block w-full rounded-md pl-10 sm:text-sm border-gray-300"
+                    className="focus:ring-purple-500 focus:border-purple-500 block w-full rounded-md pl-10 pr-3 py-2 border-gray-300 text-sm"
                     onKeyPress={(e) => e.key === 'Enter' && searchCustomers()}
                   />
                 </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  onClick={() => setSearchType(searchType === 'email' ? 'phone' : 'email')}
-                  className="relative -ml-px inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-r-md text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                  onClick={searchCustomers}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                  <Filter className="h-4 w-4" />
-                  <span>{searchType === 'email' ? 'メール' : '電話'}</span>
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  検索
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    searchCustomers();
+                  }}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  全件表示
                 </button>
               </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={searchCustomers}
-                disabled={loading}
-                className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {loading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Search className="h-4 w-4 mr-2" />
-                )}
-                検索
-              </button>
-              
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  searchCustomers();
-                }}
-                disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                全件表示
-              </button>
             </div>
           </div>
         </div>
@@ -500,13 +520,13 @@ export const CustomerManagement: React.FC = () => {
               <div className="space-y-6">
                 {/* 顧客基本情報 */}
                 <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
                     <h3 className="text-lg font-semibold text-gray-900">顧客詳細</h3>
                     <button
                       onClick={exportCustomerData}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200 w-full sm:w-auto"
                     >
-                      <Download className="h-4 w-4 mr-1" />
+                      <Download className="h-4 w-4 mr-2" />
                       エクスポート
                     </button>
                   </div>
@@ -570,7 +590,7 @@ export const CustomerManagement: React.FC = () => {
                 <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">月間統計</h3>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-blue-50 rounded-lg p-4">
                       <div className="flex items-center">
                         <ShoppingBag className="h-8 w-8 text-blue-500 mr-3" />
@@ -647,7 +667,7 @@ export const CustomerManagement: React.FC = () => {
                             </div>
                           </div>
                           
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                             <div>
                               <span className="text-gray-500">税額:</span>
                               <span className="ml-2 font-medium">¥{purchase.tax_amount.toLocaleString()}</span>
