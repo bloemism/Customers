@@ -391,9 +391,9 @@ export const FloristMap: React.FC = () => {
           // InfoWindowを作成（モバイルでは無効化）
           const infoWindow = new window.google.maps.InfoWindow({
             content: infoWindowContent,
-            maxWidth: isMobile ? 0 : 400, // PCでは横長に拡大
-            maxHeight: isMobile ? 0 : 300, // 高さ制限を追加
-            pixelOffset: isMobile ? new window.google.maps.Size(0, 0) : new window.google.maps.Size(-200, 0) // 左側にオフセット
+            maxWidth: isMobile ? 0 : 320, // 13.3インチに最適化
+            maxHeight: isMobile ? 0 : 250, // 高さ制限を調整
+            pixelOffset: isMobile ? new window.google.maps.Size(0, 0) : new window.google.maps.Size(-160, 0) // 左側オフセット調整
           });
 
           // マーカークリック時の処理
@@ -431,7 +431,7 @@ export const FloristMap: React.FC = () => {
   // InfoWindowのコンテンツを作成
   const createInfoWindowContent = (store: Store) => {
     return `
-      <div style="padding: 12px; max-width: 380px; max-height: 280px; overflow-y: auto; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
+      <div style="padding: 12px; max-width: 300px; max-height: 230px; overflow-y: auto; font-family: 'Google Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
         <!-- ヘッダー部分 -->
         <div style="margin-bottom: 16px;">
           <h3 style="margin: 0 0 4px 0; color: #2c3e50; font-size: 18px; font-weight: 600; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${store.store_name}</h3>
@@ -1174,7 +1174,7 @@ export const FloristMap: React.FC = () => {
                 )}
                 
                 {/* 店舗リストオーバーレイ（モバイルでは下部に配置） */}
-                <div className={`absolute ${isMobile ? 'bottom-4 left-2 right-2' : 'top-20 left-2 sm:top-24 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-none' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
+                <div className={`absolute ${isMobile ? 'bottom-4 left-2 right-2' : 'bottom-4 left-2 sm:bottom-4 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-none' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
                   <h3 className={`font-semibold text-gray-900 mb-2 sm:mb-3 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>店舗一覧</h3>
                   <div className={`space-y-1 sm:space-y-2 ${isMobile ? 'max-h-20' : 'max-h-32 sm:max-h-48'} overflow-y-auto`}>
                     {stores.map((store, index) => {
