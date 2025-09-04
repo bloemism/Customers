@@ -728,7 +728,9 @@ export const FloristMap: React.FC = () => {
           photos_length: storeDetails.photos?.length || 0,
           photo_urls: storeDetails.photos,
           bulletin_board: storeDetails.bulletin_board,
-          description: storeDetails.description
+          description: storeDetails.description,
+          has_parking: storeDetails.has_parking,
+          has_parking_type: typeof storeDetails.has_parking
         });
         
         setSelectedStore(storeDetails);
@@ -1101,7 +1103,7 @@ export const FloristMap: React.FC = () => {
                     )}
                     
                     {/* 地図コントロール（モバイルでは簡素化） */}
-                    <div className={`absolute ${isMobile ? 'top-20 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
+                    <div className={`absolute ${isMobile ? 'top-24 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
                       {!isMobile && (
                         <>
                           <button
@@ -1635,7 +1637,7 @@ export const FloristMap: React.FC = () => {
                       駐車場
                     </h5>
                     <p className="text-sm text-gray-600">
-                      {selectedStore.has_parking ? 'あり' : 'なし'}
+                      {selectedStore.has_parking === null ? '不明' : selectedStore.has_parking ? 'あり' : 'なし'}
                     </p>
                   </div>
                   
