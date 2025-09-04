@@ -490,10 +490,10 @@ export const FloristMap: React.FC = () => {
                 <span style="color: #202124; font-size: 12px;">${store.business_hours}</span>
               </div>
             ` : ''}
-            ${store.has_parking ? `
+            ${store.parking !== null ? `
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="color: #5f6368; font-size: 12px;">🚗</span>
-                <span style="color: #202124; font-size: 12px;">駐車場あり</span>
+                <span style="color: #202124; font-size: 12px;">駐車場${store.parking === true ? 'あり' : store.parking === false ? 'なし' : store.parking}</span>
               </div>
             ` : ''}
             ${store.email ? `
@@ -1252,10 +1252,10 @@ export const FloristMap: React.FC = () => {
                     {selectedStore.photos && selectedStore.photos.length > 0 ? (
                       <div>
                         <div className="text-xs text-gray-500 mb-2">
-                          表示中: {selectedStore.photos.length}枚 (最大4枚表示)
+                          表示中: {selectedStore.photos.length}枚 (最大5枚表示)
                         </div>
                                                 <div className="grid grid-cols-2 gap-2">
-                          {selectedStore.photos.slice(0, 4).map((photo, index) => (
+                          {selectedStore.photos.slice(0, 5).map((photo, index) => (
                             <div key={index} className="border border-gray-200 rounded-lg p-1">
                               <img
                                 src={photo}
@@ -1407,7 +1407,7 @@ export const FloristMap: React.FC = () => {
                       駐車場
                     </h5>
                     <p className="text-sm text-gray-600">
-                      {selectedStore.has_parking ? 'あり' : 'なし'}
+                      {selectedStore.parking === null ? '不明' : selectedStore.parking === true ? 'あり' : selectedStore.parking === false ? 'なし' : selectedStore.parking}
                     </p>
                   </div>
 
