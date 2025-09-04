@@ -101,6 +101,7 @@ export const FloristMap: React.FC = () => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   // 住所検索関連
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,14 +123,26 @@ export const FloristMap: React.FC = () => {
   useEffect(() => {
     loadStores();
     
+    // モバイル判定
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
     // ユーザーの位置情報を取得
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          setUserLocation(location);
+          // モバイルの場合は現在地を中心に設定
+          if (window.innerWidth < 768) {
+            setMapCenter(location);
+          }
         },
         (error) => {
           console.log('位置情報の取得に失敗:', error);
@@ -139,6 +152,7 @@ export const FloristMap: React.FC = () => {
 
     // クリーンアップ関数
     return () => {
+      window.removeEventListener('resize', checkMobile);
       // マーカーをクリア
       markers.forEach(marker => {
         if (marker && marker.setMap) {
@@ -213,14 +227,14 @@ export const FloristMap: React.FC = () => {
       
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: center,
-        zoom: 13, // より詳細な表示でInfoWindowが見やすい
+        zoom: isMobile ? 15 : 13, // モバイルではより詳細に
         mapTypeId: window.google.maps.MapTypeId.ROADMAP,
-        mapTypeControl: true,
-        streetViewControl: true,
-        fullscreenControl: true,
+        mapTypeControl: !isMobile, // モバイルでは非表示
+        streetViewControl: !isMobile, // モバイルでは非表示
+        fullscreenControl: !isMobile, // モバイルでは非表示
         zoomControl: true,
         gestureHandling: 'greedy', // モバイルでのタッチ操作を改善
-        disableDefaultUI: false,
+        disableDefaultUI: isMobile, // モバイルではデフォルトUIを無効化
         zoomControlOptions: {
           position: window.google.maps.ControlPosition.RIGHT_TOP
         },
@@ -367,19 +381,22 @@ export const FloristMap: React.FC = () => {
           // InfoWindowのコンテンツを作成
           const infoWindowContent = createInfoWindowContent(store);
 
-          // InfoWindowを作成
+          // InfoWindowを作成（モバイルでは無効化）
           const infoWindow = new window.google.maps.InfoWindow({
             content: infoWindowContent,
-            maxWidth: 250
+            maxWidth: isMobile ? 0 : 250 // モバイルでは非表示
           });
 
-          // マーカークリック時にInfoWindowを開く
+          // マーカークリック時の処理
           marker.addListener('click', () => {
-            // 他のInfoWindowを閉じる
-            infoWindows.forEach(iw => iw.close());
-            
-            // このInfoWindowを開く
-            infoWindow.open(map, marker);
+            // モバイルではInfoWindowを開かない
+            if (!isMobile) {
+              // 他のInfoWindowを閉じる
+              infoWindows.forEach(iw => iw.close());
+              
+              // このInfoWindowを開く
+              infoWindow.open(map, marker);
+            }
             
             // 店舗を選択状態にする
             handleStoreClick(store);
@@ -713,11 +730,25 @@ export const FloristMap: React.FC = () => {
         
         setSelectedStore(storeDetails);
         setShowRoute(false); // 新しい店舗選択時に経路をリセット
+        
+        // 地図を店舗の位置に移動
+        if (map) {
+          const storePosition = { lat: store.latitude, lng: store.longitude };
+          map.setCenter(storePosition);
+          map.setZoom(isMobile ? 17 : 16); // モバイルではより詳細に
+        }
       } else {
         // フォールバック: 古い方法で取得
         const storeDetails = await StoreService.getStoreDetails(store.id);
         setSelectedStore(storeDetails);
         setShowRoute(false);
+        
+        // 地図を店舗の位置に移動
+        if (map) {
+          const storePosition = { lat: store.latitude, lng: store.longitude };
+          map.setCenter(storePosition);
+          map.setZoom(isMobile ? 17 : 16); // モバイルではより詳細に
+        }
       }
     } catch (err) {
       console.error('店舗詳細の取得に失敗:', err);
@@ -978,10 +1009,10 @@ export const FloristMap: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className={`grid grid-cols-1 ${isMobile ? '' : 'lg:grid-cols-3'} gap-4 sm:gap-8`}>
           {/* 地図エリア */}
-          <div className="lg:col-span-2">
+          <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-2'}`}>
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -1047,41 +1078,52 @@ export const FloristMap: React.FC = () => {
                     {/* 動的なGoogle Maps */}
                     <div 
                       ref={mapRef} 
-                      className="w-full h-[70vh] sm:h-[600px] md:h-[700px] lg:h-[800px] rounded-lg overflow-hidden bg-gray-100"
-                      style={{ minHeight: '400px' }}
+                      className={`w-full rounded-lg overflow-hidden bg-gray-100 ${
+                        isMobile 
+                          ? 'h-[85vh]' // モバイルでは画面の85%を使用
+                          : 'h-[70vh] sm:h-[600px] md:h-[700px] lg:h-[800px]'
+                      }`}
+                      style={{ minHeight: isMobile ? '500px' : '400px' }}
                     />
                     
-                    {/* デバッグ情報 */}
-                    <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
-                      <div>Map Loaded: {mapLoaded ? 'Yes' : 'No'}</div>
-                      <div>Map Instance: {map ? 'Yes' : 'No'}</div>
-                      <div>Stores: {stores.length}</div>
-                      <div>Markers: {markers.length}</div>
-                    </div>
+                    {/* デバッグ情報（開発時のみ表示） */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+                        <div>Map Loaded: {mapLoaded ? 'Yes' : 'No'}</div>
+                        <div>Map Instance: {map ? 'Yes' : 'No'}</div>
+                        <div>Stores: {stores.length}</div>
+                        <div>Markers: {markers.length}</div>
+                        <div>Mobile: {isMobile ? 'Yes' : 'No'}</div>
+                      </div>
+                    )}
                     
-                    {/* 地図コントロール */}
-                    <div className="absolute top-4 right-4 flex flex-col space-y-2">
-                      <button
-                        onClick={zoomIn}
-                        className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
-                        title="拡大"
-                      >
-                        <ZoomIn className="h-5 w-5 text-gray-700" />
-                      </button>
-                      <button
-                        onClick={zoomOut}
-                        className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
-                        title="縮小"
-                      >
-                        <ZoomOut className="h-5 w-5 text-gray-700" />
-                      </button>
+                    {/* 地図コントロール（モバイルでは簡素化） */}
+                    <div className={`absolute ${isMobile ? 'top-2 right-2' : 'top-4 right-4'} flex flex-col space-y-2`}>
+                      {!isMobile && (
+                        <>
+                          <button
+                            onClick={zoomIn}
+                            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
+                            title="拡大"
+                          >
+                            <ZoomIn className="h-5 w-5 text-gray-700" />
+                          </button>
+                          <button
+                            onClick={zoomOut}
+                            className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors duration-200"
+                            title="縮小"
+                          >
+                            <ZoomOut className="h-5 w-5 text-gray-700" />
+                          </button>
+                        </>
+                      )}
                       {userLocation && (
                         <button
                           onClick={centerOnUserLocation}
-                          className="w-10 h-10 bg-blue-600 rounded-lg shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors duration-200"
+                          className={`${isMobile ? 'w-12 h-12' : 'w-10 h-10'} bg-blue-600 rounded-lg shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors duration-200`}
                           title="現在地に移動"
                         >
-                          <Navigation className="h-5 w-5 text-white" />
+                          <Navigation className={`${isMobile ? 'h-6 w-6' : 'h-5 w-5'} text-white`} />
                         </button>
                       )}
                     </div>
@@ -1128,9 +1170,9 @@ export const FloristMap: React.FC = () => {
                 )}
                 
                 {/* 店舗リストオーバーレイ（屋号のみ・横長表示・モバイル対応） */}
-                <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white rounded-lg shadow-lg p-2 sm:p-3 max-w-[280px] sm:max-w-sm z-10">
-                  <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-xs sm:text-sm">店舗一覧</h3>
-                  <div className="space-y-1 sm:space-y-2 max-h-32 sm:max-h-48 overflow-y-auto">
+                <div className={`absolute ${isMobile ? 'top-2 left-2' : 'top-2 left-2 sm:top-4 sm:left-4'} bg-white rounded-lg shadow-lg p-2 sm:p-3 ${isMobile ? 'max-w-[200px]' : 'max-w-[280px] sm:max-w-sm'} z-10`}>
+                  <h3 className={`font-semibold text-gray-900 mb-2 sm:mb-3 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>店舗一覧</h3>
+                  <div className={`space-y-1 sm:space-y-2 ${isMobile ? 'max-h-24' : 'max-h-32 sm:max-h-48'} overflow-y-auto`}>
                     {stores.map((store, index) => {
                       // 様々な色のパレット
                       const colors = [
@@ -1166,8 +1208,9 @@ export const FloristMap: React.FC = () => {
             </div>
           </div>
 
-          {/* 店舗詳細サイドバー */}
-          <div className="lg:col-span-1">
+          {/* 店舗詳細サイドバー（モバイルでは非表示） */}
+          {!isMobile && (
+            <div className="lg:col-span-1">
             {selectedStore ? (
               <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
                 <div className="flex items-center justify-between mb-4">
@@ -1479,7 +1522,8 @@ export const FloristMap: React.FC = () => {
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
