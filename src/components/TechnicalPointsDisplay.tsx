@@ -190,3 +190,4 @@ const TechnicalPointsDisplay: React.FC = () => {
 };
 
 export default TechnicalPointsDisplay;
+
