@@ -1,105 +1,134 @@
 import React from 'react';
-import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Flower, User, LogOut, ArrowRight } from 'lucide-react';
+import { Flower, MapPin, QrCode, Star, ArrowRight, Sparkles } from 'lucide-react';
+import greenhouseImage from '../assets/greenhouse-pathway.jpg';
 
 export const Home: React.FC = () => {
-  const { user, signOut } = useSimpleAuth();
   const navigate = useNavigate();
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  const handleGoToMenu = () => {
-    navigate('/menu');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <Flower className="h-8 w-8 text-green-600" />
-              <h1 className="text-xl font-bold text-gray-900">87app</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {user ? (
-                <>
-                  <div className="flex items-center space-x-2">
-                    <User className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm text-gray-700">{user.email}</span>
-                  </div>
-                  <button
-                    onClick={handleGoToMenu}
-                    className="flex items-center space-x-1 text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                  >
-                    <span>メニュー</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>ログアウト</span>
-                  </button>
-                </>
-              ) : (
-                <a href="/simple-login" className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                  ログイン
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* 背景画像 */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${greenhouseImage})`
+        }}
+      >
+      </div>
 
       {/* メインコンテンツ */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {user ? (
-          <div className="text-center py-12">
-            <div className="max-w-2xl mx-auto">
-              <Flower className="h-16 w-16 text-green-600 mx-auto mb-6" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                87app へようこそ
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* ヘッダー */}
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-white/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
+                  <Flower className="h-6 w-6 text-white" />
+                </div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  87app
+                </h1>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => navigate('/customer-login')}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  ログイン
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* ヒーローセクション */}
+        <main className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            {/* メインタイトル */}
+            <div className="mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full mb-6 shadow-2xl">
+                <Flower className="h-10 w-10 text-white" />
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  87app
+                </span>
               </h1>
-              <p className="text-lg text-gray-600 mb-8">
-                花屋向け店舗管理システムで、ビジネスを効率化しましょう
+              <p className="text-xl md:text-2xl text-white mb-4 font-medium drop-shadow-lg">
+                お花が好きな人のためのアプリ
               </p>
+              <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
+                美しいお花と出会い、特別な体験を楽しもう。<br />
+                全国の花屋やフラワーレッスンを見つけて、<br />
+                あなたの花のある生活を始めましょう。
+              </p>
+            </div>
+
+            {/* 機能紹介 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
+                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">花屋を探す</h3>
+                <p className="text-gray-600 text-sm">全国の花屋を地図で検索して、お気に入りのお店を見つけよう</p>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <QrCode className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">ポイント獲得</h3>
+                <p className="text-gray-600 text-sm">購入時にQRコードをスキャンして、ポイントを貯めよう</p>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">レッスン体験</h3>
+                <p className="text-gray-600 text-sm">フラワーレッスンに参加して、新しいスキルを身につけよう</p>
+              </div>
+            </div>
+
+            {/* CTAボタン */}
+            <div className="space-y-4">
               <button
-                onClick={handleGoToMenu}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+                onClick={() => navigate('/customer-signup')}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
               >
-                <span>メニューを開く</span>
-                <ArrowRight className="h-5 w-5" />
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="h-5 w-5" />
+                  <span>無料で始める</span>
+                  <ArrowRight className="h-5 w-5" />
+                </div>
               </button>
+              
+              <div className="text-sm text-gray-500">
+                既にアカウントをお持ちの方は{' '}
+                <button
+                  onClick={() => navigate('/customer-login')}
+                  className="text-pink-600 hover:text-pink-700 font-medium underline"
+                >
+                  こちらからログイン
+                </button>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="max-w-2xl mx-auto">
-              <Flower className="h-16 w-16 text-green-600 mx-auto mb-6" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                87app 花屋向け店舗管理システム
-              </h1>
-              <p className="text-lg text-gray-600 mb-8">
-                商品管理、顧客管理、QR決済、フラワーレッスン管理など、花屋の業務を効率化するための総合システムです。
-              </p>
-              <a
-                href="/simple-login"
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-block"
-              >
-                ログインして始める
-              </a>
-            </div>
+        </main>
+
+        {/* フッター */}
+        <footer className="bg-white/50 backdrop-blur-sm border-t border-white/20 py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-white/80 text-sm drop-shadow-md">
+              © 2024 87app. お花のある生活を、もっと楽しく。
+            </p>
           </div>
-        )}
-      </main>
+        </footer>
+      </div>
     </div>
   );
 };

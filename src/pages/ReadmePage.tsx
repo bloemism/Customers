@@ -176,9 +176,9 @@ export const ReadmePage: React.FC = () => {
                   <li>• 母の日前1週間</li>
                   <li>• 年末前1週間</li>
                   <li>• クリスマス前1週間</li>
-                </ul>
+                  </ul>
+                </div>
               </div>
-            </div>
           </div>
         </div>
 
@@ -194,7 +194,7 @@ export const ReadmePage: React.FC = () => {
                 <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
                   <MapPin className="w-4 h-4 mr-2" />
                   全国フローリストマップ
-                </h3>
+              </h3>
                 <p className="text-blue-700 text-sm">
                   全国へのお花贈りにも、お届け先のご住所のお近くの掲載店舗のSNSなどの画像を確認の上、
                   メールや電話でお問い合わせしていただきます。
@@ -204,7 +204,7 @@ export const ReadmePage: React.FC = () => {
                 <h3 className="font-semibold text-purple-800 mb-2 flex items-center">
                   <Map className="w-4 h-4 mr-2" />
                   フラワーレッスンマップ
-                </h3>
+              </h3>
                 <p className="text-purple-700 text-sm">
                   地域ごとのフラワースクールが登録されています。興味のある方は詳細を見て、
                   メールにて直接お問い合わせ、体験レッスンといった流れになります。
@@ -230,8 +230,8 @@ export const ReadmePage: React.FC = () => {
               <h3 className="font-semibold text-indigo-800 mb-2">🏆 人気ランキング</h3>
               <p className="text-indigo-700">
                 全国の地域の人気の花を月単位で見ることができます。ぜひお楽しみください。
-              </p>
-            </div>
+                </p>
+              </div>
             <div className="bg-pink-50 p-4 rounded-lg">
               <h3 className="font-semibold text-pink-800 mb-2">⭐ レベルシステム</h3>
               <p className="text-pink-700">
@@ -260,8 +260,8 @@ export const ReadmePage: React.FC = () => {
               <h3 className="font-semibold text-blue-800 mb-2">🏦 銀行口座</h3>
               <p className="text-blue-700">
                 銀行口座は、お客様のクレジット決済の振り込みに使われます。<strong>必ず登録ください。</strong>
-              </p>
-            </div>
+                </p>
+              </div>
             <div className="bg-orange-50 p-4 rounded-lg">
               <h3 className="font-semibold text-orange-800 mb-2">💵 現金決済</h3>
               <p className="text-orange-700">
@@ -272,8 +272,8 @@ export const ReadmePage: React.FC = () => {
             <div className="bg-red-50 p-4 rounded-lg">
               <p className="text-red-700">
                 ⚠️ <strong>ポイントの取引データが有効になりません。</strong>
-              </p>
-            </div>
+                </p>
+              </div>
           </div>
         </div>
 
@@ -293,7 +293,7 @@ export const ReadmePage: React.FC = () => {
             <div className="bg-green-50 p-4 rounded-lg">
               <h3 className="font-semibold text-green-800 mb-2">📊 データベース利用</h3>
               <p className="text-green-700">
-                データベースはより良いお花を愛する方々と、花業界の発展のために使われます。
+                  データベースはより良いお花を愛する方々と、花業界の発展のために使われます。
                 管理には徹底した配慮をいたします。
               </p>
             </div>
@@ -317,8 +317,8 @@ export const ReadmePage: React.FC = () => {
               <h3 className="font-semibold text-blue-800 mb-2">💬 店舗との連絡</h3>
               <p className="text-blue-700">
                 メール返信の上、お客様とご相談ください。
-              </p>
-            </div>
+                </p>
+              </div>
           </div>
         </div>
 

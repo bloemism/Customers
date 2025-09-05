@@ -1,12 +1,12 @@
 {
-  "name": "87app-store",
+  "name": "87app-customer",
   "private": true,
   "version": "1.0.0",
-  "description": "花屋向け店舗管理アプリ - 商品管理、QR決済、売上管理",
+  "description": "花屋向け顧客アプリ - 店舗検索、QR決済、ポイント管理",
   "type": "module",
   "keywords": [
     "flower-shop",
-    "store-management",
+    "customer-app",
     "qr-payment",
     "react",
     "typescript",
@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",
-    "@stripe/stripe-js": "^7.9.0",
+    "@stripe/stripe-js": "^7.7.0",
     "@supabase/supabase-js": "^2.38.4",
     "@types/qrcode": "^1.5.5",
     "cors": "^2.8.5",

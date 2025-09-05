@@ -22,6 +22,8 @@ export const SimpleLoginForm: React.FC = () => {
       if (result.error) {
         setError(result.error);
       } else {
+        // ログイン成功後は、ユーザータイプに応じてリダイレクト
+        // CustomerAuthGuardが適切なページにリダイレクトする
         navigate('/simple-menu');
       }
     } catch (error) {
@@ -132,16 +134,24 @@ export const SimpleLoginForm: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-purple-200 text-sm mb-4">
+        <div className="mt-6 text-center space-y-3">
+          <p className="text-purple-200 text-sm">
             アカウントをお持ちでない方は
           </p>
-          <button
-            onClick={() => navigate('/simple-signup')}
-            className="text-purple-300 hover:text-white transition-colors duration-200 underline"
-          >
-            新規ユーザー登録
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate('/simple-signup')}
+              className="block w-full text-purple-300 hover:text-white transition-colors duration-200 underline text-sm"
+            >
+              店舗・スクール向け登録
+            </button>
+            <button
+              onClick={() => navigate('/customer-signup')}
+              className="block w-full text-blue-300 hover:text-white transition-colors duration-200 underline text-sm"
+            >
+              顧客向け登録
+            </button>
+          </div>
         </div>
       </div>
     </div>

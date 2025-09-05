@@ -118,8 +118,8 @@ export const FloristMap: React.FC = () => {
   const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  // Google Maps JavaScript APIキー
-  const GOOGLE_MAPS_API_KEY = 'AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g';
+  // Google Maps JavaScript APIキー（環境変数から取得）
+  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   useEffect(() => {
     loadStores();

@@ -188,7 +188,7 @@ const FlowerLessonMap: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-6 mb-8">
