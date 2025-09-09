@@ -17,41 +17,13 @@ export const AuthCallback: React.FC = () => {
       setStatus('loading');
       setMessage('認証処理中...');
 
-      // URLからハッシュフラグメントを取得
-      const hash = window.location.hash;
-      const params = new URLSearchParams(hash.substring(1));
+      // Supabase v2の新しい認証コールバック処理
+      const { data, error } = await supabase.auth.getSession();
       
-      // エラーパラメータをチェック
-      const error = params.get('error');
-      const errorDescription = params.get('error_description');
-
       if (error) {
-        console.error('OAuth error:', error, errorDescription);
+        console.error('Session error:', error);
         setStatus('error');
-        setMessage(`認証エラー: ${errorDescription || error}`);
-        return;
-      }
-
-      // アクセストークンを取得
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-
-      if (!accessToken) {
-        setStatus('error');
-        setMessage('アクセストークンが見つかりません');
-        return;
-      }
-
-      // Supabaseでセッションを設定
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || '',
-      });
-
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        setStatus('error');
-        setMessage('セッション設定エラー');
+        setMessage(`認証エラー: ${error.message}`);
         return;
       }
 
@@ -64,8 +36,19 @@ export const AuthCallback: React.FC = () => {
           navigate('/simple-menu');
         }, 3000);
       } else {
-        setStatus('error');
-        setMessage('セッションの作成に失敗しました');
+        // URLパラメータからエラーをチェック
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        if (error) {
+          console.error('OAuth error:', error, errorDescription);
+          setStatus('error');
+          setMessage(`認証エラー: ${errorDescription || error}`);
+        } else {
+          setStatus('error');
+          setMessage('セッションが見つかりません');
+        }
       }
 
     } catch (error) {

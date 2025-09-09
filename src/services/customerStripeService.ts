@@ -30,12 +30,12 @@ export class CustomerStripeService {
       const data = JSON.parse(qrData);
       
       // 必要なフィールドが存在するかチェック
-      if (!data.amount || !data.store_connect_account_id || !data.store_name) {
+      if (!data.total || !data.store_connect_account_id || !data.store_name) {
         throw new Error('QRコードデータが不完全です');
       }
 
       return {
-        amount: data.amount,
+        amount: data.total, // totalフィールドを使用
         store_connect_account_id: data.store_connect_account_id,
         store_name: data.store_name,
         customer_id: data.customer_id || '',
@@ -44,6 +44,41 @@ export class CustomerStripeService {
     } catch (error) {
       console.error('QRコードデータ解析エラー:', error);
       return null;
+    }
+  }
+
+  // 顧客情報を組み込んで決済リクエストを送信
+  static async processQRCodePayment(
+    qrData: string,
+    customerInfo: {
+      customer_id: string;
+      customer_name: string;
+      customer_email: string;
+      points_to_use: number;
+    }
+  ): Promise<{ success: boolean; request_id?: string; error?: string }> {
+    try {
+      console.log('QRコード決済処理開始:', { qrData, customerInfo });
+
+      const parsedData = JSON.parse(qrData);
+      
+      // PaymentDataServiceを使用して決済リクエストを送信
+      const { PaymentDataService } = await import('./paymentDataService');
+      const result = await PaymentDataService.sendPaymentRequest(parsedData, customerInfo);
+
+      if (result.success) {
+        console.log('決済リクエスト送信成功:', result.request_id);
+        return { success: true, request_id: result.request_id };
+      } else {
+        console.error('決済リクエスト送信失敗:', result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('QRコード決済処理エラー:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'QRコード決済処理に失敗しました' 
+      };
     }
   }
 

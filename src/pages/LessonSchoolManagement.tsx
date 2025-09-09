@@ -367,14 +367,14 @@ const LessonSchoolManagement: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    スクール名 <span className="text-red-500">*</span>
+                    スクール名（店舗名のみ） <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={newSchool.name}
                     onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="スクール名を入力"
+                    placeholder="店舗名のみを入力（講座名は含めない）"
                   />
                 </div>
 

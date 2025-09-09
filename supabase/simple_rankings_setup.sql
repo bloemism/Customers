@@ -24,10 +24,10 @@ SELECT
   c.id as customer_id,
   c.name as customer_name,
   c.email as customer_email,
-  c.total_points,
-  ROW_NUMBER() OVER (ORDER BY c.total_points DESC) as rank
+  COALESCE(c.current_points, c.total_points, 0) as total_points,
+  ROW_NUMBER() OVER (ORDER BY COALESCE(c.current_points, c.total_points, 0) DESC) as rank
 FROM customers c
-WHERE c.total_points > 0;
+WHERE COALESCE(c.current_points, c.total_points, 0) > 0;
 
 -- 3. 月次売上ランキング（総額）
 CREATE OR REPLACE VIEW monthly_sales_ranking AS
@@ -83,7 +83,8 @@ GROUP BY DATE_PART('year', ph.purchase_date), DATE_PART('month', ph.purchase_dat
 -- インデックスの作成（パフォーマンス向上）
 CREATE INDEX IF NOT EXISTS idx_purchase_history_customer ON purchase_history(customer_id);
 CREATE INDEX IF NOT EXISTS idx_purchase_history_date ON purchase_history(purchase_date);
-CREATE INDEX IF NOT EXISTS idx_customers_points ON customers(total_points DESC);
+CREATE INDEX IF NOT EXISTS idx_customers_points ON customers(current_points DESC);
+CREATE INDEX IF NOT EXISTS idx_customers_total_points ON customers(total_points DESC);
 
 -- 権限設定
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;

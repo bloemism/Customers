@@ -16,6 +16,8 @@ const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
 const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
 const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
+const PublicRankings = React.lazy(() => import('./pages/PublicRankings'));
+const StoreAnalytics = React.lazy(() => import('./pages/StoreAnalytics'));
 const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
 const ReadmePage = React.lazy(() => import('./pages/ReadmePage').then(module => ({ default: module.ReadmePage })));
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
@@ -114,7 +116,12 @@ function App() {
               } />
               <Route path="/popularity-rankings" element={
                 <SimpleAuthGuard>
-                  <PopularityRankings />
+                  <PublicRankings />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/store-analytics" element={
+                <SimpleAuthGuard>
+                  <StoreAnalytics />
                 </SimpleAuthGuard>
               } />
               <Route path="/subscription-management" element={

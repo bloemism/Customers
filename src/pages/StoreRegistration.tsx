@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
+import { BankAccountValidator } from '../utils/bankAccountValidation';
 import { 
   ArrowLeft,
   Save,
@@ -18,7 +19,9 @@ import {
   Tag,
   Plus,
   X,
-  Upload
+  Upload,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 
 // 店舗情報の型定義
@@ -112,6 +115,11 @@ export const StoreRegistration: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [existingStore, setExistingStore] = useState<Store | null>(null);
+  const [bankValidation, setBankValidation] = useState<{
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  }>({ isValid: false, errors: [], warnings: [] });
   const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
   const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
   const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
@@ -408,6 +416,25 @@ export const StoreRegistration: React.FC = () => {
     }));
     setError('');
     setSuccess('');
+
+    // 銀行口座情報の変更時はバリデーションを実行
+    if (['bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'].includes(field)) {
+      validateBankAccount();
+    }
+  };
+
+  // 銀行口座情報のバリデーション
+  const validateBankAccount = () => {
+    const bankInfo = {
+      bank_name: formData.bank_name,
+      branch_name: formData.branch_name,
+      account_type: formData.account_type,
+      account_number: formData.account_number,
+      account_holder: formData.account_holder
+    };
+
+    const validation = BankAccountValidator.validate(bankInfo);
+    setBankValidation(validation);
   };
 
   const validateForm = (): boolean => {
@@ -464,6 +491,7 @@ export const StoreRegistration: React.FC = () => {
         console.log('既存店舗更新開始:', existingStore.id);
         const updateData: any = {
           store_name: formData.store_name,
+          name: formData.store_name, // 互換性のため
           address: formData.address,
           phone: formData.phone,
           email: formData.email,
@@ -472,7 +500,13 @@ export const StoreRegistration: React.FC = () => {
           online_shop: formData.online_shop || null,
           business_hours: formData.business_hours || null,
           description: formData.description || null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          // 銀行口座情報
+          bank_name: formData.bank_name,
+          branch_name: formData.branch_name,
+          account_type: formData.account_type,
+          account_number: formData.account_number,
+          account_holder: formData.account_holder
         };
 
         // parkingカラムを追加（SQL実行後に有効化）
@@ -497,17 +531,14 @@ export const StoreRegistration: React.FC = () => {
         setExistingStore(updatedStore);
         setSuccess('店舗情報を更新しました');
         
-        // 銀行口座情報をcredit_cardsテーブルに保存
-        await saveBankAccountInfo(existingStore.id);
-        
         // タグも更新
         await updateStoreTags(existingStore.id);
       } else {
         // 新規店舗の作成
         console.log('新規店舗作成開始');
         const createData: any = {
-          id: `store-${Date.now()}`, // ユニークなIDを生成
           store_name: formData.store_name,
+          name: formData.store_name, // 互換性のため
           address: formData.address,
           phone: formData.phone,
           email: formData.email,
@@ -516,7 +547,13 @@ export const StoreRegistration: React.FC = () => {
           online_shop: formData.online_shop || null,
           business_hours: formData.business_hours || null,
           description: formData.description || null,
-          is_active: true
+          is_active: true,
+          // 銀行口座情報
+          bank_name: formData.bank_name,
+          branch_name: formData.branch_name,
+          account_type: formData.account_type,
+          account_number: formData.account_number,
+          account_holder: formData.account_holder
         };
 
         // parkingカラムを追加（SQL実行後に有効化）
@@ -539,9 +576,6 @@ export const StoreRegistration: React.FC = () => {
         console.log('店舗作成成功:', data);
         setExistingStore(data);
         setSuccess('店舗を登録しました');
-        
-        // 銀行口座情報をcredit_cardsテーブルに保存
-        await saveBankAccountInfo(data.id);
         
         // 新規作成時はタグを更新
         await updateStoreTags(data.id);
@@ -1049,7 +1083,43 @@ export const StoreRegistration: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <span className="text-green-600 mr-2">🏦</span>
                   銀行口座情報 <span className="text-red-500 text-sm">（必須）</span>
+                  {bankValidation.isValid && (
+                    <CheckCircle className="h-5 w-5 text-green-500 ml-2" />
+                  )}
                 </h3>
+                
+                {/* バリデーション結果表示 */}
+                {bankValidation.errors.length > 0 && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-medium text-red-800">入力エラー</h4>
+                        <ul className="mt-1 text-sm text-red-700 list-disc list-inside">
+                          {bankValidation.errors.map((error, index) => (
+                            <li key={index}>{error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {bankValidation.warnings.length > 0 && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-medium text-yellow-800">確認事項</h4>
+                        <ul className="mt-1 text-sm text-yellow-700 list-disc list-inside">
+                          {bankValidation.warnings.map((warning, index) => (
+                            <li key={index}>{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

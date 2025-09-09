@@ -26,7 +26,12 @@
     "clean": "rm -rf dist",
     "deploy": "npm run clean && npm run build:prod",
     "deploy:vercel": "vercel --prod",
-    "postinstall": "npm run type-check"
+    "deploy:preview": "vercel",
+    "deploy:full": "./scripts/deploy.sh vercel",
+    "deploy:build": "./scripts/deploy.sh",
+    "postinstall": "npm run type-check",
+    "prebuild": "npm run type-check && npm run lint",
+    "postbuild": "echo 'Build completed successfully'"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",

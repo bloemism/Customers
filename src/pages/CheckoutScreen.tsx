@@ -403,6 +403,7 @@ const CheckoutScreen: React.FC = () => {
         store_address: store?.address || '不明',
         store_phone: store?.phone || '不明',
         store_email: store?.email || '不明',
+        store_connect_account_id: store?.stripe_connect_account_id || '', // Stripe Connect Account ID
         items: checkoutItems.map(item => {
           const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
           const color = colorCategories.find(cat => cat.id === item.color_category_id);

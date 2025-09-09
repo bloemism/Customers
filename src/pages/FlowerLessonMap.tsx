@@ -293,19 +293,19 @@ const FlowerLessonMap: React.FC = () => {
                           <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
                             {region.name} ({schoolsInRegion.length}校)
                           </h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2">
-                            {schoolsInRegion.map(school => (
-                              <div
-                                key={school.id}
-                                className={`p-2 rounded-lg transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
-                                onClick={() => setSelectedSchool(school)}
-                                title={`${school.name} (${school.prefecture} ${school.city})`}
-                              >
-                                <div className="text-sm font-semibold text-white drop-shadow-sm leading-tight">
-                                  {school.name}
-                                </div>
-                              </div>
-                            ))}
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-1">
+                {schoolsInRegion.map(school => (
+                  <div
+                    key={school.id}
+                    className={`p-0.5 rounded-sm transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
+                    onClick={() => setSelectedSchool(school)}
+                    title={`${school.name} (${school.prefecture} ${school.city})`}
+                  >
+                    <div className="text-[10px] font-medium text-white drop-shadow-sm leading-tight min-h-[2.5rem] flex items-center justify-center">
+                      {school.name.length > 10 ? school.name.substring(0, 10) + '...' : school.name}
+                    </div>
+                  </div>
+                ))}
                           </div>
                         </div>
                       );
