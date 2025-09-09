@@ -637,20 +637,20 @@ export const StoreRegistration: React.FC = () => {
 
   // 銀行口座情報をcredit_cardsテーブルに保存
   // const saveBankAccountInfo = async (storeId: string) => {
-    try {
-      console.log('銀行口座情報保存開始:', storeId);
+  //   try {
+  //     console.log('銀行口座情報保存開始:', storeId);
       
-      // 既存の銀行口座情報を確認
-      const { data: existingCards, error: selectError } = await supabase
-        .from('credit_cards')
-        .select('*')
-        .eq('store_id', storeId)
-        .eq('is_active', true);
+  //     // 既存の銀行口座情報を確認
+  //     const { data: existingCards, error: selectError } = await supabase
+  //       .from('credit_cards')
+  //       .select('*')
+  //       .eq('store_id', storeId)
+  //       .eq('is_active', true);
 
-      if (selectError) {
-        console.error('銀行口座情報確認エラー:', selectError);
-        return;
-      }
+  //     if (selectError) {
+  //       console.error('銀行口座情報確認エラー:', selectError);
+  //       return;
+  //     }
 
       // 既存のカードを無効化
       if (existingCards && existingCards.length > 0) {
@@ -681,21 +681,21 @@ export const StoreRegistration: React.FC = () => {
         is_active: true
       };
 
-      const { error: insertError } = await supabase
-        .from('credit_cards')
-        .insert([bankAccountData]);
+  //     const { error: insertError } = await supabase
+  //       .from('credit_cards')
+  //       .insert([bankAccountData]);
 
-      if (insertError) {
-        console.error('銀行口座情報保存エラー:', insertError);
-        setError('銀行口座情報の保存に失敗しました');
-      } else {
-        console.log('銀行口座情報保存成功');
-      }
-    } catch (err) {
-      console.error('銀行口座情報保存エラー:', err);
-      setError('銀行口座情報の保存に失敗しました');
-    }
-  };
+  //     if (insertError) {
+  //       console.error('銀行口座情報保存エラー:', insertError);
+  //       setError('銀行口座情報の保存に失敗しました');
+  //     } else {
+  //       console.log('銀行口座情報保存成功');
+  //     }
+  //   } catch (err) {
+  //     console.error('銀行口座情報保存エラー:', err);
+  //     setError('銀行口座情報の保存に失敗しました');
+  //   }
+  // };
 
   // 画像アップロード機能
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
