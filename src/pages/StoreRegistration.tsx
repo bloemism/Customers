@@ -6,13 +6,6 @@ import { BankAccountValidator } from '../utils/bankAccountValidation';
 import { 
   ArrowLeft,
   Save,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  Instagram,
-  Clock,
-  Car,
   Flower,
   Image,
   MessageSquare,
@@ -107,7 +100,7 @@ interface StoreFormData {
 }
 
 export const StoreRegistration: React.FC = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const { user } = useSimpleAuth();
   
   const [loading, setLoading] = useState(false);
@@ -120,19 +113,19 @@ export const StoreRegistration: React.FC = () => {
     errors: string[];
     warnings: string[];
   }>({ isValid: false, errors: [], warnings: [] });
-  const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
-  const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
-  const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
-  const [availableTags, setAvailableTags] = useState<StoreTag[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
+  // const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
+  // const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
+  // const [availableTags, setAvailableTags] = useState<StoreTag[]>([]);
+  // const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
   // 掲示板作成用の状態
-  const [showBulletinModal, setShowBulletinModal] = useState(false);
-  const [newBulletin, setNewBulletin] = useState({
-    title: '',
-    content: '',
-    is_pinned: false
-  });
+  // const [showBulletinModal, setShowBulletinModal] = useState(false);
+  // const [newBulletin, setNewBulletin] = useState({
+  //   title: '',
+  //   content: '',
+  //   is_pinned: false
+  // });
 
   // フォームデータ
   const [formData, setFormData] = useState<StoreFormData>({
@@ -643,7 +636,7 @@ export const StoreRegistration: React.FC = () => {
   };
 
   // 銀行口座情報をcredit_cardsテーブルに保存
-  const saveBankAccountInfo = async (storeId: string) => {
+  // const saveBankAccountInfo = async (storeId: string) => {
     try {
       console.log('銀行口座情報保存開始:', storeId);
       

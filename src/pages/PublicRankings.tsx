@@ -2,22 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
-  TrendingUp, 
   Trophy, 
   Calendar,
-  DollarSign,
   Gift,
-  Users,
   MapPin,
-  BarChart3,
   RefreshCw,
-  ShoppingCart,
   Flower,
-  Star,
-  Heart,
-  Leaf,
-  CreditCard,
-  Banknote
+  CreditCard
 } from 'lucide-react';
 import { PublicRankingService } from '../services/publicRankingService';
 import type { 
@@ -169,7 +160,7 @@ const PublicRankings: React.FC = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => handleTabChange(tab.id as any)}
+                    onClick={() => handleTabChange(tab.id as 'regional' | 'products' | 'points' | 'seasonal' | 'payment')}
                     className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
                       selectedTab === tab.id
                         ? 'border-blue-500 text-blue-600'

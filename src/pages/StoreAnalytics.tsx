@@ -3,13 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   BarChart3, 
-  TrendingUp, 
-  DollarSign, 
   Users, 
   ShoppingBag,
   Calendar,
   RefreshCw,
-  Download,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -89,9 +86,9 @@ const StoreAnalytics: React.FC = () => {
     return `¥${amount?.toLocaleString()}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ja-JP');
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString('ja-JP');
+  // };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,7 +139,7 @@ const StoreAnalytics: React.FC = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setSelectedTab(tab.id as any)}
+                    onClick={() => setSelectedTab(tab.id as 'stores' | 'customers' | 'monthly' | 'products' | 'payment')}
                     className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
                       selectedTab === tab.id
                         ? 'border-blue-500 text-blue-600'

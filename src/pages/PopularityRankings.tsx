@@ -3,19 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   TrendingUp, 
-  Trophy, 
   Calendar,
-  DollarSign,
   Gift,
-  Users,
   MapPin,
   BarChart3,
   RefreshCw,
   ShoppingCart,
-  Flower,
-  Star,
-  Heart,
-  Leaf
+  Flower
 } from 'lucide-react';
 import { PublicRankingService } from '../services/publicRankingService';
 import type { 
@@ -29,8 +23,8 @@ import type {
 const PopularityRankings: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'regional' | 'products' | 'points' | 'seasonal' | 'payment'>('regional');
-  const [selectedPrefecture, setSelectedPrefecture] = useState<string>('東京都');
+  // const [selectedTab, setSelectedTab] = useState<'regional' | 'products' | 'points' | 'seasonal' | 'payment'>('regional');
+  // const [selectedPrefecture, setSelectedPrefecture] = useState<string>('東京都');
   
   const [rankings, setRankings] = useState<{
     regional: RegionalStatistics[];
@@ -81,17 +75,17 @@ const PopularityRankings: React.FC = () => {
   };
 
   // 地域別商品ランキング取得
-  const loadRegionalProducts = async (prefecture: string) => {
-    try {
-      const regionalProducts = await PublicRankingService.getRegionalProductRanking(prefecture);
-      setRankings(prev => ({
-        ...prev,
-        regionalProducts
-      }));
-    } catch (err) {
-      console.error('地域別商品ランキング取得エラー:', err);
-    }
-  };
+  // const loadRegionalProducts = async (prefecture: string) => {
+  //   try {
+  //     const regionalProducts = await PublicRankingService.getRegionalProductRanking(prefecture);
+  //     setRankings(prev => ({
+  //       ...prev,
+  //       regionalProducts
+  //     }));
+  //   } catch (err) {
+  //     console.error('地域別商品ランキング取得エラー:', err);
+  //   }
+  // };
 
   // 月を変更
   const changeMonth = (direction: 'prev' | 'next') => {
@@ -251,8 +245,8 @@ const PopularityRankings: React.FC = () => {
   }
 
   // ランキングデータを整形（ビュー用）
-  const formatRankingDataFromView = (data: any[], valueField: string): RankingData[] => {
-    return data.map((item) => ({
+  const formatRankingDataFromView = (data: unknown[], valueField: string): RankingData[] => {
+    return data.map((item: any) => ({
       rank: item.rank || 1,
       name: item.customer_name || '不明',
       value: item[valueField] || 0,
@@ -265,12 +259,12 @@ const PopularityRankings: React.FC = () => {
   // 月が変更されたらランキングを再読み込み
   useEffect(() => {
     loadRankings();
-  }, [selectedMonth]);
+  }, []);
 
   // ランキングカードコンポーネント
   const RankingCard = ({ title, icon: Icon, data, valueFormatter, color }: {
     title: string;
-    icon: any;
+    icon: React.ComponentType<any>;
     data: RankingData[];
     valueFormatter: (value: number) => string;
     color: string;

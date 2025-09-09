@@ -11,7 +11,6 @@ import {
   Phone,
   Star,
   Search,
-  Filter,
   X
 } from 'lucide-react';
 
@@ -46,7 +45,7 @@ interface RegionCategory {
 }
 
 const FlowerLessonMap: React.FC = () => {
-  const { user } = useSimpleAuth();
+  // const { user } = useSimpleAuth();
   
   // レッスンスクール一覧
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);

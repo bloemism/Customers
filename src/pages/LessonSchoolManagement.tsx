@@ -12,11 +12,7 @@ import {
   Calendar,
   Clock,
   User,
-  Mail,
-  Phone,
-  Star,
-  BookOpen,
-  GraduationCap
+  BookOpen
 } from 'lucide-react';
 
 // レッスンスクールの型定義

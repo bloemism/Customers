@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { QrCode, X, Camera, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { QrCode, X, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface QRCodeScannerProps {
   onScan: (data: string) => void;
@@ -50,12 +50,12 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }
       if (!scanning) {
         startScanner();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('カメラ権限エラー:', err);
       setCameraPermission('denied');
-      if (err.name === 'NotAllowedError') {
+      if (err instanceof Error && err.name === 'NotAllowedError') {
         setError('カメラへのアクセスが拒否されました。ブラウザの設定でカメラ権限を許可してください。');
-      } else if (err.name === 'NotFoundError') {
+      } else if (err instanceof Error && err.name === 'NotFoundError') {
         setError('カメラが見つかりません。カメラが接続されているか確認してください。');
       } else {
         setError('カメラの初期化に失敗しました。');
@@ -88,12 +88,12 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }
         (decodedText: string) => {
           handleScan(decodedText);
         },
-        (error: any) => {
+        (error: unknown) => {
           // エラーは無視（継続スキャン）
           console.log('QRスキャン継続中...', error);
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('スキャナー初期化エラー:', err);
       setError('QRコードスキャナーの初期化に失敗しました。');
       setScanning(false);

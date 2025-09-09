@@ -35,7 +35,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // 本番環境では接続確認を簡素化
 if (isDev || isDebug) {
-  supabase.auth.getSession().then(({ data, error }) => {
+  supabase.auth.getSession().then(({ error }) => {
     if (error) {
       console.error('Supabase connection error:', error)
     } else {

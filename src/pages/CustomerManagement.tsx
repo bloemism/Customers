@@ -12,15 +12,12 @@ import {
   ShoppingBag,
   TrendingUp,
   Clock,
-  MapPin,
   Edit,
   Plus,
-  Filter,
   Download,
   AlertCircle,
   QrCode,
-  BarChart3,
-  Trophy
+  BarChart3
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AddCustomerModal } from '../components/AddCustomerModal';

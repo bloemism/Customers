@@ -5,17 +5,12 @@ import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft,
   Plus,
-  Trash2,
-  Calculator,
   QrCode,
-  CreditCard,
-  DollarSign,
   ShoppingCart,
   Mail,
   Copy,
   Download,
-  X,
-  Percent
+  X
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -88,7 +83,7 @@ const CheckoutScreen: React.FC = () => {
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
-  const [finalTotal, setFinalTotal] = useState(0);
+  // const [finalTotal, setFinalTotal] = useState(0);
 
   
   // ポイント
@@ -96,7 +91,7 @@ const CheckoutScreen: React.FC = () => {
   const [pointsEarned, setPointsEarned] = useState(0);
   
   // 支払い方法
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
+  // const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
   
   // QRコード・URL情報
   const [itemQRInfo, setItemQRInfo] = useState<{
@@ -104,7 +99,7 @@ const CheckoutScreen: React.FC = () => {
     title: string;
     qrCodeUrl: string;
     emailUrl: string;
-    data: any;
+    data: unknown;
   } | null>(null);
   
   // モーダル表示

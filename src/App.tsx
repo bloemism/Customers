@@ -15,7 +15,7 @@ const FloristMap = React.lazy(() => import('./pages/FloristMap').then(module => 
 const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
 const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
-const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
+// const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
 const PublicRankings = React.lazy(() => import('./pages/PublicRankings'));
 const StoreAnalytics = React.lazy(() => import('./pages/StoreAnalytics'));
 const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
