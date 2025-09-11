@@ -146,10 +146,21 @@ export const SimpleMenuScreen: React.FC = () => {
   useEffect(() => {
     // ユーザーのプランを判定（実際のデータベース構造に合わせて修正）
     const determineUserPlan = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        setLoading(false);
+        return;
+      }
 
       try {
         console.log('プラン判定開始:', user.email);
+        
+        // Supabaseが利用可能かチェック
+        if (!supabase) {
+          console.error('Supabaseが利用できません');
+          setUserPlan('FLOWER_SCHOOL');
+          setLoading(false);
+          return;
+        }
         
         // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
         const { data: storeData, error: storeError } = await supabase

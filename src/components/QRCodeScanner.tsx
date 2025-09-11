@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrCode, X, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface QRCodeScannerProps {
@@ -23,7 +22,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }
   const [parsedCustomer, setParsedCustomer] = useState<CustomerData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'prompt' | 'checking'>('checking');
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<any | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,13 +62,16 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }
     }
   };
 
-  const startScanner = () => {
+  const startScanner = async () => {
     if (!containerRef.current || cameraPermission !== 'granted') return;
 
     setScanning(true);
     setError(null);
     
     try {
+      // html5-qrcodeを動的インポート
+      const { Html5QrcodeScanner } = await import('html5-qrcode');
+      
       scannerRef.current = new Html5QrcodeScanner(
         "qr-reader",
         { 

@@ -65,6 +65,23 @@ interface StoreTag {
   created_at: string;
 }
 
+interface StoreImage {
+  id: string;
+  store_id: string;
+  image_url: string;
+  caption: string;
+  display_order: number;
+}
+
+interface StoreBulletin {
+  id: string;
+  store_id: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  created_at: string;
+}
+
 // 銀行口座情報の型定義
 interface BankAccount {
   id: string;
@@ -113,14 +130,14 @@ export const StoreRegistration: React.FC = () => {
     errors: string[];
     warnings: string[];
   }>({ isValid: false, errors: [], warnings: [] });
-  // const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
-  // const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
-  // const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
-  // const [availableTags, setAvailableTags] = useState<StoreTag[]>([]);
-  // const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [storeImages, setStoreImages] = useState<StoreImage[]>([]);
+  const [storeBulletins, setStoreBulletins] = useState<StoreBulletin[]>([]);
+  const [storeTags, setStoreTags] = useState<StoreTag[]>([]);
+  const [availableTags, setAvailableTags] = useState<StoreTag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
   // 掲示板作成用の状態
-  // const [showBulletinModal, setShowBulletinModal] = useState(false);
+  const [showBulletinModal, setShowBulletinModal] = useState(false);
   // const [newBulletin, setNewBulletin] = useState({
   //   title: '',
   //   content: '',
@@ -636,21 +653,21 @@ export const StoreRegistration: React.FC = () => {
   };
 
   // 銀行口座情報をcredit_cardsテーブルに保存
-  // const saveBankAccountInfo = async (storeId: string) => {
-  //   try {
-  //     console.log('銀行口座情報保存開始:', storeId);
+  const saveBankAccountInfo = async (storeId: string) => {
+    try {
+      console.log('銀行口座情報保存開始:', storeId);
       
-  //     // 既存の銀行口座情報を確認
-  //     const { data: existingCards, error: selectError } = await supabase
-  //       .from('credit_cards')
-  //       .select('*')
-  //       .eq('store_id', storeId)
-  //       .eq('is_active', true);
+      // 既存の銀行口座情報を確認
+      const { data: existingCards, error: selectError } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('is_active', true);
 
-  //     if (selectError) {
-  //       console.error('銀行口座情報確認エラー:', selectError);
-  //       return;
-  //     }
+      if (selectError) {
+        console.error('銀行口座情報確認エラー:', selectError);
+        return;
+      }
 
       // 既存のカードを無効化
       if (existingCards && existingCards.length > 0) {
@@ -681,21 +698,21 @@ export const StoreRegistration: React.FC = () => {
         is_active: true
       };
 
-  //     const { error: insertError } = await supabase
-  //       .from('credit_cards')
-  //       .insert([bankAccountData]);
+      const { error: insertError } = await supabase
+        .from('credit_cards')
+        .insert([bankAccountData]);
 
-  //     if (insertError) {
-  //       console.error('銀行口座情報保存エラー:', insertError);
-  //       setError('銀行口座情報の保存に失敗しました');
-  //     } else {
-  //       console.log('銀行口座情報保存成功');
-  //     }
-  //   } catch (err) {
-  //     console.error('銀行口座情報保存エラー:', err);
-  //     setError('銀行口座情報の保存に失敗しました');
-  //   }
-  // };
+      if (insertError) {
+        console.error('銀行口座情報保存エラー:', insertError);
+        setError('銀行口座情報の保存に失敗しました');
+      } else {
+        console.log('銀行口座情報保存成功');
+      }
+    } catch (err) {
+      console.error('銀行口座情報保存エラー:', err);
+      setError('銀行口座情報の保存に失敗しました');
+    }
+  };
 
   // 画像アップロード機能
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1194,7 +1211,7 @@ export const StoreRegistration: React.FC = () => {
                 </label>
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2">
-                    {availableTags.map((tag) => (
+                    {availableTags && availableTags.length > 0 ? availableTags.map((tag) => (
                       <label key={tag.id} className="flex items-center">
                     <input
                       type="checkbox"
@@ -1215,11 +1232,13 @@ export const StoreRegistration: React.FC = () => {
                           {tag.name}
                         </span>
                       </label>
-                    ))}
+                    )) : (
+                      <p className="text-sm text-gray-500">タグを読み込み中...</p>
+                    )}
                 </div>
                   {selectedTags.length === 0 && (
                     <p className="text-sm text-gray-500">タグを選択してください</p>
-              )}
+                  )}
             </div>
           </div>
             </div>
@@ -1424,7 +1443,7 @@ export const StoreRegistration: React.FC = () => {
                 <p><strong>店舗ID:</strong> {existingStore.id}</p>
               )}
               <p><strong>選択タグ数:</strong> {selectedTags.length}</p>
-              <p><strong>利用可能タグ数:</strong> {availableTags.length}</p>
+              <p><strong>利用可能タグ数:</strong> {availableTags ? availableTags.length : 0}</p>
               <p><strong>店舗画像数:</strong> {storeImages.length}</p>
               <p><strong>掲示板投稿数:</strong> {storeBulletins.length}</p>
             </div>

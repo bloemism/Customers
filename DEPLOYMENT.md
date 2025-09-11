@@ -12,14 +12,29 @@
 
 ## 環境変数の設定
 
-### 1. 本番環境用環境変数ファイルの作成
+### 1. Vercelでの環境変数設定（推奨）
+
+Vercelダッシュボードで以下の環境変数を設定してください：
+
+**必須の環境変数:**
+- `VITE_SUPABASE_URL`: SupabaseプロジェクトのURL
+- `VITE_SUPABASE_ANON_KEY`: Supabaseの匿名キー
+- `VITE_GOOGLE_MAPS_API_KEY`: Google Maps APIキー
+- `VITE_STRIPE_PUBLISHABLE_KEY`: Stripe公開キー
+
+**アプリケーション設定:**
+- `VITE_APP_NAME`: 87アプリ
+- `VITE_APP_VERSION`: 1.0.0
+- `VITE_APP_ENV`: production
+- `VITE_DEV_MODE`: false
+- `VITE_DEBUG_MODE`: false
+
+### 2. ローカル環境変数ファイルの作成（開発用）
 ```bash
-cp env.production.example .env.production
+cp env.example .env
 ```
 
-### 2. 環境変数の設定
-`.env.production`ファイルを編集し、以下の値を設定してください：
-
+### 3. 環境変数の設定例
 ```env
 # Supabase設定（本番環境）
 VITE_SUPABASE_URL=https://your-project.supabase.co

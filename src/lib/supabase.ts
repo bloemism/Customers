@@ -13,9 +13,16 @@ if (isDev || isDebug) {
 
 if (!supabaseUrl || !supabaseAnonKey) {
   const error = 'Missing Supabase environment variables'
-  if (isDev || isDebug) {
-    console.error(error)
-  }
+  console.error(error)
+  throw new Error(error)
+}
+
+// URLの妥当性をチェック
+try {
+  new URL(supabaseUrl)
+} catch (urlError) {
+  const error = `Invalid Supabase URL: ${supabaseUrl}`
+  console.error(error)
   throw new Error(error)
 }
 

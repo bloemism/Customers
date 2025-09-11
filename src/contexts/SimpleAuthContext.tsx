@@ -31,6 +31,34 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 初期セッション確認
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('セッション取得エラー:', error);
+          setLoading(false);
+          return;
+        }
+        
+        if (session?.user) {
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0]
+          };
+          setUser(userData);
+          localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        }
+      } catch (error) {
+        console.error('認証初期化エラー:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
     // Supabaseのセッション状態を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {

@@ -83,7 +83,7 @@ const CheckoutScreen: React.FC = () => {
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
-  // const [finalTotal, setFinalTotal] = useState(0);
+  const [finalTotal, setFinalTotal] = useState(0);
 
   
   // ポイント
