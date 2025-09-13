@@ -158,36 +158,20 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     try {
       console.log('Starting Google OAuth sign in...');
-      console.log('Current URL:', window.location.href);
-      console.log('Origin:', window.location.origin);
-      console.log('Redirect URL:', `${window.location.origin}/auth/callback`);
-      
-      // Supabaseの設定を確認
-      console.log('Supabase URL:', supabase.supabaseUrl);
-      console.log('Supabase Key:', supabase.supabaseKey ? 'Set' : 'Not set');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
       if (error) {
-        console.error('Google OAuth error details:', {
-          message: error.message,
-          status: error.status,
-          statusText: error.statusText,
-          error: error
-        });
+        console.error('Google OAuth error:', error);
         return { error: `Google認証エラー: ${error.message}` };
       }
 
-      console.log('Google OAuth data:', data);
+      console.log('Google OAuth initiated successfully');
       return { error: undefined };
     } catch (error) {
       console.error('Googleログインエラー:', error);

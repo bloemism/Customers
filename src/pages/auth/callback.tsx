@@ -13,9 +13,29 @@ export const AuthCallback: React.FC = () => {
   }, []);
 
   const handleAuthCallback = async () => {
-    // 即座にメニューにリダイレクト
-    console.log('Auth callback - redirecting to menu immediately');
-    navigate('/simple-menu');
+    try {
+      console.log('Auth callback - processing authentication');
+      
+      // セッションを確認
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Session error:', error);
+      }
+      
+      if (session?.user) {
+        console.log('User authenticated:', session.user.email);
+      }
+      
+      // メニューにリダイレクト
+      console.log('Redirecting to menu');
+      navigate('/simple-menu');
+      
+    } catch (error) {
+      console.error('Auth callback error:', error);
+      // エラーが発生してもメニューに進む
+      navigate('/simple-menu');
+    }
   };
 
   return (
