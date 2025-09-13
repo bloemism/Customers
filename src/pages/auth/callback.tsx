@@ -21,6 +21,7 @@ export const AuthCallback: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       console.log('URL parameters:', Object.fromEntries(urlParams.entries()));
       console.log('Current URL:', window.location.href);
+      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
 
       // Supabase v2の新しい認証コールバック処理
       const { data, error } = await supabase.auth.getSession();
@@ -50,13 +51,31 @@ export const AuthCallback: React.FC = () => {
           setStatus('error');
           setMessage(`認証エラー: ${errorDescription || error}`);
         } else {
-          // セッションがない場合、手動でメニューにリダイレクト
-          console.log('No session found, redirecting to menu');
-          setStatus('success');
-          setMessage('認証が完了しました！');
-          setTimeout(() => {
-            navigate('/simple-menu');
-          }, 1000);
+          // セッションがない場合、認証フローを再実行
+          console.log('No session found, checking auth state...');
+          
+          // 認証状態を確認
+          const { data: authData, error: authError } = await supabase.auth.getUser();
+          
+          if (authError) {
+            console.error('Auth user error:', authError);
+            setStatus('error');
+            setMessage(`認証エラー: ${authError.message}`);
+          } else if (authData.user) {
+            console.log('User found, redirecting to menu');
+            setStatus('success');
+            setMessage('認証が完了しました！');
+            setTimeout(() => {
+              navigate('/simple-menu');
+            }, 1000);
+          } else {
+            console.log('No user found, redirecting to login');
+            setStatus('error');
+            setMessage('認証に失敗しました。ログイン画面に戻ります。');
+            setTimeout(() => {
+              navigate('/simple-login');
+            }, 2000);
+          }
         }
       }
 
