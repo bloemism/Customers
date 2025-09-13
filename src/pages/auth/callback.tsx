@@ -130,6 +130,13 @@ export const AuthCallback: React.FC = () => {
           {status === 'success' && '認証完了'}
           {status === 'error' && '認証エラー'}
         </h2>
+        
+        {/* 説明 */}
+        {status === 'loading' && (
+          <p className="text-sm text-gray-500 mb-4">
+            Google認証が完了しました。メニュー画面に移動します...
+          </p>
+        )}
 
         {/* メッセージ */}
         <p className="text-gray-600 mb-6">
