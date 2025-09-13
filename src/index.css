@@ -18,6 +18,8 @@
   
   /* Google Fontsを完全に無効化 */
   @import url('data:text/css,') !important;
+  /* キャッシュバスティング */
+  @import url('data:text/css,/* Cache buster */') !important;
 }
 
 @layer components {
