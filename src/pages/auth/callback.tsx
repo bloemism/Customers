@@ -13,29 +13,9 @@ export const AuthCallback: React.FC = () => {
   }, []);
 
   const handleAuthCallback = async () => {
-    try {
-      setStatus('loading');
-      setMessage('認証処理中...');
-
-      // シンプルにメニューにリダイレクト
-      console.log('Auth callback - redirecting to menu');
-      setStatus('success');
-      setMessage('認証が完了しました！');
-      
-      // 1秒後にメニュー画面にリダイレクト
-      setTimeout(() => {
-        navigate('/simple-menu');
-      }, 1000);
-
-    } catch (error) {
-      console.error('Auth callback error:', error);
-      // エラーが発生してもメニューに進む
-      setStatus('success');
-      setMessage('認証が完了しました！');
-      setTimeout(() => {
-        navigate('/simple-menu');
-      }, 1000);
-    }
+    // 即座にメニューにリダイレクト
+    console.log('Auth callback - redirecting to menu immediately');
+    navigate('/simple-menu');
   };
 
   return (
