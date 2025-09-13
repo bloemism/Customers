@@ -18,10 +18,13 @@
       @import url('data:text/css,') !important;
       /* キャッシュバスティング */
       @import url('data:text/css,/* Cache buster */') !important;
+      /* タイムスタンプキャッシュバスティング */
+      @import url('data:text/css,/* Cache buster: ' + new Date().getTime() + ' */') !important;
     </style>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta name="cache-buster" content="v1.0.0-2025-01-15">
   </head>
   <body>
     <div id="root"></div>

@@ -20,6 +20,8 @@
   @import url('data:text/css,') !important;
   /* キャッシュバスティング */
   @import url('data:text/css,/* Cache buster */') !important;
+  /* タイムスタンプキャッシュバスティング */
+  @import url('data:text/css,/* Cache buster: 2025-01-15-001 */') !important;
 }
 
 @layer components {
