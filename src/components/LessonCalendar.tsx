@@ -25,9 +25,9 @@ interface LessonCalendarProps {
   selectedDate?: string;
 }
 
-const LessonCalendar: React.FC<LessonCalendarProps> = ({
-  schedules,
-  onDateClick,
+const LessonCalendar: React.FC<LessonCalendarProps> = ({ 
+  schedules, 
+  onDateClick, 
   onScheduleClick,
   selectedDate
 }) => {
@@ -112,48 +112,48 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
           レッスンカレンダー
         </h3>
         <div className="flex items-center space-x-2 sm:space-x-4">
-          <button
+        <button
             onClick={goToPreviousMonth}
             className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
-          >
+        >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+        </button>
           <span className="text-sm sm:text-lg font-medium text-gray-800 min-w-[80px] sm:min-w-[120px] text-center">
             {currentDate.getFullYear()}年{monthNames[currentDate.getMonth()]}
           </span>
-          <button
+        <button
             onClick={goToNextMonth}
             className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
-          >
+        >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+        </button>
         </div>
-      </div>
+            </div>
 
-      {/* 曜日ヘッダー */}
+            {/* 曜日ヘッダー */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
         {dayNames.map((day) => (
           <div
             key={day}
             className="text-center text-xs sm:text-sm font-medium text-gray-700 py-1 sm:py-2 bg-gray-200 rounded"
           >
-            {day}
-          </div>
-        ))}
-      </div>
+                  {day}
+                </div>
+              ))}
+            </div>
 
-      {/* カレンダーグリッド */}
+            {/* カレンダーグリッド */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {days.map((date, index) => {
-          const daySchedules = getSchedulesForDate(date);
+                const daySchedules = getSchedulesForDate(date);
           const isCurrentMonthDay = isCurrentMonth(date);
           const isTodayDate = isToday(date);
           const isSelectedDate = isSelected(date);
-
-          return (
-            <div
+                
+                return (
+                  <div
               key={index}
-              className={`
+                    className={`
                 min-h-[60px] sm:min-h-[80px] border border-gray-300 p-1 sm:p-2 cursor-pointer transition-all duration-200 rounded-lg
                 ${isCurrentMonthDay ? 'bg-white hover:bg-gray-50 hover:shadow-md' : 'bg-gray-50 hover:bg-gray-100'}
                 ${isTodayDate ? 'bg-gray-300 border-gray-500 shadow-lg ring-2 ring-gray-400' : ''}
@@ -169,43 +169,43 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
               }}
             >
               <div className="flex flex-col h-full">
-                <div className={`
+                    <div className={`
                   text-xs sm:text-sm font-medium mb-0.5 sm:mb-1
                   ${isCurrentMonthDay ? 'text-gray-800' : 'text-gray-400'}
                   ${isTodayDate ? 'text-gray-900 font-bold' : ''}
                   ${isSelectedDate ? 'text-gray-900 font-bold' : ''}
-                `}>
-                  {date.getDate()}
-                </div>
-                
+                    `}>
+                      {date.getDate()}
+                    </div>
+
                 {/* スケジュール表示 */}
                 <div className="flex-1 space-y-0.5 sm:space-y-1">
                   {daySchedules.slice(0, 1).map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className={`
+                      <div
+                        key={schedule.id}
+                        className={`
                         text-xs p-0.5 sm:p-1 rounded-lg truncate cursor-pointer shadow-sm
                         bg-gray-600 text-white font-medium
                         hover:bg-gray-700 hover:shadow-md transition-all duration-200
-                      `}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onScheduleClick(schedule);
-                      }}
+                        `}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onScheduleClick(schedule);
+                        }}
                       title={`${schedule.title} (${schedule.start_time}-${schedule.end_time})`}
-                    >
+                      >
                       <div className="truncate text-xs">{schedule.title}</div>
                       <div className="text-xs opacity-90 hidden sm:block">
                         {schedule.start_time}-{schedule.end_time}
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
                   {daySchedules.length > 1 && (
                     <div className="text-xs text-gray-700 text-center font-medium bg-gray-300 rounded px-1">
                       +{daySchedules.length - 1}件
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
               </div>
             </div>
           );
