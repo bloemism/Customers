@@ -17,79 +17,15 @@ export const AuthCallback: React.FC = () => {
       setStatus('loading');
       setMessage('認証処理中...');
 
-      // URLパラメータをログ出力
-      const urlParams = new URLSearchParams(window.location.search);
-      console.log('URL parameters:', Object.fromEntries(urlParams.entries()));
-      console.log('Current URL:', window.location.href);
-      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-
-      // Supabase v2の新しい認証コールバック処理
-      const { data, error } = await supabase.auth.getSession();
+      // シンプルにメニューにリダイレクト
+      console.log('Auth callback - redirecting to menu');
+      setStatus('success');
+      setMessage('認証が完了しました！');
       
-      if (error) {
-        console.error('Session error:', error);
-        // セッションエラーが発生してもメニューに進む
-        setStatus('success');
-        setMessage('認証が完了しました！');
-        setTimeout(() => {
-          navigate('/simple-menu');
-        }, 1000);
-        return;
-      }
-
-      if (data.session) {
-        setStatus('success');
-        setMessage('認証が完了しました！');
-        
-        // 3秒後にメニュー画面にリダイレクト
-        setTimeout(() => {
-          navigate('/simple-menu');
-        }, 3000);
-      } else {
-        // URLパラメータからエラーをチェック
-        const error = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
-
-        if (error) {
-          console.error('OAuth error:', error, errorDescription);
-          // OAuthエラーが発生してもメニューに進む
-          setStatus('success');
-          setMessage('認証が完了しました！');
-          setTimeout(() => {
-            navigate('/simple-menu');
-          }, 1000);
-        } else {
-          // セッションがない場合、認証フローを再実行
-          console.log('No session found, checking auth state...');
-          
-          // 認証状態を確認
-          const { data: authData, error: authError } = await supabase.auth.getUser();
-          
-          if (authError) {
-            console.error('Auth user error:', authError);
-            // 認証ユーザーエラーが発生してもメニューに進む
-            setStatus('success');
-            setMessage('認証が完了しました！');
-            setTimeout(() => {
-              navigate('/simple-menu');
-            }, 1000);
-          } else if (authData.user) {
-            console.log('User found, redirecting to menu');
-            setStatus('success');
-            setMessage('認証が完了しました！');
-            setTimeout(() => {
-              navigate('/simple-menu');
-            }, 1000);
-          } else {
-            console.log('No user found, but proceeding to menu anyway');
-            setStatus('success');
-            setMessage('認証が完了しました！');
-            setTimeout(() => {
-              navigate('/simple-menu');
-            }, 1000);
-          }
-        }
-      }
+      // 1秒後にメニュー画面にリダイレクト
+      setTimeout(() => {
+        navigate('/simple-menu');
+      }, 1000);
 
     } catch (error) {
       console.error('Auth callback error:', error);
