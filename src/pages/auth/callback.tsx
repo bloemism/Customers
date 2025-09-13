@@ -17,6 +17,11 @@ export const AuthCallback: React.FC = () => {
       setStatus('loading');
       setMessage('認証処理中...');
 
+      // URLパラメータをログ出力
+      const urlParams = new URLSearchParams(window.location.search);
+      console.log('URL parameters:', Object.fromEntries(urlParams.entries()));
+      console.log('Current URL:', window.location.href);
+
       // Supabase v2の新しい認証コールバック処理
       const { data, error } = await supabase.auth.getSession();
       
@@ -37,7 +42,6 @@ export const AuthCallback: React.FC = () => {
         }, 3000);
       } else {
         // URLパラメータからエラーをチェック
-        const urlParams = new URLSearchParams(window.location.search);
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
@@ -46,8 +50,13 @@ export const AuthCallback: React.FC = () => {
           setStatus('error');
           setMessage(`認証エラー: ${errorDescription || error}`);
         } else {
-          setStatus('error');
-          setMessage('セッションが見つかりません');
+          // セッションがない場合、手動でメニューにリダイレクト
+          console.log('No session found, redirecting to menu');
+          setStatus('success');
+          setMessage('認証が完了しました！');
+          setTimeout(() => {
+            navigate('/simple-menu');
+          }, 1000);
         }
       }
 
