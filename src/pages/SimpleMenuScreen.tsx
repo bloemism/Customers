@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
-import { PageLayout, Card } from '../components/common';
-import { theme } from '../styles/theme';
 import { 
   ShoppingCart, 
   MapPin, 
@@ -10,10 +8,7 @@ import {
   Store, 
   LogOut, 
   Flower,
-  Receipt,
   Map,
-  UserCheck,
-  Settings,
   BookOpen,
   Calendar,
   GraduationCap,
@@ -47,7 +42,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'お客様会計',
       description: '品目自動変換・ポイント管理・QR決済',
       icon: ShoppingCart,
-      color: 'from-green-500 to-emerald-600',
+      color: 'from-emerald-400 to-green-500',
       route: '/checkout',
       requiredFeature: 'CUSTOMER_CHECKOUT'
     },
@@ -56,7 +51,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: '商品管理',
       description: '品目・色・価格の管理',
       icon: Flower,
-      color: 'from-pink-500 to-rose-600',
+      color: 'from-pink-400 to-rose-500',
       route: '/product-management',
       requiredFeature: 'PRODUCT_MANAGEMENT'
     },
@@ -65,7 +60,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: '全国フローリストマップ',
       description: 'GPS位置情報で花屋を検索',
       icon: MapPin,
-      color: 'from-blue-500 to-cyan-600',
+      color: 'from-sky-400 to-blue-500',
       route: '/florist-map',
       requiredFeature: 'FLORIST_MAP'
     },
@@ -74,7 +69,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: '顧客管理',
       description: 'お客様データ・ポイント・販売履歴',
       icon: Users,
-      color: 'from-purple-500 to-indigo-600',
+      color: 'from-violet-400 to-purple-500',
       route: '/customer-management',
       requiredFeature: 'CUSTOMER_MANAGEMENT'
     },
@@ -83,7 +78,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: '店舗データ管理',
       description: 'GPS位置・店舗情報のカスタマイズ',
       icon: Store,
-      color: 'from-orange-500 to-red-600',
+      color: 'from-amber-400 to-orange-500',
       route: '/store-registration',
       requiredFeature: 'STORE_DATA_MANAGEMENT'
     },
@@ -92,7 +87,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'フラワーレッスンマップ',
       description: 'レッスンスクールの位置情報検索',
       icon: Map,
-      color: 'from-teal-500 to-green-600',
+      color: 'from-teal-400 to-green-500',
       route: '/flower-lesson-map',
       requiredFeature: 'FLOWER_LESSON_MAP'
     },
@@ -101,7 +96,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'レッスンスクール管理',
       description: 'スクール情報・講師・レッスン内容',
       icon: GraduationCap,
-      color: 'from-violet-500 to-purple-600',
+      color: 'from-violet-400 to-purple-500',
       route: '/lesson-school-management',
       requiredFeature: 'LESSON_SCHOOL_MANAGEMENT'
     },
@@ -110,7 +105,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'レッスンスケジュール管理',
       description: 'レッスン日程・予約・参加者管理',
       icon: Calendar,
-      color: 'from-amber-500 to-yellow-600',
+      color: 'from-amber-400 to-yellow-500',
       route: '/lesson-schedule-management',
       requiredFeature: 'LESSON_SCHEDULE_MANAGEMENT'
     },
@@ -119,7 +114,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: '人気ランキング',
       description: '全国の購入データを元にした月次ランキング',
       icon: TrendingUp,
-      color: 'from-yellow-500 to-orange-600',
+      color: 'from-yellow-400 to-orange-500',
       route: '/popularity-rankings',
       requiredFeature: 'POPULARITY_RANKINGS'
     },
@@ -128,7 +123,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'サブスクリプション管理',
       description: '月額プランの管理と支払い方法の設定',
       icon: CreditCard,
-      color: 'from-indigo-500 to-purple-600',
+      color: 'from-indigo-400 to-purple-500',
       route: '/subscription-management',
       requiredFeature: 'FLORIST_MAP' // 常に表示
     },
@@ -137,7 +132,7 @@ export const SimpleMenuScreen: React.FC = () => {
       title: 'Read me',
       description: '使い方・システム詳細・利用規約',
       icon: BookOpen,
-      color: 'from-gray-500 to-slate-600',
+      color: 'from-gray-400 to-slate-500',
       route: '/readme',
       requiredFeature: 'FLORIST_MAP' // 常に表示
     }
@@ -223,9 +218,9 @@ export const SimpleMenuScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">読み込み中...</p>
         </div>
       </div>
@@ -233,35 +228,40 @@ export const SimpleMenuScreen: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white/70 backdrop-blur-md shadow-sm border-b border-gray-200/30 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <Flower className="h-8 w-8 text-pink-500" />
-              <h1 className="text-xl font-bold text-gray-900">87app</h1>
-              {userPlan && (
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  userPlan === 'FLORIST' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-green-100 text-green-800'
-                }`}>
-                  {userPlan === 'FLORIST' ? 'フローリスト' : 'フラワースクール'}
-                </span>
-              )}
+              <div className="p-2.5 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-2xl shadow-lg">
+                <Flower className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">87app</h1>
+                {userPlan && (
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    userPlan === 'FLORIST' 
+                      ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200' 
+                      : 'bg-gradient-to-r from-purple-100 to-violet-100 text-purple-700 border border-purple-200'
+                  }`}>
+                    {userPlan === 'FLORIST' ? 'フローリスト' : 'フラワースクール'}
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                {user?.email}
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium text-gray-800">{user?.email}</p>
+                <p className="text-xs text-gray-500">{userPlan || 'プラン確認中...'}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white/60 rounded-xl transition-all duration-200 backdrop-blur-sm"
               >
-                <LogOut className="h-5 w-5" />
-                <span>ログアウト</span>
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">ログアウト</span>
               </button>
             </div>
           </div>
@@ -272,69 +272,71 @@ export const SimpleMenuScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* プラン情報 */}
         {userPlan && (
-          <div className="mb-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {userPlan === 'FLORIST' ? 'フローリストプラン' : 'フラワースクールプラン'}
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {userPlan === 'FLORIST' 
-                ? '全機能が利用可能です（¥5,500/月）'
-                : '一部機能が利用可能です（¥3,300/月）'
-              }
-            </p>
-            
-            {/* デバッグ用プラン切り替え */}
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={() => setUserPlan('FLORIST')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  userPlan === 'FLORIST'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                フローリストプラン
-              </button>
-              <button
-                onClick={() => setUserPlan('FLOWER_SCHOOL')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  userPlan === 'FLOWER_SCHOOL'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                フラワースクールプラン
-              </button>
+          <div className="mb-6 text-center">
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-gray-200/50 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
+                {userPlan === 'FLORIST' ? 'フローリストプラン' : 'フラワースクールプラン'}
+              </h2>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                {userPlan === 'FLORIST' 
+                  ? '全機能が利用可能です（¥5,500/月）'
+                  : '一部機能が利用可能です（¥3,300/月）'
+                }
+              </p>
+              
+              {/* デバッグ用プラン切り替え */}
+              <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4">
+                <button
+                  onClick={() => setUserPlan('FLORIST')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
+                    userPlan === 'FLORIST'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  フローリストプラン
+                </button>
+                <button
+                  onClick={() => setUserPlan('FLOWER_SCHOOL')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
+                    userPlan === 'FLOWER_SCHOOL'
+                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  フラワースクールプラン
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {availableMenuItems.map((item) => {
             const IconComponent = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                className="group relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-200/50 overflow-hidden"
               >
                 {/* グラデーション背景 */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
                 
-                <div className="relative p-8 text-left">
+                <div className="relative p-4 sm:p-5 text-center">
                   {/* アイコン */}
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="h-8 w-8" />
+                  <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${item.color} text-white mb-3 group-hover:scale-110 transition-transform duration-300 shadow-md`}>
+                    <IconComponent className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   
                   {/* タイトル */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-2 group-hover:text-gray-900 transition-colors duration-200 leading-tight">
                     {item.title}
                   </h3>
                   
                   {/* 説明 */}
-                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
+                  <p className="text-gray-500 text-xs sm:text-sm leading-tight group-hover:text-gray-600 transition-colors duration-200 hidden sm:block">
                     {item.description}
                   </p>
                 </div>
@@ -345,17 +347,17 @@ export const SimpleMenuScreen: React.FC = () => {
 
         {/* プランアップグレード案内 */}
         {userPlan === 'FLOWER_SCHOOL' && (
-          <div className="mt-12 text-center">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200">
-              <h3 className="text-xl font-bold text-blue-900 mb-4">
+          <div className="mt-8 text-center">
+            <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-blue-200/50 shadow-sm">
+              <h3 className="text-lg sm:text-xl font-bold text-blue-900 mb-3 sm:mb-4">
                 フローリストプランにアップグレード
               </h3>
-              <p className="text-blue-700 mb-6">
+              <p className="text-blue-700 text-sm sm:text-base mb-4 sm:mb-6">
                 商品管理やお客様会計など、追加機能を利用できます
               </p>
               <button
                 onClick={() => navigate('/subscription-management')}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium shadow-md"
               >
                 プラン変更
               </button>
