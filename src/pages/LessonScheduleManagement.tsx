@@ -1,86 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
-import { supabase } from '../lib/supabase';
 import { 
-  ArrowLeft,
-  Plus,
   Calendar,
   Clock,
-  User,
-  Mail,
-  Phone,
-  QrCode,
-  CheckCircle,
-  XCircle,
+  Users,
   Edit,
   Trash2,
-  Save,
+  Plus,
+  ArrowLeft,
   X,
-  Users,
-  BookOpen,
-  GraduationCap
+  Mail,
+  Phone
 } from 'lucide-react';
 import LessonCalendar from '../components/LessonCalendar';
+import {
+  loadLessonSchools,
+  loadLessonSchedules,
+  loadCustomerParticipations,
+  loadLessonCompletions,
+  saveSchedule,
+  deleteSchedule,
+  updateCustomerParticipation,
+  completeLesson
+} from '../services/lessonService';
+import { supabase } from '../lib/supabase';
+import type {
+  LessonSchedule,
+  LessonSchool,
+  CustomerParticipation,
+  LessonCompletion,
+  ScheduleFormData,
+  CalendarLessonSchedule
+} from '../types/lesson';
 
-// レッスンスケジュールの型定義
-interface LessonSchedule {
-  id: string;
-  lesson_school_id: string;
-  lesson_school_name: string;
-  title: string;
-  description: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  max_participants: number;
-  current_participants: number;
-  price: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-// 生徒の予約情報の型定義
-interface StudentReservation {
-  id: string;
-  schedule_id: string;
-  student_name: string;
-  student_email: string;
-  student_phone: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  qr_code_data: string;
-  created_at: string;
-}
-
-// 新規作成用の型定義
-interface NewLessonSchedule {
-  lesson_school_id: string;
-  title: string;
-  description: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  max_participants: number;
-  price: number;
-}
+// メッセージタイプ
+type MessageType = 'success' | 'error';
 
 const LessonScheduleManagement: React.FC = () => {
   const { user } = useSimpleAuth();
   
-  // レッスンスクール一覧
-  const [lessonSchools, setLessonSchools] = useState<{ id: string; name: string }[]>([]);
-  
-  // レッスンスケジュール一覧
+  // 状態管理
   const [lessonSchedules, setLessonSchedules] = useState<LessonSchedule[]>([]);
-  
-  // 生徒の予約一覧
-  const [studentReservations, setStudentReservations] = useState<StudentReservation[]>([]);
-  
-  // 新規作成・編集モード
+  const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
+  const [customerParticipations, setCustomerParticipations] = useState<CustomerParticipation[]>([]);
+  const [lessonCompletions, setLessonCompletions] = useState<LessonCompletion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<LessonSchedule | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<LessonSchedule | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<MessageType>('success');
+  const [isCompletingLesson, setIsCompletingLesson] = useState(false);
   
-  // 新規作成フォーム
-  const [newSchedule, setNewSchedule] = useState<NewLessonSchedule>({
+  // フォームデータ
+  const [formData, setFormData] = useState<ScheduleFormData>({
     lesson_school_id: '',
     title: '',
     description: '',
@@ -91,103 +65,172 @@ const LessonScheduleManagement: React.FC = () => {
     price: 0
   });
   
-  // 選択されたスケジュール
-  const [selectedSchedule, setSelectedSchedule] = useState<LessonSchedule | null>(null);
-  
-  // 選択された日付
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  
-  // ローディング状態
-  const [loading, setLoading] = useState(true);
-  
-  // 成功・エラーメッセージ
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // レッスンスクールを読み込み
-  useEffect(() => {
-    const loadLessonSchools = async () => {
-      if (!user?.email) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('lesson_schools')
-          .select('id, name')
-          .eq('store_email', user.email)
-          .eq('is_active', true)
-          .order('name');
-
-        if (error) {
-          console.error('レッスンスクール読み込みエラー:', error);
-        } else if (data) {
+  // レッスンスクール読み込み
+  const loadLessonSchoolsData = async () => {
+    try {
+      const data = await loadLessonSchools(user?.email || '');
           setLessonSchools(data);
-        }
       } catch (error) {
         console.error('レッスンスクール読み込みエラー:', error);
       }
     };
 
-    loadLessonSchools();
-  }, [user]);
-
-  // レッスンスケジュールを読み込み
-  useEffect(() => {
-    const loadLessonSchedules = async () => {
-      if (!user?.email) return;
-      
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('lesson_schedules')
-          .select(`
-            *,
-            lesson_schools!inner(name)
-          `)
-          .eq('lesson_schools.store_email', user.email)
-          .order('date', { ascending: true });
-
-        if (error) {
-          console.error('レッスンスケジュール読み込みエラー:', error);
-        } else if (data) {
-          const schedules = data.map(item => ({
-            ...item,
-            lesson_school_name: item.lesson_schools?.name || '不明'
-          }));
-          setLessonSchedules(schedules);
-        }
+  // レッスンスケジュール読み込み
+  const loadLessonSchedulesData = async () => {
+    try {
+      const data = await loadLessonSchedules(user?.email || '');
+      setLessonSchedules(data);
       } catch (error) {
         console.error('レッスンスケジュール読み込みエラー:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    }
+  };
 
-    loadLessonSchedules();
+  // 顧客参加情報読み込み
+  const loadCustomerParticipationsData = async () => {
+    try {
+      const data = await loadCustomerParticipations();
+      setCustomerParticipations(data);
+      } catch (error) {
+      console.error('顧客参加情報読み込みエラー:', error);
+    }
+  };
+
+  // レッスン完了記録読み込み
+  const loadLessonCompletionsData = async () => {
+    try {
+      const data = await loadLessonCompletions(user?.email || '');
+      setLessonCompletions(data);
+    } catch (error) {
+      console.error('レッスン完了記録読み込みエラー:', error);
+    }
+  };
+
+  // 初期データ読み込み
+  useEffect(() => {
+    if (user) {
+      Promise.all([
+        loadLessonSchoolsData(),
+        loadLessonSchedulesData(),
+        loadCustomerParticipationsData(),
+        loadLessonCompletionsData()
+      ]).finally(() => {
+        setLoading(false);
+      });
+    }
   }, [user]);
 
-  // 生徒の予約を読み込み
-  useEffect(() => {
-    const loadStudentReservations = async () => {
-      if (!selectedSchedule) return;
+
+  // フォーム送信
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      await saveSchedule(formData, user.email, editingSchedule?.id);
       
-      try {
-        const { data, error } = await supabase
-          .from('student_reservations')
-          .select('*')
-          .eq('schedule_id', selectedSchedule.id)
-          .order('created_at', { ascending: false });
+      setMessage(editingSchedule ? 'レッスンスケジュールを更新しました' : '新しいレッスンスケジュールを作成しました');
+      setMessageType('success');
+      setIsEditing(false);
+      setEditingSchedule(null);
+      resetForm();
+      loadLessonSchedulesData();
+    } catch (error) {
+      console.error('スケジュール保存エラー:', error);
+      setMessage('スケジュールの保存中にエラーが発生しました');
+      setMessageType('error');
+    }
+  };
 
-        if (error) {
-          console.error('生徒予約読み込みエラー:', error);
-        } else if (data) {
-          setStudentReservations(data);
-        }
-      } catch (error) {
-        console.error('生徒予約読み込みエラー:', error);
+  // フォームリセット
+  const resetForm = () => {
+    setFormData({
+      lesson_school_id: '',
+      title: '',
+      description: '',
+      date: '',
+      start_time: '',
+      end_time: '',
+      max_participants: 1,
+      price: 0
+    });
+  };
+
+  // 新規作成開始
+  const startCreate = () => {
+    setIsEditing(true);
+    setEditingSchedule(null);
+    resetForm();
+    
+    // 新規作成フォーム表示時に自動スクロール
+    setTimeout(() => {
+      const editForm = document.getElementById('edit-form');
+      if (editForm) {
+        editForm.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
       }
-    };
+    }, 100);
+  };
 
-    loadStudentReservations();
-  }, [selectedSchedule]);
+  // 編集開始
+  const startEdit = (schedule: LessonSchedule) => {
+    setEditingSchedule(schedule);
+    setFormData({
+      lesson_school_id: schedule.lesson_school_id,
+      title: schedule.title,
+      description: schedule.description,
+      date: schedule.date,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      max_participants: schedule.max_participants,
+      price: schedule.price
+    });
+    setIsEditing(true);
+    
+    // 編集フォーム表示時に自動スクロール
+    setTimeout(() => {
+      const editForm = document.getElementById('edit-form');
+      if (editForm) {
+        editForm.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
+  // 削除
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!confirm('このスケジュールを削除しますか？')) return;
+
+    try {
+      await deleteSchedule(scheduleId);
+      setMessage('スケジュールを削除しました');
+      setMessageType('success');
+      loadLessonSchedulesData();
+      
+      if (selectedSchedule?.id === scheduleId) {
+        setSelectedSchedule(null);
+      }
+    } catch (error) {
+      console.error('削除エラー:', error);
+      setMessage('削除中にエラーが発生しました');
+      setMessageType('error');
+    }
+  };
+
+  // スケジュール選択
+  const handleScheduleClick = (schedule: LessonSchedule) => {
+    setSelectedSchedule(schedule);
+    setSelectedDate(schedule.date);
+  };
+
+  // 日付クリック
+  const handleDateClick = (date: string) => {
+    setSelectedDate(date);
+    setSelectedSchedule(null);
+  };
 
   // ランダムな色を生成
   const getRandomColor = (id: string) => {
@@ -201,255 +244,80 @@ const LessonScheduleManagement: React.FC = () => {
   };
 
   // カレンダー用のスケジュールデータを準備
-  const calendarSchedules = lessonSchedules.map(schedule => ({
+  const calendarSchedules: CalendarLessonSchedule[] = lessonSchedules.map(schedule => ({
     ...schedule,
-    color: getRandomColor(schedule.id) // ランダムな色を割り当て
+    color: getRandomColor(schedule.id)
   }));
 
-  // 日付がクリックされた時の処理
-  const handleDateClick = (date: string) => {
-    setSelectedDate(date);
-    setSelectedSchedule(null);
-  };
-
-  // スケジュールがクリックされた時の処理
-  const handleScheduleClick = (schedule: any) => {
-    setSelectedSchedule(schedule);
-    setSelectedDate(schedule.date);
-  };
-
-  // 新規作成モードを開始
-  const startCreate = () => {
-    setIsEditing(true);
-    setEditingSchedule(null);
-    setNewSchedule({
-      lesson_school_id: lessonSchools.length > 0 ? lessonSchools[0].id : '',
-      title: '',
-      description: '',
-      date: '',
-      start_time: '',
-      end_time: '',
-      max_participants: 1,
-      price: 0
-    });
-  };
-
-  // 編集モードを開始
-  const startEdit = (schedule: LessonSchedule) => {
-    console.log('編集開始:', schedule);
-    setIsEditing(true);
-    setEditingSchedule(schedule);
-    setNewSchedule({
-      lesson_school_id: schedule.lesson_school_id,
-      title: schedule.title,
-      description: schedule.description,
-      date: schedule.date,
-      start_time: schedule.start_time,
-      end_time: schedule.end_time,
-      max_participants: schedule.max_participants,
-      price: schedule.price
-    });
-    console.log('編集状態:', { isEditing: true, editingSchedule: schedule, newSchedule: newSchedule });
-  };
-
-  // 編集・作成をキャンセル
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditingSchedule(null);
-    setNewSchedule({
-      lesson_school_id: lessonSchools.length > 0 ? lessonSchools[0].id : '',
-      title: '',
-      description: '',
-      date: '',
-      start_time: '',
-      end_time: '',
-      max_participants: 1,
-      price: 0
-    });
-  };
-
-  // 保存処理
-  const handleSave = async () => {
-    if (!user?.email) {
-      setMessage({ type: 'error', text: 'ユーザー情報が取得できません' });
-      return;
-    }
-
-    // バリデーション
-    if (!newSchedule.lesson_school_id || !newSchedule.title || !newSchedule.date) {
-      setMessage({ type: 'error', text: '必須項目を入力してください' });
-      return;
-    }
-
+  // 顧客参加状況更新
+  const handleCustomerParticipation = async (participationId: string, newStatus: 'confirmed' | 'cancelled') => {
     try {
-      if (editingSchedule) {
-        // 更新処理
-        console.log('更新処理開始:', { editingScheduleId: editingSchedule.id, newSchedule });
-        
-        const { data, error } = await supabase
-          .from('lesson_schedules')
-          .update(newSchedule)
-          .eq('id', editingSchedule.id)
-          .select();
+      await updateCustomerParticipation(participationId, newStatus);
 
-        if (error) {
-          console.error('Supabase更新エラー:', error);
-          throw error;
+      // 参加者数の更新
+      if (selectedSchedule) {
+        const participation = customerParticipations.find(p => p.id === participationId);
+        if (participation) {
+          const increment = newStatus === 'confirmed' ? 1 : -1;
+          const { error: updateError } = await supabase
+            .from('new_lesson_schedules')
+            .update({
+              current_participants: selectedSchedule.current_participants + increment
+            })
+            .eq('id', selectedSchedule.id);
+
+          if (updateError) throw updateError;
         }
+      }
 
-        console.log('更新成功:', data);
-        setMessage({ type: 'success', text: 'レッスンスケジュールを更新しました' });
+      loadCustomerParticipationsData();
+      loadLessonSchedulesData();
+      setMessage(`参加状況を${newStatus === 'confirmed' ? '確定' : 'キャンセル'}に更新しました`);
+      setMessageType('success');
+    } catch (error) {
+      console.error('参加状況更新エラー:', error);
+      setMessage('参加状況の更新中にエラーが発生しました');
+      setMessageType('error');
+    }
+  };
+
+  // QRコードスキャン（テスト用）
+  const handleQRScan = () => {
+    setMessage('QRコードスキャン機能は開発中です');
+    setMessageType('success');
+  };
+
+  // レッスン終了処理
+  const handleCompleteLesson = async (scheduleId: string) => {
+    if (!user || !confirm('レッスンを終了して、参加者にポイントを配布しますか？')) return;
+
+    setIsCompletingLesson(true);
+    try {
+      const result = await completeLesson(scheduleId, user.email);
+
+      if (result.success) {
+        setMessage(`レッスン終了！${result.total_participants}名の参加者に合計${result.total_points}ポイントを配布しました`);
+        setMessageType('success');
         
-        // 更新後に最新データを再取得
-        try {
-          const { data: refreshedData, error: refreshError } = await supabase
-            .from('lesson_schedules')
-            .select(`
-              *,
-              lesson_schools!inner(name)
-            `)
-            .eq('lesson_schools.store_email', user.email)
-            .order('date', { ascending: true });
-
-          if (refreshError) {
-            console.error('更新後の再取得エラー:', refreshError);
-          } else if (refreshedData) {
-            const schedules = refreshedData.map(item => ({
-              ...item,
-              lesson_school_name: item.lesson_schools?.name || '不明'
-            }));
-            setLessonSchedules(schedules);
-            console.log('更新後の再取得完了:', schedules);
-          }
-        } catch (refreshError) {
-          console.error('更新後の再取得エラー:', refreshError);
-        }
+        // データを再読み込み
+        loadLessonCompletionsData();
+        loadCustomerParticipationsData();
       } else {
-        // 新規作成処理
-        const { error } = await supabase
-          .from('lesson_schedules')
-          .insert({
-            ...newSchedule,
-            is_active: true,
-            current_participants: 0,
-            created_at: new Date().toISOString()
-          });
-
-        if (error) {
-          throw error;
-        }
-
-        setMessage({ type: 'success', text: 'レッスンスケジュールを作成しました' });
+        setMessage(result.message || 'ポイント配布に失敗しました');
+        setMessageType('error');
       }
-
-      // 保存成功後の即座の状態更新
-      if (editingSchedule) {
-        // 更新の場合：既存のスケジュールを更新
-        console.log('ローカル状態更新開始:', { editingScheduleId: editingSchedule.id });
-        
-        setLessonSchedules(prev => {
-          const updated = prev.map(schedule => 
-            schedule.id === editingSchedule.id 
-              ? {
-                  ...schedule,
-                  ...newSchedule,
-                  lesson_school_name: lessonSchools.find(s => s.id === newSchedule.lesson_school_id)?.name || '不明'
-                }
-              : schedule
-          );
-          console.log('更新後のスケジュール一覧:', updated);
-          return updated;
-        });
-      } else {
-        // 新規作成の場合：新しいスケジュールを追加
-        const newScheduleWithId = {
-          id: Date.now().toString(), // 一時的なID
-          ...newSchedule,
-          lesson_school_name: lessonSchools.find(s => s.id === newSchedule.lesson_school_id)?.name || '不明',
-          current_participants: 0,
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-        setLessonSchedules(prev => [...prev, newScheduleWithId]);
-      }
-
-      // 編集モードを終了
-      cancelEdit();
     } catch (error) {
-      console.error('保存エラー:', error);
-      setMessage({ type: 'error', text: '保存に失敗しました' });
+      console.error('レッスン終了エラー:', error);
+      setMessage('レッスン終了処理中にエラーが発生しました');
+      setMessageType('error');
+    } finally {
+      setIsCompletingLesson(false);
     }
   };
 
-  // 削除処理
-  const handleDelete = async (id: string) => {
-    if (!confirm('このレッスンスケジュールを削除しますか？')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('lesson_schedules')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        throw error;
-      }
-
-      setMessage({ type: 'success', text: 'レッスンスケジュールを削除しました' });
-      
-      // 一覧から削除
-      setLessonSchedules(prev => prev.filter(schedule => schedule.id !== id));
-    } catch (error) {
-      console.error('削除エラー:', error);
-      setMessage({ type: 'error', text: '削除に失敗しました' });
-    }
-  };
-
-  // 生徒の予約ステータスを更新
-  const updateReservationStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
-    try {
-      const { error } = await supabase
-        .from('student_reservations')
-        .update({ status })
-        .eq('id', id);
-
-      if (error) {
-        throw error;
-      }
-
-      setMessage({ type: 'success', text: '予約ステータスを更新しました' });
-      
-      // 一覧を更新
-      setStudentReservations(prev => 
-        prev.map(reservation => 
-          reservation.id === id 
-            ? { ...reservation, status }
-            : reservation
-        )
-      );
-    } catch (error) {
-      console.error('ステータス更新エラー:', error);
-      setMessage({ type: 'error', text: 'ステータス更新に失敗しました' });
-    }
-  };
-
-  // QRコードによる顧客データ取得（シミュレーション）
-  const simulateQRCodeScan = () => {
-    const mockStudent: StudentReservation = {
-      id: Date.now().toString(),
-      schedule_id: selectedSchedule!.id,
-      student_name: '田中花子',
-      student_email: 'tanaka@example.com',
-      student_phone: '090-1234-5678',
-      status: 'pending',
-      qr_code_data: 'mock-qr-data',
-      created_at: new Date().toISOString()
-    };
-
-    setStudentReservations(prev => [mockStudent, ...prev]);
-    setMessage({ type: 'success', text: 'QRコードから顧客データを取得しました' });
+  // レッスンが既に完了しているかチェック
+  const isLessonCompleted = (scheduleId: string) => {
+    return lessonCompletions.some(completion => completion.schedule_id === scheduleId);
   };
 
   if (loading) {
@@ -464,77 +332,73 @@ const LessonScheduleManagement: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-sky-200">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => window.history.back()}
-                className="p-2 text-white hover:text-cyan-100 transition-colors"
+              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-white">レッスンスケジュール管理</h1>
-                <p className="text-cyan-100">フラワーレッスンのスケジュールと生徒予約を管理</p>
+              <h1 className="text-2xl font-bold text-gray-900">レッスンスケジュール管理</h1>
+              <p className="text-gray-600">フラワーレッスンのスケジュールと生徒予約を管理</p>
               </div>
             </div>
             
             {!isEditing && (
               <button
                 onClick={startCreate}
-                className="px-4 py-2 bg-white text-cyan-600 rounded-lg hover:bg-cyan-50 transition-colors flex items-center"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                新規スケジュール作成
+              新規講座作成
               </button>
             )}
-          </div>
         </div>
 
         {/* メッセージ表示 */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' 
-              ? 'bg-green-100 text-green-800 border border-green-200' 
-              : 'bg-red-100 text-red-800 border border-red-200'
+          <div className={`mb-6 p-4 rounded-lg shadow-sm flex items-center justify-between ${
+            messageType === 'success' 
+              ? 'bg-green-100 border border-green-300 text-green-800' 
+              : 'bg-red-100 border border-red-300 text-red-800'
           }`}>
-            {message.text}
+            <span>{message}</span>
             <button
-              onClick={() => setMessage(null)}
-              className="ml-2 text-gray-500 hover:text-gray-700"
+              onClick={() => setMessage('')}
+              className="text-current hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* 編集・作成フォーム */}
+        {/* スケジュール作成・編集フォーム */}
         {isEditing && (
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 mb-8">
-            <div className="text-sm text-gray-500 mb-2">
-              デバッグ: isEditing={isEditing.toString()}, editingSchedule={editingSchedule ? 'あり' : 'なし'}
-            </div>
+          <div className="bg-white rounded-lg shadow-lg border border-gray-300 p-4 sm:p-6 mb-6 sm:mb-8" id="edit-form">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               {editingSchedule ? 'レッスンスケジュール編集' : '新規レッスンスケジュール作成'}
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* 基本情報 */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    レッスンスクール <span className="text-red-500">*</span>
+                    レッスンスクール
                   </label>
                   <select
-                    value={newSchedule.lesson_school_id}
-                    onChange={(e) => setNewSchedule(prev => ({ ...prev, lesson_school_id: e.target.value }))}
+                    value={formData.lesson_school_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, lesson_school_id: e.target.value }))}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">スクールを選択</option>
-                    {lessonSchools.map(school => (
+                    <option value="">スクールを選択してください</option>
+                    {lessonSchools.map((school) => (
                       <option key={school.id} value={school.id}>
                         {school.name}
                       </option>
@@ -544,12 +408,13 @@ const LessonScheduleManagement: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    レッスンタイトル <span className="text-red-500">*</span>
+                    レッスンタイトル
                   </label>
                   <input
                     type="text"
-                    value={newSchedule.title}
-                    onChange={(e) => setNewSchedule(prev => ({ ...prev, title: e.target.value }))}
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="レッスンタイトルを入力"
                   />
@@ -557,11 +422,11 @@ const LessonScheduleManagement: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    レッスン説明
+                    詳細説明
                   </label>
                   <textarea
-                    value={newSchedule.description}
-                    onChange={(e) => setNewSchedule(prev => ({ ...prev, description: e.target.value }))}
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="レッスンの詳細説明を入力"
@@ -573,16 +438,15 @@ const LessonScheduleManagement: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    開催日 <span className="text-red-500">*</span>
+                    開催日
                   </label>
                   <input
                     type="date"
-                    value={newSchedule.date}
-                    onChange={(e) => setNewSchedule(prev => ({ ...prev, date: e.target.value }))}
+                    value={formData.date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    // 日本時間での日付入力を保証
                   />
-                  <p className="text-xs text-gray-500 mt-1">日本時間（JST）で入力してください</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -592,8 +456,9 @@ const LessonScheduleManagement: React.FC = () => {
                     </label>
                     <input
                       type="time"
-                      value={newSchedule.start_time}
-                      onChange={(e) => setNewSchedule(prev => ({ ...prev, start_time: e.target.value }))}
+                      value={formData.start_time}
+                      onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -603,8 +468,9 @@ const LessonScheduleManagement: React.FC = () => {
                     </label>
                     <input
                       type="time"
-                      value={newSchedule.end_time}
-                      onChange={(e) => setNewSchedule(prev => ({ ...prev, end_time: e.target.value }))}
+                      value={formData.end_time}
+                      onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -617,254 +483,326 @@ const LessonScheduleManagement: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      value={newSchedule.max_participants}
-                      onChange={(e) => setNewSchedule(prev => ({ ...prev, max_participants: parseInt(e.target.value) || 1 }))}
+                      value={formData.max_participants}
+                      onChange={(e) => setFormData(prev => ({ ...prev, max_participants: parseInt(e.target.value) || 1 }))}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="1"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      料金
+                      料金（円）
                     </label>
                     <input
-                      type="text"
-                      value={newSchedule.price || ''}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
-                        setNewSchedule(prev => ({ ...prev, price: value ? parseInt(value) : 0 }));
-                      }}
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="料金を入力（数字のみ）"
+                      min="0"
+                      step="0.01"
                     />
-                  </div>
                 </div>
               </div>
             </div>
 
             {/* ボタン */}
-            <div className="flex space-x-3 mt-6">
+              <div className="flex justify-end space-x-3">
               <button
-                onClick={cancelEdit}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditingSchedule(null);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 キャンセル
               </button>
               <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <Save className="w-4 h-4 mr-2" />
                 {editingSchedule ? '更新' : '作成'}
               </button>
             </div>
+            </form>
           </div>
         )}
 
         {/* カレンダー表示 */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-6">
           <LessonCalendar
             schedules={calendarSchedules}
             onDateClick={handleDateClick}
             onScheduleClick={handleScheduleClick}
+            selectedDate={selectedDate}
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 左側：レッスンスケジュール一覧 */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              レッスンスケジュール一覧
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+          {/* 左側：スケジュール一覧 */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-300 p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                レッスンスケジュール
               {selectedDate && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
+                  <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-normal text-gray-500">
                   ({selectedDate})
                 </span>
               )}
-            </h2>
-            
-            {lessonSchedules.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              </h3>
+              <span className="text-xs sm:text-sm text-gray-500">
+                {selectedDate 
+                  ? lessonSchedules.filter(s => s.date === selectedDate).length 
+                  : lessonSchedules.length
+                }件
+              </span>
+            </div>
+
+            {(() => {
+              const filteredSchedules = selectedDate 
+                ? lessonSchedules.filter(s => s.date === selectedDate)
+                : lessonSchedules;
+              
+              return filteredSchedules.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
                 <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p>登録されたレッスンスケジュールがありません</p>
+                  <p>
+                    {selectedDate 
+                      ? `${selectedDate}のレッスンスケジュールがありません`
+                      : '登録されたレッスンスケジュールがありません'
+                    }
+                  </p>
                 <p className="text-sm mt-2">新規作成ボタンから追加してください</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {lessonSchedules.map((schedule) => (
+                  {filteredSchedules.map((schedule) => (
                   <div
                     key={schedule.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                    className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors ${
                       selectedSchedule?.id === schedule.id
                         ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:shadow-md'
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
-                    onClick={() => setSelectedSchedule(schedule)}
+                    onClick={() => handleScheduleClick(schedule)}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {schedule.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {schedule.lesson_school_name}
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>{new Date(schedule.date + 'T00:00:00+09:00').toLocaleDateString('ja-JP')}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base truncate">{schedule.title}</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2 truncate">{schedule.lesson_school_name}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>{new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')}</span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="w-4 h-4" />
+                          <div className="flex items-center space-x-1 sm:space-x-2">
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span>{schedule.start_time} - {schedule.end_time}</span>
                           </div>
                         </div>
-                        <div className="mt-2 text-sm text-gray-700">
-                          {schedule.description.length > 100
-                            ? `${schedule.description.substring(0, 100)}...`
+                        <div className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-700 line-clamp-2">
+                          {schedule.description.length > 80
+                            ? schedule.description.substring(0, 80) + '...'
                             : schedule.description
                           }
                         </div>
-                        <div className="mt-2 flex items-center space-x-4 text-sm">
+                        <div className="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
                           <span className="text-blue-600 font-medium">
-                            料金: ¥{schedule.price.toLocaleString()}
+                            ¥{schedule.price.toLocaleString()}
                           </span>
-                          <span className="text-green-600 font-medium">
+                          <span className="text-gray-600">
                             参加者: {schedule.current_participants}/{schedule.max_participants}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4 flex space-x-2">
+                      <div className="ml-2 sm:ml-4 flex space-x-1 sm:space-x-2 flex-shrink-0">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             startEdit(schedule);
                           }}
-                          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center"
+                          className="p-1 sm:p-2 text-gray-400 hover:text-blue-600 transition-colors"
                         >
-                          <Edit className="w-4 h-4 mr-1" />
-                          編集
+                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(schedule.id);
+                            handleDeleteSchedule(schedule.id);
                           }}
-                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex items-center"
+                          className="p-1 sm:p-2 text-gray-400 hover:text-red-600 transition-colors"
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          削除
+                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* 右側：生徒予約一覧 */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              生徒予約一覧
-              {selectedSchedule && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({selectedSchedule.title})
-                </span>
-              )}
-            </h2>
+          <div className="bg-white rounded-lg shadow-md border border-gray-300 p-3 sm:p-4 lg:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+              {selectedSchedule ? `${selectedSchedule.title} の予約状況` : '予約管理'}
+            </h3>
             
             {!selectedSchedule ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-12 text-gray-500">
                 <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <p>左側のスケジュールを選択してください</p>
                 <p className="text-sm mt-2">生徒の予約状況が表示されます</p>
               </div>
             ) : (
               <div>
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <h3 className="font-medium text-blue-900 mb-2">
-                    選択中: {selectedSchedule.title}
-                  </h3>
-                  <p className="text-sm text-blue-700">
-                    {new Date(selectedSchedule.date + 'T00:00:00+09:00').toLocaleDateString('ja-JP')} {selectedSchedule.start_time} - {selectedSchedule.end_time}
-                  </p>
-                  <div className="mt-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="text-sm text-gray-600">
+                    参加者: {selectedSchedule.current_participants}/{selectedSchedule.max_participants}人
+                    <br />
+                    <span className="text-xs text-gray-500">
+                      レッスン完了状況: {isLessonCompleted(selectedSchedule.id) ? '完了済み' : '未完了'}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
                     <button
-                      onClick={simulateQRCodeScan}
-                      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center"
+                      onClick={handleQRScan}
+                      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
                     >
-                      <QrCode className="w-4 h-4 mr-2" />
                       QRコードスキャン（テスト）
                     </button>
+                    {!isLessonCompleted(selectedSchedule.id) && (
+                      <button
+                        onClick={() => handleCompleteLesson(selectedSchedule.id)}
+                        disabled={isCompletingLesson}
+                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {isCompletingLesson ? '処理中...' : 'レッスン終了'}
+                      </button>
+                    )}
+                    {isLessonCompleted(selectedSchedule.id) && (
+                      <span className="px-3 py-1 bg-gray-500 text-white rounded text-sm">
+                        完了済み
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {studentReservations.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p>予約している生徒がいません</p>
-                    <p className="text-sm mt-2">QRコードをスキャンして生徒を追加してください</p>
+                {/* 顧客参加情報 */}
+                <div className="mb-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-3">顧客参加状況</h4>
+                  {customerParticipations.filter(p => p.schedule_id === selectedSchedule.id).length === 0 ? (
+                    <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
+                      <p>参加している顧客がいません</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {studentReservations.map((reservation) => (
-                      <div
-                        key={reservation.id}
-                        className="border border-gray-200 rounded-lg p-3"
-                      >
-                        <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      {customerParticipations
+                        .filter(p => p.schedule_id === selectedSchedule.id)
+                        .map((participation) => (
+                        <div
+                          key={participation.id}
+                          className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                        >
+                          <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-1">
-                              {reservation.student_name}
-                            </h4>
+                              <h5 className="font-medium text-gray-900 mb-1">
+                                {participation.customer_name}
+                              </h5>
                             <div className="text-sm text-gray-600 space-y-1">
                               <div className="flex items-center space-x-2">
                                 <Mail className="w-4 h-4" />
-                                <span>{reservation.student_email}</span>
+                                  <span>{participation.customer_email}</span>
                               </div>
+                                {participation.customer_phone && (
                               <div className="flex items-center space-x-2">
                                 <Phone className="w-4 h-4" />
-                                <span>{reservation.student_phone}</span>
+                                    <span>{participation.customer_phone}</span>
+                              </div>
+                                )}
                               </div>
                             </div>
-                            <div className="mt-2">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                reservation.status === 'confirmed'
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                participation.status === 'confirmed'
                                   ? 'bg-green-100 text-green-800'
-                                  : reservation.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
                                   : 'bg-red-100 text-red-800'
                               }`}>
-                                {reservation.status === 'confirmed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                                {reservation.status === 'cancelled' && <XCircle className="w-3 h-3 mr-1" />}
-                                {reservation.status === 'confirmed' ? '参加確定' : 
-                                 reservation.status === 'pending' ? '参加待ち' : 'キャンセル'}
+                                {participation.status === 'confirmed' ? '参加中' : 'キャンセル'}
                               </span>
-                            </div>
-                          </div>
-                          <div className="ml-3 flex space-x-2">
-                            {reservation.status === 'pending' && (
-                              <>
                                 <button
-                                  onClick={() => updateReservationStatus(reservation.id, 'confirmed')}
-                                  className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
-                                >
-                                  確定
+                                onClick={() => handleCustomerParticipation(
+                                  participation.id,
+                                  participation.status === 'confirmed' ? 'cancelled' : 'confirmed'
+                                )}
+                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                  participation.status === 'confirmed'
+                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                } transition-colors`}
+                              >
+                                {participation.status === 'confirmed' ? 'キャンセル' : '参加'}
                                 </button>
-                                <button
-                                  onClick={() => updateReservationStatus(reservation.id, 'cancelled')}
-                                  className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
-                                >
-                                  キャンセル
-                                </button>
-                              </>
-                            )}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
+                </div>
+
+                {/* レッスン完了記録 */}
+                <div className="mb-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-3">レッスン完了記録</h4>
+                  {lessonCompletions.filter(c => c.schedule_id === selectedSchedule.id).length === 0 ? (
+                    <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
+                      <p>まだレッスンは完了していません</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {lessonCompletions
+                        .filter(c => c.schedule_id === selectedSchedule.id)
+                        .map((completion) => (
+                        <div
+                          key={completion.id}
+                          className="border border-gray-200 rounded-lg p-3 bg-green-50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900 mb-1">
+                                レッスン完了
+                              </h5>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <div>完了日時: {new Date(completion.completed_at).toLocaleString('ja-JP')}</div>
+                                <div>参加者数: {completion.total_participants}名</div>
+                                <div>配布ポイント: {completion.points_given}ポイント</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                完了済み
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 生徒予約情報 */}
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">生徒予約情報</h4>
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p>予約している生徒がいません</p>
+                    <p className="text-sm mt-2">QRコードをスキャンして生徒を追加してください</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

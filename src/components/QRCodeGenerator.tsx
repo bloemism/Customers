@@ -13,12 +13,20 @@ interface QRCodeGeneratorProps {
     }>;
     customerId?: string;
     storeId: string;
+    storeInfo?: {
+      store_name: string;
+      address: string;
+      phone: string;
+      email: string;
+    };
   };
+  paymentMethod: 'cash' | 'credit' | 'url';
   onPaymentComplete?: (transactionId: string) => void;
 }
 
 export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   transactionData,
+  paymentMethod,
   onPaymentComplete
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -28,18 +36,37 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
 
   // QRコードデータの生成
   const generateQRData = () => {
-    const data = {
-      type: 'payment_request',
-      transactionId: transactionData.transactionId,
-      amount: transactionData.totalAmount,
-      items: transactionData.items,
-      customerId: transactionData.customerId,
-      storeId: transactionData.storeId,
-      timestamp: new Date().toISOString(),
-      app: '87app-customers'
-    };
-    
-    return JSON.stringify(data);
+    if (paymentMethod === 'url') {
+      // URL決済の場合：決済URLを生成
+      const baseUrl = window.location.origin;
+      const paymentUrl = `${baseUrl}/payment/${transactionData.transactionId}`;
+      
+      const data = {
+        type: 'payment_request',
+        transactionId: transactionData.transactionId,
+        amount: transactionData.totalAmount,
+        items: transactionData.items,
+        customerId: transactionData.customerId,
+        storeId: transactionData.storeId,
+        storeInfo: transactionData.storeInfo || null,
+        paymentUrl: paymentUrl,
+        timestamp: new Date().toISOString(),
+        app: '87app-customers'
+      };
+      
+      return JSON.stringify(data);
+    } else {
+      // 現金・クレジット決済の場合：店舗情報のみ
+      const data = {
+        type: 'store_info',
+        storeId: transactionData.storeId,
+        storeInfo: transactionData.storeInfo || null,
+        timestamp: new Date().toISOString(),
+        app: '87app-customers'
+      };
+      
+      return JSON.stringify(data);
+    }
   };
 
   // QRコードの生成
@@ -143,6 +170,43 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           </div>
         ) : qrCodeUrl ? (
           <div className="space-y-4">
+            {/* 店舗情報 */}
+            {transactionData.storeInfo && (
+              <div className="bg-gray-50 p-4 rounded-lg text-left">
+                <h3 className="font-semibold text-gray-900 mb-2">店舗情報</h3>
+                <p className="text-sm text-gray-700"><strong>店舗名:</strong> {transactionData.storeInfo.store_name}</p>
+                <p className="text-sm text-gray-700"><strong>住所:</strong> {transactionData.storeInfo.address}</p>
+                <p className="text-sm text-gray-700"><strong>電話:</strong> {transactionData.storeInfo.phone}</p>
+                <p className="text-sm text-gray-700"><strong>メール:</strong> {transactionData.storeInfo.email}</p>
+              </div>
+            )}
+            
+            {/* 決済方法別の表示 */}
+            {paymentMethod === 'url' ? (
+              /* URL決済の場合：請求詳細とURLを表示 */
+              <div className="bg-blue-50 p-4 rounded-lg text-left">
+                <h3 className="font-semibold text-gray-900 mb-2">決済詳細</h3>
+                <p className="text-sm text-gray-700"><strong>取引ID:</strong> {transactionData.transactionId}</p>
+                <p className="text-sm text-gray-700"><strong>合計金額:</strong> ¥{transactionData.totalAmount.toLocaleString()}</p>
+                <p className="text-sm text-gray-700"><strong>商品数:</strong> {transactionData.items.length}点</p>
+                <p className="text-sm text-gray-700"><strong>決済URL:</strong> <a href={`${window.location.origin}/payment/${transactionData.transactionId}`} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">決済ページを開く</a></p>
+              </div>
+            ) : (
+              /* 現金・クレジット決済の場合：決済方法のみ表示 */
+              <div className="bg-green-50 p-4 rounded-lg text-left">
+                <h3 className="font-semibold text-gray-900 mb-2">決済方法</h3>
+                <p className="text-sm text-gray-700">
+                  <strong>{paymentMethod === 'cash' ? '現金決済' : 'クレジット決済'}</strong>
+                </p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {paymentMethod === 'cash' 
+                    ? 'QRコードをスキャンして店舗情報を確認してください' 
+                    : 'QRコードをスキャンして店舗情報を確認し、クレジットカードで決済してください'
+                  }
+                </p>
+              </div>
+            )}
+            
             <img 
               src={qrCodeUrl} 
               alt="Payment QR Code" 

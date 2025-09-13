@@ -668,6 +668,20 @@ export const FloristMap: React.FC = () => {
       );
 
       console.log('Loaded enriched stores from Supabase:', enrichedStores);
+      
+      // 位置情報のデバッグログ
+      enrichedStores.forEach((store, index) => {
+        console.log(`店舗${index + 1}の位置情報:`, {
+          id: store.id,
+          store_name: store.store_name,
+          address: store.address,
+          latitude: store.latitude,
+          longitude: store.longitude,
+          latitude_type: typeof store.latitude,
+          longitude_type: typeof store.longitude
+        });
+      });
+      
       setStores(enrichedStores);
       
     } catch (err: any) {

@@ -14,7 +14,8 @@ import {
   X,
   Upload,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  MapPin
 } from 'lucide-react';
 
 // 店舗情報の型定義
@@ -96,7 +97,7 @@ interface BankAccount {
   updated_at: string;
 }
 
-// フォームデータの型定義
+  // フォームデータの型定義
 interface StoreFormData {
   store_name: string; // nameではなくstore_name
   address: string; // 住所
@@ -108,6 +109,11 @@ interface StoreFormData {
   business_hours: string; // 営業時間
   parking: boolean; // 駐車場
   description: string; // 店舗説明
+  // 位置情報
+  latitude: number;
+  longitude: number;
+  owner_name: string; // オーナー名
+  business_type: string; // 事業種別
   // 銀行口座情報
   bank_name: string;
   branch_name: string;
@@ -138,11 +144,11 @@ export const StoreRegistration: React.FC = () => {
   
   // 掲示板作成用の状態
   const [showBulletinModal, setShowBulletinModal] = useState(false);
-  // const [newBulletin, setNewBulletin] = useState({
-  //   title: '',
-  //   content: '',
-  //   is_pinned: false
-  // });
+  const [newBulletin, setNewBulletin] = useState({
+    title: '',
+    content: '',
+    is_pinned: false
+  });
 
   // フォームデータ
   const [formData, setFormData] = useState<StoreFormData>({
@@ -156,6 +162,11 @@ export const StoreRegistration: React.FC = () => {
     business_hours: '',
     parking: false,
     description: '',
+    // 位置情報（デフォルトは空の値）
+    latitude: 0,
+    longitude: 0,
+    owner_name: '',
+    business_type: 'florist',
     // 銀行口座情報
     bank_name: '',
     branch_name: '',
@@ -179,11 +190,11 @@ export const StoreRegistration: React.FC = () => {
       setLoading(true);
       console.log('店舗データ読み込み開始:', user.email);
       
-      // 既存のstoresテーブル構造に合わせて、emailフィールドで店舗データを取得
+      // emailカラムで店舗データを検索
       const { data: stores, error } = await supabase
         .from('stores')
         .select('*')
-        .eq('email', user.email) // owner_idではなくemailフィールドを使用
+        .eq('email', user.email)
         .single();
 
       if (error) {
@@ -194,7 +205,7 @@ export const StoreRegistration: React.FC = () => {
           ...prev,
           email: user.email || ''
         }));
-      } else {
+      } else if (stores) {
         console.log('既存店舗データ取得成功:', stores);
         setExistingStore(stores);
         setFormData({
@@ -208,7 +219,12 @@ export const StoreRegistration: React.FC = () => {
           business_hours: stores.business_hours || '',
           parking: stores.parking || false,
           description: stores.description || '',
-          // 銀行口座情報（既存データがない場合は空文字）
+          // 位置情報
+          latitude: stores.latitude || 0,
+          longitude: stores.longitude || 0,
+          owner_name: stores.owner_name || '',
+          business_type: stores.business_type || 'florist',
+          // 銀行口座情報（storesテーブルから直接読み込み）
           bank_name: stores.bank_name || '',
           branch_name: stores.branch_name || '',
           account_type: stores.account_type || '普通',
@@ -216,11 +232,10 @@ export const StoreRegistration: React.FC = () => {
           account_holder: stores.account_holder || ''
         });
 
-        // 店舗画像、掲示板、タグ、銀行口座情報を読み込み
+        // 店舗画像、掲示板、タグを読み込み
         await loadStoreImages(stores.id);
         await loadStoreBulletins(stores.id);
         await loadStoreTags(stores.id);
-        await loadBankAccountInfo(stores.id);
       }
     } catch (err) {
       console.error('店舗情報読み込みエラー:', err);
@@ -464,22 +479,31 @@ export const StoreRegistration: React.FC = () => {
       setError('メールアドレスを入力してください');
       return false;
     }
-    // 銀行口座情報の必須チェック
-    if (!formData.bank_name.trim()) {
-      setError('銀行名を入力してください');
+    
+    // 位置情報のバリデーション
+    if (formData.latitude === 0 || formData.longitude === 0) {
+      setError('住所から位置情報を取得してください。「位置取得」ボタンをクリックしてください。');
       return false;
     }
-    if (!formData.branch_name.trim()) {
-      setError('支店名を入力してください');
-      return false;
-    }
-    if (!formData.account_number.trim()) {
-      setError('口座番号を入力してください');
-      return false;
-    }
-    if (!formData.account_holder.trim()) {
-      setError('口座名義を入力してください');
-      return false;
+    
+    // 銀行口座情報のバリデーション（任意入力）
+    if (formData.bank_name.trim() || formData.branch_name.trim() || formData.account_number.trim() || formData.account_holder.trim()) {
+      if (!formData.bank_name.trim()) {
+        setError('銀行口座情報を入力する場合は、銀行名も入力してください');
+        return false;
+      }
+      if (!formData.branch_name.trim()) {
+        setError('銀行口座情報を入力する場合は、支店名も入力してください');
+        return false;
+      }
+      if (!formData.account_number.trim()) {
+        setError('銀行口座情報を入力する場合は、口座番号も入力してください');
+        return false;
+      }
+      if (!formData.account_holder.trim()) {
+        setError('銀行口座情報を入力する場合は、口座名義も入力してください');
+        return false;
+      }
     }
     return true;
   };
@@ -511,18 +535,33 @@ export const StoreRegistration: React.FC = () => {
           business_hours: formData.business_hours || null,
           description: formData.description || null,
           updated_at: new Date().toISOString(),
-          // 銀行口座情報
+          parking: formData.parking,
+          // 位置情報（バリデーション済みなのでそのまま使用）
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          owner_name: formData.owner_name || '',
+          business_type: formData.business_type || 'florist',
+          // 認証済みは管理者が設定（デフォルトはfalse）
+          is_verified: false
+        };
+
+        // 銀行口座情報をstoresテーブルに直接保存
+        if (formData.bank_name || formData.branch_name || formData.account_number || formData.account_holder) {
+          updateData.bank_name = formData.bank_name || null;
+          updateData.branch_name = formData.branch_name || null;
+          updateData.account_type = formData.account_type || '普通';
+          updateData.account_number = formData.account_number || null;
+          updateData.account_holder = formData.account_holder || null;
+        }
+        
+        console.log('更新データ:', updateData);
+        console.log('銀行口座情報:', {
           bank_name: formData.bank_name,
           branch_name: formData.branch_name,
           account_type: formData.account_type,
           account_number: formData.account_number,
           account_holder: formData.account_holder
-        };
-
-        // parkingカラムを追加（SQL実行後に有効化）
-        updateData.parking = formData.parking;
-        
-        console.log('更新データ:', updateData);
+        });
         
         const { data: updatedStore, error } = await supabase
           .from('stores')
@@ -533,7 +572,7 @@ export const StoreRegistration: React.FC = () => {
 
         if (error) {
           console.error('店舗更新エラー:', error);
-          setError('店舗情報の更新に失敗しました');
+          setError(`店舗情報の更新に失敗しました: ${error.message}`);
           return;
         }
 
@@ -547,6 +586,7 @@ export const StoreRegistration: React.FC = () => {
         // 新規店舗の作成
         console.log('新規店舗作成開始');
         const createData: any = {
+          id: `id-${Date.now()}`, // タイムスタンプベースのIDを生成
           store_name: formData.store_name,
           name: formData.store_name, // 互換性のため
           address: formData.address,
@@ -558,18 +598,41 @@ export const StoreRegistration: React.FC = () => {
           business_hours: formData.business_hours || null,
           description: formData.description || null,
           is_active: true,
-          // 銀行口座情報
+          parking: formData.parking,
+          // 位置情報（バリデーション済みなのでそのまま使用）
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          owner_name: formData.owner_name || '',
+          business_type: formData.business_type || 'florist',
+          // 認証済みは管理者が設定（デフォルトはfalse）
+          is_verified: false
+        };
+
+        // 銀行口座情報をstoresテーブルに直接保存
+        if (formData.bank_name || formData.branch_name || formData.account_number || formData.account_holder) {
+          createData.bank_name = formData.bank_name || null;
+          createData.branch_name = formData.branch_name || null;
+          createData.account_type = formData.account_type || '普通';
+          createData.account_number = formData.account_number || null;
+          createData.account_holder = formData.account_holder || null;
+        }
+        
+        console.log('作成データ:', createData);
+        console.log('位置情報:', {
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          owner_name: formData.owner_name,
+          business_type: formData.business_type,
+          // 認証済みは管理者が設定（デフォルトはfalse）
+          is_verified: false
+        });
+        console.log('銀行口座情報:', {
           bank_name: formData.bank_name,
           branch_name: formData.branch_name,
           account_type: formData.account_type,
           account_number: formData.account_number,
           account_holder: formData.account_holder
-        };
-
-        // parkingカラムを追加（SQL実行後に有効化）
-        createData.parking = formData.parking;
-        
-        console.log('作成データ:', createData);
+        });
         
         const { data, error } = await supabase
           .from('stores')
@@ -579,7 +642,7 @@ export const StoreRegistration: React.FC = () => {
 
         if (error) {
           console.error('店舗作成エラー:', error);
-          setError('店舗の登録に失敗しました');
+          setError(`店舗の登録に失敗しました: ${error.message}`);
           return;
         }
 
@@ -657,6 +720,12 @@ export const StoreRegistration: React.FC = () => {
     try {
       console.log('銀行口座情報保存開始:', storeId);
       
+      // 銀行口座情報が入力されていない場合はスキップ
+      if (!formData.bank_name && !formData.branch_name && !formData.account_number && !formData.account_holder) {
+        console.log('銀行口座情報が入力されていないため、保存をスキップします');
+        return;
+      }
+      
       // 既存の銀行口座情報を確認
       const { data: existingCards, error: selectError } = await supabase
         .from('credit_cards')
@@ -685,7 +754,7 @@ export const StoreRegistration: React.FC = () => {
       const bankAccountData = {
         store_id: storeId,
         card_type: 'bank_account', // 銀行口座として識別
-        last_four_digits: formData.account_number.slice(-4), // 口座番号の最後4桁
+        last_four_digits: formData.account_number ? formData.account_number.slice(-4) : '', // 口座番号の最後4桁
         expiry_month: 12, // 銀行口座なので有効期限は設定しない
         expiry_year: 2099, // 銀行口座なので有効期限は設定しない
         card_holder_name: formData.account_holder,
@@ -717,7 +786,19 @@ export const StoreRegistration: React.FC = () => {
   // 画像アップロード機能
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !existingStore) return;
+    if (!files || files.length === 0) return;
+
+    // 店舗が登録されていない場合はエラー
+    if (!existingStore) {
+      setError('先に店舗情報を登録してください');
+      return;
+    }
+
+    // 5枚制限チェック
+    if (storeImages.length + files.length > 5) {
+      setError('画像は最大5枚までアップロードできます');
+      return;
+    }
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -761,6 +842,53 @@ export const StoreRegistration: React.FC = () => {
     } catch (err) {
       console.error('画像アップロードエラー:', err);
       setError('画像のアップロードに失敗しました');
+    }
+  };
+
+  // 住所から位置情報を取得する機能
+  const getLocationFromAddress = async (address: string) => {
+    if (!address.trim()) {
+      setError('住所を入力してください');
+      return false;
+    }
+
+    try {
+      setError('');
+      setSuccess('位置情報を取得中...');
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g&region=jp`
+      );
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        const formattedAddress = data.results[0].formatted_address;
+        
+        console.log('住所から取得した位置情報:', {
+          original_address: address,
+          formatted_address: formattedAddress,
+          latitude: location.lat,
+          longitude: location.lng
+        });
+        
+        setFormData(prev => ({
+          ...prev,
+          latitude: location.lat,
+          longitude: location.lng
+        }));
+        
+        setSuccess(`位置情報を取得しました: ${formattedAddress}`);
+        return true;
+      } else {
+        console.error('位置情報の取得に失敗:', data.status, data.error_message);
+        setError(`住所から位置情報を取得できませんでした: ${data.error_message || data.status}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('位置情報取得エラー:', error);
+      setError('位置情報の取得中にエラーが発生しました');
+      return false;
     }
   };
 
@@ -951,7 +1079,6 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('store_name', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="花屋の名前"
-                  required
                 />
               </div>
 
@@ -959,14 +1086,27 @@ export const StoreRegistration: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   住所 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="〒123-4567 東京都渋谷区..."
-                  required
-                />
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="東京都港区芝5-10-4"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => getLocationFromAddress(formData.address)}
+                    disabled={!formData.address.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-1"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>位置取得</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  住所を入力後、「位置取得」ボタンで自動的に緯度・経度を設定できます
+                </p>
               </div>
 
               <div>
@@ -978,10 +1118,79 @@ export const StoreRegistration: React.FC = () => {
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="03-1234-5678"
-                  required
+                  placeholder="0312345678"
                 />
               </div>
+            </div>
+
+            {/* 位置情報セクション */}
+            <div className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <MapPin className="w-5 h-5 mr-2" />
+                位置情報設定
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    緯度（Latitude） <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.latitude || ''}
+                    onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="35.6508"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    経度（Longitude） <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.longitude || ''}
+                    onChange={(e) => handleInputChange('longitude', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="139.7486"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  オーナー名
+                </label>
+                <input
+                  type="text"
+                  value={formData.owner_name}
+                  onChange={(e) => handleInputChange('owner_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="中三川聖次"
+                />
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-medium">
+                  📍 地図登録について
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  この店舗情報は地図上に表示されます。認証済みステータスは管理者が審査後に設定します。
+                </p>
+              </div>
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800 font-medium">
+                  ⚠️ 位置情報は必須です
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  住所を入力後、「位置取得」ボタンをクリックして緯度・経度を自動取得してください。
+                  手動入力も可能ですが、正確な位置情報を取得することをお勧めします。
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -993,7 +1202,6 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="info@example.com"
-                  required
                 />
               </div>
 
@@ -1019,7 +1227,7 @@ export const StoreRegistration: React.FC = () => {
                   value={formData.instagram}
                   onChange={(e) => handleInputChange('instagram', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://instagram.com/..."
+                  placeholder="@bloom_winkle"
                 />
               </div>
 
@@ -1051,7 +1259,7 @@ export const StoreRegistration: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  駐車場
+                  駐車場 <span className="text-xs text-gray-500">（マップで駐車場アイコンが表示されます）</span>
                 </label>
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center">
@@ -1062,7 +1270,7 @@ export const StoreRegistration: React.FC = () => {
                       className="mr-2"
                     />
                     あり
-                </label>
+                  </label>
                   <label className="flex items-center">
                 <input
                       type="radio"
@@ -1071,7 +1279,7 @@ export const StoreRegistration: React.FC = () => {
                       className="mr-2"
                     />
                     なし
-                </label>
+                  </label>
                 </div>
               </div>
 
@@ -1092,7 +1300,7 @@ export const StoreRegistration: React.FC = () => {
               <div className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <span className="text-green-600 mr-2">🏦</span>
-                  銀行口座情報 <span className="text-red-500 text-sm">（必須）</span>
+                  銀行口座情報 <span className="text-gray-500 text-sm">（任意）</span>
                   {bankValidation.isValid && (
                     <CheckCircle className="h-5 w-5 text-green-500 ml-2" />
                   )}
@@ -1134,7 +1342,7 @@ export const StoreRegistration: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  銀行名 <span className="text-red-500">*</span>
+                  銀行名
                 </label>
                 <input
                   type="text"
@@ -1142,13 +1350,12 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('bank_name', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="例：みずほ銀行"
-                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  支店名 <span className="text-red-500">*</span>
+                  支店名
                 </label>
                 <input
                   type="text"
@@ -1156,19 +1363,17 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('branch_name', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="例：渋谷支店"
-                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  口座種別 <span className="text-red-500">*</span>
+                  口座種別
                 </label>
                 <select
                   value={formData.account_type}
                   onChange={(e) => handleInputChange('account_type', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 >
                   <option value="普通">普通</option>
                   <option value="当座">当座</option>
@@ -1177,7 +1382,7 @@ export const StoreRegistration: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  口座番号 <span className="text-red-500">*</span>
+                  口座番号
                 </label>
                 <input
                   type="text"
@@ -1185,13 +1390,12 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('account_number', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="例：1234567"
-                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  口座名義 <span className="text-red-500">*</span>
+                  口座名義
                 </label>
                 <input
                   type="text"
@@ -1199,7 +1403,6 @@ export const StoreRegistration: React.FC = () => {
                   onChange={(e) => handleInputChange('account_holder', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="例：株式会社○○花店"
-                  required
                 />
               </div>
 
@@ -1257,12 +1460,11 @@ export const StoreRegistration: React.FC = () => {
           </form>
 
           {/* 店舗画像管理 */}
-          {existingStore && (
-            <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Image className="w-5 h-5 mr-2" />
-                店舗画像管理
-              </h3>
+          <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Image className="w-5 h-5 mr-2" />
+              店舗画像管理
+            </h3>
             <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <input
@@ -1280,7 +1482,7 @@ export const StoreRegistration: React.FC = () => {
                     <Upload className="w-4 h-4 mr-2" />
                     画像をアップロード
                   </label>
-                  <p className="text-sm text-gray-600">店舗の写真をアップロードできます</p>
+                  <p className="text-sm text-gray-600">店舗の写真をアップロードできます（最大5枚）</p>
                 </div>
                 {storeImages.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1305,7 +1507,6 @@ export const StoreRegistration: React.FC = () => {
               )}
             </div>
           </div>
-        )}
 
           {/* 店舗掲示板管理 */}
           <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
@@ -1455,8 +1656,8 @@ export const StoreRegistration: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-3">このページについて</h3>
           <div className="text-gray-700 space-y-2">
             <p>• 店舗の基本情報を登録・編集できます</p>
-            <p>• 必須項目（店舗名、住所、電話番号、メールアドレス、銀行口座情報）を入力してください</p>
-            <p>• 銀行口座情報は振り込み決済に必要です</p>
+            <p>• 必須項目（店舗名、住所、電話番号、メールアドレス）を入力してください</p>
+            <p>• 銀行口座情報は任意ですが、振り込み決済に必要です</p>
             <p>• 店舗タグを選択して、店舗の特徴を表現できます</p>
             <p>• 店舗画像を5枚までアップロードして、お客様に店舗の雰囲気を伝えられます</p>
             <p>• 店舗掲示板でお客様へのお知らせを投稿できます</p>

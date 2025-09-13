@@ -1,23 +1,14 @@
--- storesテーブルの構造を修正
+-- storesテーブルに銀行口座情報のカラムを追加
 
 -- 1. 既存のstoresテーブルの構造を確認
-SELECT column_name, data_type, is_nullable 
+SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns 
 WHERE table_name = 'stores' 
 ORDER BY ordinal_position;
 
--- 2. 必要なカラムを追加（存在しない場合のみ）
+-- 2. 銀行口座情報のカラムを追加（存在しない場合のみ）
 DO $$ 
 BEGIN
-    -- emailカラムを追加
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'stores' 
-        AND column_name = 'email'
-    ) THEN
-        ALTER TABLE stores ADD COLUMN email TEXT;
-    END IF;
-
     -- bank_nameカラムを追加
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
@@ -63,7 +54,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN account_holder TEXT;
     END IF;
 
-    -- online_shopカラムを追加
+    -- online_shopカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -72,7 +63,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN online_shop TEXT;
     END IF;
 
-    -- parkingカラムを追加
+    -- parkingカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -81,7 +72,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN parking BOOLEAN DEFAULT FALSE;
     END IF;
 
-    -- instagramカラムを追加
+    -- instagramカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -90,7 +81,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN instagram TEXT;
     END IF;
 
-    -- business_hoursカラムを追加
+    -- business_hoursカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -99,7 +90,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN business_hours TEXT;
     END IF;
 
-    -- descriptionカラムを追加
+    -- descriptionカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -108,7 +99,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN description TEXT;
     END IF;
 
-    -- is_activeカラムを追加
+    -- is_activeカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -117,7 +108,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
     END IF;
 
-    -- created_atカラムを追加
+    -- created_atカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -126,7 +117,7 @@ BEGIN
         ALTER TABLE stores ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
     END IF;
 
-    -- updated_atカラムを追加
+    -- updated_atカラムを追加（フォームにあるがテーブルにない場合）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'stores' 
@@ -136,34 +127,13 @@ BEGIN
     END IF;
 END $$;
 
--- 3. インデックスを追加
-CREATE INDEX IF NOT EXISTS idx_stores_email ON stores(email);
+-- 3. インデックスを追加（必要に応じて）
 CREATE INDEX IF NOT EXISTS idx_stores_bank_name ON stores(bank_name);
 CREATE INDEX IF NOT EXISTS idx_stores_account_number ON stores(account_number);
+CREATE INDEX IF NOT EXISTS idx_stores_email ON stores(email);
 
--- 4. RLSポリシーを設定（存在しない場合のみ）
-DO $$
-BEGIN
-    -- 店舗は自分のデータのみアクセス可能
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'stores' 
-        AND policyname = '店舗は自分のデータのみアクセス可能'
-    ) THEN
-        CREATE POLICY "店舗は自分のデータのみアクセス可能" ON stores
-            FOR ALL USING (email = auth.jwt() ->> 'email');
-    END IF;
-
-    -- 認証されたユーザーは店舗データを読み取り可能
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'stores' 
-        AND policyname = '認証されたユーザーは店舗データを読み取り可能'
-    ) THEN
-        CREATE POLICY "認証されたユーザーは店舗データを読み取り可能" ON stores
-            FOR SELECT USING (auth.role() = 'authenticated');
-    END IF;
-END $$;
-
--- 5. テーブルにRLSを有効化
-ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
+-- 4. 更新後のテーブル構造を確認
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns 
+WHERE table_name = 'stores' 
+ORDER BY ordinal_position;

@@ -1,95 +1,196 @@
 -- storesテーブルの構造を修正
--- 87app Flower Shop Management System
 
--- 1. 現在のstoresテーブルの構造を確認
+-- 1. 既存のstoresテーブルの構造を確認
 SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'stores'
+FROM information_schema.columns 
+WHERE table_name = 'stores' 
 ORDER BY ordinal_position;
 
--- 2. owner_idカラムが存在しない場合、追加
-DO $$
+-- 2. storesテーブルが存在しない場合は作成
+CREATE TABLE IF NOT EXISTS stores (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    store_name TEXT NOT NULL,
+    name TEXT, -- 互換性のため
+    address TEXT NOT NULL,
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    instagram TEXT,
+    online_shop TEXT,
+    business_hours TEXT,
+    description TEXT,
+    parking BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. 既存のテーブルにidカラムがない場合は追加
+DO $$ 
 BEGIN
+    -- idカラムを追加（存在しない場合のみ）
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'stores' 
-        AND column_name = 'owner_id'
+        WHERE table_name = 'stores' 
+        AND column_name = 'id'
     ) THEN
-        ALTER TABLE public.stores ADD COLUMN owner_id UUID;
-        RAISE NOTICE 'owner_idカラムを追加しました';
+        ALTER TABLE stores ADD COLUMN id UUID DEFAULT gen_random_uuid() PRIMARY KEY;
     END IF;
-END
-$$;
 
--- 3. 既存のデータがある場合、owner_idを設定
--- 注意：これは既存のデータがある場合のみ実行
-UPDATE public.stores 
-SET owner_id = (
-    SELECT id FROM auth.users 
-    WHERE email = stores.email 
-    LIMIT 1
-)
-WHERE owner_id IS NULL AND email IS NOT NULL;
-
--- 4. owner_idをNOT NULLに設定（データが設定された後）
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM public.stores 
-        WHERE owner_id IS NOT NULL
-    ) THEN
-        ALTER TABLE public.stores ALTER COLUMN owner_id SET NOT NULL;
-        RAISE NOTICE 'owner_idをNOT NULLに設定しました';
-    END IF;
-END
-$$;
-
--- 5. 外部キー制約を追加
-DO $$
-BEGIN
+    -- store_nameカラムを追加（存在しない場合のみ）
     IF NOT EXISTS (
-        SELECT 1 FROM information_schema.table_constraints 
-        WHERE table_schema = 'public' 
-        AND table_name = 'stores' 
-        AND constraint_name = 'stores_owner_id_fkey'
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'store_name'
     ) THEN
-        ALTER TABLE public.stores 
-        ADD CONSTRAINT stores_owner_id_fkey 
-        FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-        RAISE NOTICE '外部キー制約を追加しました';
+        ALTER TABLE stores ADD COLUMN store_name TEXT;
     END IF;
-END
-$$;
 
--- 6. 銀行口座情報のカラムを追加（まだ存在しない場合）
-ALTER TABLE public.stores 
-ADD COLUMN IF NOT EXISTS bank_name TEXT,
-ADD COLUMN IF NOT EXISTS branch_name TEXT,
-ADD COLUMN IF NOT EXISTS account_type TEXT DEFAULT '普通',
-ADD COLUMN IF NOT EXISTS account_number TEXT,
-ADD COLUMN IF NOT EXISTS account_holder TEXT,
-ADD COLUMN IF NOT EXISTS stripe_connect_account_id TEXT;
+    -- nameカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'name'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN name TEXT;
+    END IF;
 
--- 7. その他の不足しているカラムを追加
-ALTER TABLE public.stores 
-ADD COLUMN IF NOT EXISTS store_name TEXT,
-ADD COLUMN IF NOT EXISTS instagram TEXT,
-ADD COLUMN IF NOT EXISTS online_shop TEXT,
-ADD COLUMN IF NOT EXISTS parking BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8) DEFAULT 35.6762,
-ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8) DEFAULT 139.6503;
+    -- addressカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'address'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN address TEXT;
+    END IF;
 
--- 8. store_nameが空の場合、nameからコピー
-UPDATE public.stores 
-SET store_name = name 
-WHERE (store_name IS NULL OR store_name = '') AND name IS NOT NULL;
+    -- phoneカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'phone'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN phone TEXT;
+    END IF;
 
--- 9. 修正後のテーブル構造を確認
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'stores'
-ORDER BY ordinal_position;
+    -- emailカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'email'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN email TEXT;
+    END IF;
 
--- 10. 完了メッセージ
-SELECT 'storesテーブルの構造修正が完了しました。' as message;
+    -- websiteカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'website'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN website TEXT;
+    END IF;
+
+    -- instagramカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'instagram'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN instagram TEXT;
+    END IF;
+
+    -- online_shopカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'online_shop'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN online_shop TEXT;
+    END IF;
+
+    -- business_hoursカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'business_hours'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN business_hours TEXT;
+    END IF;
+
+    -- descriptionカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'description'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN description TEXT;
+    END IF;
+
+    -- parkingカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'parking'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN parking BOOLEAN DEFAULT FALSE;
+    END IF;
+
+    -- is_activeカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'is_active'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+    END IF;
+
+    -- created_atカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'created_at'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+
+    -- updated_atカラムを追加（存在しない場合のみ）
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE stores ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+END $$;
+
+-- 4. インデックスを追加
+CREATE INDEX IF NOT EXISTS idx_stores_email ON stores(email);
+CREATE INDEX IF NOT EXISTS idx_stores_store_name ON stores(store_name);
+
+-- 5. RLSポリシーを設定（存在しない場合のみ）
+DO $$
+BEGIN
+    -- 店舗は自分のデータのみアクセス可能
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'stores' 
+        AND policyname = '店舗は自分のデータのみアクセス可能'
+    ) THEN
+        CREATE POLICY "店舗は自分のデータのみアクセス可能" ON stores
+            FOR ALL USING (email = auth.jwt() ->> 'email');
+    END IF;
+
+    -- 認証されたユーザーは店舗データを読み取り可能
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'stores' 
+        AND policyname = '認証されたユーザーは店舗データを読み取り可能'
+    ) THEN
+        CREATE POLICY "認証されたユーザーは店舗データを読み取り可能" ON stores
+            FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+END $$;
+
+-- 6. テーブルにRLSを有効化
+ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
