@@ -97,7 +97,7 @@ interface BankAccount {
   updated_at: string;
 }
 
-  // フォームデータの型定義
+// フォームデータの型定義
 interface StoreFormData {
   store_name: string; // nameではなくstore_name
   address: string; // 住所
@@ -488,21 +488,21 @@ export const StoreRegistration: React.FC = () => {
     
     // 銀行口座情報のバリデーション（任意入力）
     if (formData.bank_name.trim() || formData.branch_name.trim() || formData.account_number.trim() || formData.account_holder.trim()) {
-      if (!formData.bank_name.trim()) {
+    if (!formData.bank_name.trim()) {
         setError('銀行口座情報を入力する場合は、銀行名も入力してください');
-        return false;
-      }
-      if (!formData.branch_name.trim()) {
+      return false;
+    }
+    if (!formData.branch_name.trim()) {
         setError('銀行口座情報を入力する場合は、支店名も入力してください');
-        return false;
-      }
-      if (!formData.account_number.trim()) {
+      return false;
+    }
+    if (!formData.account_number.trim()) {
         setError('銀行口座情報を入力する場合は、口座番号も入力してください');
-        return false;
-      }
-      if (!formData.account_holder.trim()) {
+      return false;
+    }
+    if (!formData.account_holder.trim()) {
         setError('銀行口座情報を入力する場合は、口座名義も入力してください');
-        return false;
+      return false;
       }
     }
     return true;
@@ -1087,10 +1087,10 @@ export const StoreRegistration: React.FC = () => {
                   住所 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="東京都港区芝5-10-4"
                   />
@@ -1141,8 +1141,8 @@ export const StoreRegistration: React.FC = () => {
                     onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="35.6508"
-                    required
-                  />
+                  required
+                />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1188,7 +1188,7 @@ export const StoreRegistration: React.FC = () => {
                   手動入力も可能ですが、正確な位置情報を取得することをお勧めします。
                 </p>
               </div>
-            </div>
+              </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -1270,7 +1270,7 @@ export const StoreRegistration: React.FC = () => {
                       className="mr-2"
                     />
                     あり
-                  </label>
+                </label>
                   <label className="flex items-center">
                 <input
                       type="radio"
@@ -1279,7 +1279,7 @@ export const StoreRegistration: React.FC = () => {
                       className="mr-2"
                     />
                     なし
-                  </label>
+                </label>
                 </div>
               </div>
 
@@ -1460,11 +1460,11 @@ export const StoreRegistration: React.FC = () => {
           </form>
 
           {/* 店舗画像管理 */}
-          <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Image className="w-5 h-5 mr-2" />
-              店舗画像管理
-            </h3>
+            <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Image className="w-5 h-5 mr-2" />
+                店舗画像管理
+              </h3>
             <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <input
