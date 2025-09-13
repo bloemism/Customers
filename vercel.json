@@ -62,7 +62,8 @@
     "env": {
       "VITE_APP_ENV": "production",
       "VITE_DEV_MODE": "false",
-      "VITE_DEBUG_MODE": "false"
+      "VITE_DEBUG_MODE": "false",
+      "VITE_SUPABASE_URL": "https://aoqmdyapjsmmvjrwfdup.supabase.co"
     }
   }
 }
