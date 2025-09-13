@@ -21,7 +21,9 @@
   /* キャッシュバスティング */
   @import url('data:text/css,/* Cache buster */') !important;
   /* タイムスタンプキャッシュバスティング */
-  @import url('data:text/css,/* Cache buster: 2025-01-15-001 */') !important;
+  @import url('data:text/css,/* Cache buster: 2025-01-15-002 */') !important;
+  /* 強力なキャッシュバスティング */
+  @import url('data:text/css,/* Force cache clear: 2025-01-15-002 */') !important;
 }
 
 @layer components {
