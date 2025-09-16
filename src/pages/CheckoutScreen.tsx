@@ -12,23 +12,7 @@ import {
   Download,
   X
 } from 'lucide-react';
-// QRCodeライブラリを動的インポートで読み込み
-let QRCode: any = null;
-
-// QRCodeライブラリの動的読み込み関数
-const loadQRCodeLibrary = async () => {
-  if (!QRCode) {
-    try {
-      const qrcodeModule = await import('qrcode');
-      QRCode = qrcodeModule.default;
-      console.log('QRCodeライブラリを動的に読み込みました');
-    } catch (error) {
-      console.error('QRCodeライブラリの読み込みに失敗しました:', error);
-      throw new Error('QRCodeライブラリの読み込みに失敗しました');
-    }
-  }
-  return QRCode;
-};
+import QRCode from 'qrcode';
 
 // 会計アイテムの型定義
 interface CheckoutItem {
@@ -287,10 +271,13 @@ const CheckoutScreen: React.FC = () => {
   const generateCashQRCode = async () => {
     try {
       console.log('現金支払いQRコード生成開始');
+      console.log('QRCodeライブラリ:', QRCode);
+      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
       
-      // QRCodeライブラリを動的に読み込み
-      const QRCodeLib = await loadQRCodeLibrary();
-      console.log('QRCodeライブラリ:', QRCodeLib);
+      // QRCodeライブラリの存在確認
+      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
+        throw new Error('QRCodeライブラリが正しく読み込まれていません');
+      }
       
       const checkoutData = {
         store_name: store?.name || '不明',
@@ -322,16 +309,8 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
-      // QRコード生成のオプションを追加
-      const qrCodeUrl = await QRCodeLib.toDataURL(qrData, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'M'
-      });
+      // QRコード生成（シンプルなオプション）
+      const qrCodeUrl = await QRCode.toDataURL(qrData);
       console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
@@ -367,9 +346,13 @@ const CheckoutScreen: React.FC = () => {
     try {
       console.log('クレジットカード支払いQRコード生成開始');
       
-      // QRCodeライブラリを動的に読み込み
-      const QRCodeLib = await loadQRCodeLibrary();
-      console.log('QRCodeライブラリ:', QRCodeLib);
+      console.log('QRCodeライブラリ:', QRCode);
+      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
+      
+      // QRCodeライブラリの存在確認
+      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
+        throw new Error('QRCodeライブラリが正しく読み込まれていません');
+      }
 
     const checkoutData = {
         store_name: store?.name || '不明',
@@ -402,16 +385,8 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
-      // QRコード生成のオプションを追加
-      const qrCodeUrl = await QRCodeLib.toDataURL(qrData, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'M'
-      });
+      // QRコード生成（シンプルなオプション）
+      const qrCodeUrl = await QRCode.toDataURL(qrData);
       console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
