@@ -12,7 +12,23 @@ import {
   Download,
   X
 } from 'lucide-react';
-import QRCode from 'qrcode';
+// QRCodeライブラリを動的インポートで読み込み
+let QRCode: any = null;
+
+// QRCodeライブラリの動的読み込み関数
+const loadQRCodeLibrary = async () => {
+  if (!QRCode) {
+    try {
+      const qrcodeModule = await import('qrcode');
+      QRCode = qrcodeModule.default;
+      console.log('QRCodeライブラリを動的に読み込みました');
+    } catch (error) {
+      console.error('QRCodeライブラリの読み込みに失敗しました:', error);
+      throw new Error('QRCodeライブラリの読み込みに失敗しました');
+    }
+  }
+  return QRCode;
+};
 
 // 会計アイテムの型定義
 interface CheckoutItem {
@@ -272,6 +288,10 @@ const CheckoutScreen: React.FC = () => {
     try {
       console.log('現金支払いQRコード生成開始');
       
+      // QRCodeライブラリを動的に読み込み
+      const QRCodeLib = await loadQRCodeLibrary();
+      console.log('QRCodeライブラリ:', QRCodeLib);
+      
       const checkoutData = {
         store_name: store?.name || '不明',
         store_address: store?.address || '不明',
@@ -302,8 +322,17 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
-      const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL:', qrCodeUrl);
+      // QRコード生成のオプションを追加
+      const qrCodeUrl = await QRCodeLib.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M'
+      });
+      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
       const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
@@ -323,7 +352,13 @@ const CheckoutScreen: React.FC = () => {
       
     } catch (error) {
       console.error('現金支払いQRコード生成エラー:', error);
-      alert(`QRコード生成エラー: ${error}`);
+      console.error('エラーの詳細:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        QRCode: typeof QRCode,
+        toDataURL: typeof QRCode?.toDataURL
+      });
+      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -331,6 +366,10 @@ const CheckoutScreen: React.FC = () => {
   const generateCreditCardQRCode = async () => {
     try {
       console.log('クレジットカード支払いQRコード生成開始');
+      
+      // QRCodeライブラリを動的に読み込み
+      const QRCodeLib = await loadQRCodeLibrary();
+      console.log('QRCodeライブラリ:', QRCodeLib);
 
     const checkoutData = {
         store_name: store?.name || '不明',
@@ -363,8 +402,17 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
-      const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL:', qrCodeUrl);
+      // QRコード生成のオプションを追加
+      const qrCodeUrl = await QRCodeLib.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M'
+      });
+      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
       const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
@@ -384,7 +432,13 @@ const CheckoutScreen: React.FC = () => {
       
     } catch (error) {
       console.error('クレジットカード支払いQRコード生成エラー:', error);
-      alert(`QRコード生成エラー: ${error}`);
+      console.error('エラーの詳細:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        QRCode: typeof QRCode,
+        toDataURL: typeof QRCode?.toDataURL
+      });
+      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -963,12 +1017,28 @@ const CheckoutScreen: React.FC = () => {
               </h3>
               
               {/* QRコード - 伝票全体の場合のみ表示 */}
-              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl && (
+              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl ? (
                 <div className="text-center mb-4">
-                  <img src={itemQRInfo.qrCodeUrl} alt="QR Code" className="mx-auto w-48 h-48" />
+                  <img 
+                    src={itemQRInfo.qrCodeUrl} 
+                    alt="QR Code" 
+                    className="mx-auto w-48 h-48"
+                    onError={(e) => {
+                      console.error('QRコード画像の読み込みに失敗しました');
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('QRコード画像の読み込みに成功しました');
+                    }}
+                  />
                   <p className="text-sm text-gray-600 mt-2">QRコードをスキャンして支払い</p>
                 </div>
-              )}
+              ) : itemQRInfo.type === 'receipt' ? (
+                <div className="text-center mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">QRコードの生成に失敗しました</p>
+                  <p className="text-red-500 text-xs mt-1">ブラウザのコンソールでエラーを確認してください</p>
+                </div>
+              ) : null}
 
               {/* メール請求用URL */}
               <div className="mb-4">
