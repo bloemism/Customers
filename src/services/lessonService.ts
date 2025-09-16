@@ -54,10 +54,14 @@ export const loadLessonSchedules = async (userEmail: string): Promise<LessonSche
       return [];
     }
 
-    // new_lesson_schedulesから全データ取得
+    // ユーザーが所有するスクールのIDリストを取得
+    const schoolIds = schoolsData.map(school => school.id);
+
+    // new_lesson_schedulesからユーザーのスクールのスケジュールのみ取得
     const { data: schedulesData, error: schedulesError } = await supabase
       .from('new_lesson_schedules')
       .select('*')
+      .in('lesson_school_id', schoolIds)
       .order('date', { ascending: true });
 
     if (schedulesError) {
@@ -86,11 +90,47 @@ export const loadLessonSchedules = async (userEmail: string): Promise<LessonSche
 };
 
 // 顧客参加情報読み込み
-export const loadCustomerParticipations = async (): Promise<CustomerParticipation[]> => {
+export const loadCustomerParticipations = async (userEmail: string): Promise<CustomerParticipation[]> => {
   try {
+    // まずユーザーが所有するスクールのIDを取得
+    const { data: schoolsData, error: schoolsError } = await supabase
+      .from('lesson_schools')
+      .select('id')
+      .eq('store_email', userEmail);
+
+    if (schoolsError) {
+      console.error('lesson_schools取得エラー:', schoolsError);
+      throw schoolsError;
+    }
+
+    if (!schoolsData || schoolsData.length === 0) {
+      return [];
+    }
+
+    const schoolIds = schoolsData.map(school => school.id);
+
+    // ユーザーのスクールのスケジュールIDを取得
+    const { data: schedulesData, error: schedulesError } = await supabase
+      .from('new_lesson_schedules')
+      .select('id')
+      .in('lesson_school_id', schoolIds);
+
+    if (schedulesError) {
+      console.error('new_lesson_schedules取得エラー:', schedulesError);
+      throw schedulesError;
+    }
+
+    if (!schedulesData || schedulesData.length === 0) {
+      return [];
+    }
+
+    const scheduleIds = schedulesData.map(schedule => schedule.id);
+
+    // ユーザーのスクールのスケジュールに関連する参加情報のみ取得
     const { data, error } = await supabase
       .from('customer_participations')
       .select('*')
+      .in('schedule_id', scheduleIds)
       .order('created_at', { ascending: false });
 
     if (error) {

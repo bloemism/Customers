@@ -10,8 +10,10 @@ import {
   ArrowLeft,
   X,
   Mail,
-  Phone
+  Phone,
+  QrCode
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import LessonCalendar from '../components/LessonCalendar';
 import {
   loadLessonSchools,
@@ -52,6 +54,13 @@ const LessonScheduleManagement: React.FC = () => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<MessageType>('success');
   const [isCompletingLesson, setIsCompletingLesson] = useState(false);
+  const [isAddingParticipation, setIsAddingParticipation] = useState(false);
+  const [newParticipation, setNewParticipation] = useState({
+    customer_name: '',
+    customer_email: '',
+    customer_phone: '',
+    notes: ''
+  });
   
   // フォームデータ
   const [formData, setFormData] = useState<ScheduleFormData>({
@@ -61,8 +70,8 @@ const LessonScheduleManagement: React.FC = () => {
     date: '',
     start_time: '',
     end_time: '',
-    max_participants: 1,
-    price: 0
+    max_participants: 0, // 空白で開始
+    price: 0 // 空白で開始
   });
   
   // レッスンスクール読み込み
@@ -88,7 +97,7 @@ const LessonScheduleManagement: React.FC = () => {
   // 顧客参加情報読み込み
   const loadCustomerParticipationsData = async () => {
     try {
-      const data = await loadCustomerParticipations();
+      const data = await loadCustomerParticipations(user?.email || '');
       setCustomerParticipations(data);
       } catch (error) {
       console.error('顧客参加情報読み込みエラー:', error);
@@ -125,6 +134,19 @@ const LessonScheduleManagement: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
+    // バリデーション
+    if (formData.max_participants <= 0) {
+      setMessage('最大参加者数を入力してください');
+      setMessageType('error');
+      return;
+    }
+
+    if (formData.price < 0) {
+      setMessage('料金を正しく入力してください');
+      setMessageType('error');
+      return;
+    }
+
     try {
       await saveSchedule(formData, user.email, editingSchedule?.id);
       
@@ -150,8 +172,8 @@ const LessonScheduleManagement: React.FC = () => {
       date: '',
       start_time: '',
       end_time: '',
-      max_participants: 1,
-      price: 0
+      max_participants: 0, // 空白で開始
+      price: 0 // 空白で開始
     });
   };
 
@@ -287,6 +309,115 @@ const LessonScheduleManagement: React.FC = () => {
     setMessageType('success');
   };
 
+  // レッスン参加用QRコード生成
+  const generateLessonQRCode = async (schedule: LessonSchedule) => {
+    try {
+      const baseUrl = window.location.origin;
+      const lessonUrl = `${baseUrl}/lesson-participation/${schedule.id}`;
+      
+      const qrData = {
+        type: 'lesson_participation',
+        schedule_id: schedule.id,
+        lesson_title: schedule.title,
+        lesson_date: schedule.date,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        max_participants: schedule.max_participants,
+        price: schedule.price,
+        lesson_url: lessonUrl,
+        timestamp: new Date().toISOString(),
+        app: '87app-customers'
+      };
+
+      const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      // QRコードを新しいウィンドウで表示
+      const newWindow = window.open('', '_blank', 'width=400,height=500');
+      if (newWindow) {
+        newWindow.document.write(`
+          <html>
+            <head>
+              <title>レッスン参加QRコード - ${schedule.title}</title>
+              <style>
+                body { 
+                  font-family: Arial, sans-serif; 
+                  text-align: center; 
+                  padding: 20px;
+                  background: #f5f5f5;
+                }
+                .qr-container {
+                  background: white;
+                  padding: 20px;
+                  border-radius: 10px;
+                  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                  margin: 20px auto;
+                  max-width: 350px;
+                }
+                .lesson-info {
+                  margin: 20px 0;
+                  text-align: left;
+                }
+                .lesson-info h3 {
+                  color: #333;
+                  margin-bottom: 10px;
+                }
+                .lesson-info p {
+                  margin: 5px 0;
+                  color: #666;
+                }
+                .qr-code {
+                  margin: 20px 0;
+                }
+                .instructions {
+                  background: #e3f2fd;
+                  padding: 15px;
+                  border-radius: 5px;
+                  margin: 20px 0;
+                  text-align: left;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="qr-container">
+                <h2>レッスン参加QRコード</h2>
+                <div class="lesson-info">
+                  <h3>${schedule.title}</h3>
+                  <p><strong>日時:</strong> ${new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')} ${schedule.start_time} - ${schedule.end_time}</p>
+                  <p><strong>料金:</strong> ¥${schedule.price.toLocaleString()}</p>
+                  <p><strong>定員:</strong> ${schedule.max_participants}名</p>
+                </div>
+                <div class="qr-code">
+                  <img src="${qrCodeUrl}" alt="レッスン参加QRコード" />
+                </div>
+                <div class="instructions">
+                  <h4>参加方法:</h4>
+                  <p>1. 顧客アプリでこのQRコードをスキャン</p>
+                  <p>2. 参加・不参加を選択</p>
+                  <p>3. 連絡先情報を入力（初回のみ）</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
+        newWindow.document.close();
+      }
+
+      setMessage('レッスン参加QRコードを生成しました');
+      setMessageType('success');
+    } catch (error) {
+      console.error('QRコード生成エラー:', error);
+      setMessage('QRコードの生成中にエラーが発生しました');
+      setMessageType('error');
+    }
+  };
+
   // レッスン終了処理
   const handleCompleteLesson = async (scheduleId: string) => {
     if (!user || !confirm('レッスンを終了して、参加者にポイントを配布しますか？')) return;
@@ -318,6 +449,46 @@ const LessonScheduleManagement: React.FC = () => {
   // レッスンが既に完了しているかチェック
   const isLessonCompleted = (scheduleId: string) => {
     return lessonCompletions.some(completion => completion.schedule_id === scheduleId);
+  };
+
+  // 顧客参加を手動で追加
+  const handleAddParticipation = async () => {
+    if (!selectedSchedule || !newParticipation.customer_name.trim()) {
+      setMessage('顧客名を入力してください');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customer_participations')
+        .insert([{
+          schedule_id: selectedSchedule.id,
+          customer_name: newParticipation.customer_name.trim(),
+          customer_email: newParticipation.customer_email.trim() || null,
+          customer_phone: newParticipation.customer_phone.trim() || null,
+          status: 'confirmed',
+          notes: newParticipation.notes.trim() || null
+        }]);
+
+      if (error) throw error;
+
+      setMessage('顧客の参加を追加しました');
+      setMessageType('success');
+      setNewParticipation({
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
+        notes: ''
+      });
+      setIsAddingParticipation(false);
+      loadCustomerParticipationsData();
+      loadLessonSchedulesData();
+    } catch (error) {
+      console.error('参加追加エラー:', error);
+      setMessage('参加の追加中にエラーが発生しました');
+      setMessageType('error');
+    }
   };
 
   if (loading) {
@@ -476,18 +647,34 @@ const LessonScheduleManagement: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       最大参加者数
                     </label>
                     <input
                       type="number"
-                      value={formData.max_participants}
-                      onChange={(e) => setFormData(prev => ({ ...prev, max_participants: parseInt(e.target.value) || 1 }))}
+                      value={formData.max_participants || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setFormData(prev => ({ ...prev, max_participants: 0 }));
+                        } else {
+                          const numValue = parseInt(value);
+                          if (!isNaN(numValue) && numValue > 0) {
+                            setFormData(prev => ({ ...prev, max_participants: numValue }));
+                          }
+                        }
+                      }}
+                      onFocus={(e) => {
+                        // フォーカス時に全選択して入力しやすくする
+                        e.target.select();
+                      }}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min="1"
+                      max="999"
+                      placeholder="最大参加者数を入力"
                     />
                   </div>
                   <div>
@@ -496,15 +683,31 @@ const LessonScheduleManagement: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                      value={formData.price || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setFormData(prev => ({ ...prev, price: 0 }));
+                        } else {
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            setFormData(prev => ({ ...prev, price: numValue }));
+                          }
+                        }
+                      }}
+                      onFocus={(e) => {
+                        // フォーカス時に全選択して入力しやすくする
+                        e.target.select();
+                      }}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min="0"
-                      step="0.01"
+                      max="999999"
+                      step="1"
+                      placeholder="料金を入力（円）"
                     />
+                  </div>
                 </div>
-              </div>
             </div>
 
             {/* ボタン */}
@@ -668,7 +871,14 @@ const LessonScheduleManagement: React.FC = () => {
                       レッスン完了状況: {isLessonCompleted(selectedSchedule.id) ? '完了済み' : '未完了'}
                     </span>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => generateLessonQRCode(selectedSchedule)}
+                      className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors flex items-center"
+                    >
+                      <QrCode className="w-3 h-3 mr-1" />
+                      QRコード生成
+                    </button>
                     <button
                       onClick={handleQRScan}
                       className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
@@ -694,7 +904,95 @@ const LessonScheduleManagement: React.FC = () => {
 
                 {/* 顧客参加情報 */}
                 <div className="mb-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">顧客参加状況</h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-md font-medium text-gray-900">顧客参加状況</h4>
+                    <button
+                      onClick={() => setIsAddingParticipation(!isAddingParticipation)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      {isAddingParticipation ? 'キャンセル' : '参加者を追加'}
+                    </button>
+                  </div>
+
+                  {/* 参加者追加フォーム */}
+                  {isAddingParticipation && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <h5 className="text-sm font-medium text-blue-900 mb-3">新しい参加者を追加</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            顧客名 *
+                          </label>
+                          <input
+                            type="text"
+                            value={newParticipation.customer_name}
+                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_name: e.target.value }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="田中花子"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            メールアドレス
+                          </label>
+                          <input
+                            type="email"
+                            value={newParticipation.customer_email}
+                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_email: e.target.value }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="tanaka@example.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            電話番号
+                          </label>
+                          <input
+                            type="tel"
+                            value={newParticipation.customer_phone}
+                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_phone: e.target.value }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="090-1234-5678"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            備考
+                          </label>
+                          <input
+                            type="text"
+                            value={newParticipation.notes}
+                            onChange={(e) => setNewParticipation(prev => ({ ...prev, notes: e.target.value }))}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="初回参加"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end space-x-2 mt-3">
+                        <button
+                          onClick={() => {
+                            setIsAddingParticipation(false);
+                            setNewParticipation({
+                              customer_name: '',
+                              customer_email: '',
+                              customer_phone: '',
+                              notes: ''
+                            });
+                          }}
+                          className="px-3 py-1 text-gray-600 bg-gray-100 rounded text-sm hover:bg-gray-200 transition-colors"
+                        >
+                          キャンセル
+                        </button>
+                        <button
+                          onClick={handleAddParticipation}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                        >
+                          追加
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {customerParticipations.filter(p => p.schedule_id === selectedSchedule.id).length === 0 ? (
                     <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
                       <p>参加している顧客がいません</p>
@@ -709,7 +1007,7 @@ const LessonScheduleManagement: React.FC = () => {
                           className="border border-gray-200 rounded-lg p-3 bg-gray-50"
                         >
                           <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                            <div className="flex-1">
                               <h5 className="font-medium text-gray-900 mb-1">
                                 {participation.customer_name}
                               </h5>
@@ -722,6 +1020,11 @@ const LessonScheduleManagement: React.FC = () => {
                               <div className="flex items-center space-x-2">
                                 <Phone className="w-4 h-4" />
                                     <span>{participation.customer_phone}</span>
+                              </div>
+                                )}
+                                {participation.notes && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                備考: {participation.notes}
                               </div>
                                 )}
                               </div>
