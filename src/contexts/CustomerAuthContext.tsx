@@ -121,7 +121,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data, error } = await supabase
           .from('customers')
           .select('*')
-          .eq('id', userId)
+          .eq('user_id', userId)
           .single();
       
       console.log('customersテーブル取得結果:', { data, error });
@@ -324,7 +324,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       const { data: existingCustomer } = await supabase
         .from('customers')
         .select('id')
-        .eq('id', authUser.user.id)
+        .eq('user_id', authUser.user.id)
         .single();
 
       let error;
@@ -339,14 +339,14 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
             birth_date: isoBirthDate,
             updated_at: new Date().toISOString()
           })
-          .eq('id', authUser.user.id);
+          .eq('user_id', authUser.user.id);
         error = updateError;
       } else {
         // 新規レコードの場合は挿入
         const { error: insertError } = await supabase
           .from('customers')
           .insert({
-            id: authUser.user.id,
+            user_id: authUser.user.id,
             email: authUser.user.email!,
             name,
             alphabet: alphabet || null,

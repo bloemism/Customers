@@ -29,6 +29,7 @@ const CustomerDataRegistration = React.lazy(() => import('./pages/CustomerDataRe
 const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen').then(module => ({ default: module.CustomerMenuScreen })));
 const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode').then(module => ({ default: module.CustomerQRCode })));
 const StorePayment = React.lazy(() => import('./pages/StorePayment').then(module => ({ default: module.StorePayment })));
+const PaymentConfirmation = React.lazy(() => import('./pages/PaymentConfirmation').then(module => ({ default: module.PaymentConfirmation })));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
 
 
@@ -108,14 +109,14 @@ function App() {
               </SimpleAuthGuard>
             } />
               <Route path="/florist-map" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <FloristMap />
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/flower-lesson-map" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <FlowerLessonMap />
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/lesson-school-management" element={
                 <SimpleAuthGuard>
@@ -154,10 +155,15 @@ function App() {
                   <CustomerQRCode />
                 </CustomerAuthGuard>
               } />
+              <Route path="/payment-confirmation" element={
+                <CustomerAuthGuard>
+                  <PaymentConfirmation />
+                </CustomerAuthGuard>
+              } />
               <Route path="/store-payment" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <StorePayment />
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/customer-readme" element={
                 <CustomerAuthGuard>

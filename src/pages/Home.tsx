@@ -46,25 +46,31 @@ export const Home: React.FC = () => {
 
         {/* ヒーローセクション */}
         <main className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
+          {/* 背景オーバーレイ */}
+          <div className="absolute inset-0 bg-black/20"></div>
+          <div className="max-w-4xl mx-auto text-center relative z-10">
             {/* メインタイトル */}
             <div className="mb-8">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full mb-6 shadow-2xl">
                 <Flower className="h-10 w-10 text-white" />
               </div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-2xl shadow-black/50">
                 <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   87app
                 </span>
               </h1>
-              <p className="text-xl md:text-2xl text-white mb-4 font-medium drop-shadow-lg">
+              <p className="text-2xl md:text-3xl text-white mb-6 font-bold drop-shadow-2xl shadow-black/50">
                 お花が好きな人のためのアプリ
               </p>
-              <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
-                美しいお花と出会い、特別な体験を楽しもう。<br />
-                全国の花屋やフラワーレッスンを見つけて、<br />
-                あなたの花のある生活を始めましょう。
-              </p>
+              <div className="max-w-3xl mx-auto">
+                <p className="text-lg md:text-xl text-white mb-4 leading-relaxed drop-shadow-2xl shadow-black/50 font-medium">
+                  美しいお花と出会い、特別な体験を楽しもう
+                </p>
+                <p className="text-base md:text-lg text-white leading-relaxed drop-shadow-2xl shadow-black/50">
+                  全国の花屋やフラワーレッスンを見つけて、<br />
+                  あなたの花のある生活を始めましょう
+                </p>
+              </div>
             </div>
 
             {/* 機能紹介 */}

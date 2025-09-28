@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, RefreshCw, Flower } from 'lucide-react';
+import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, RefreshCw, Flower, Camera } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { StoreQRScanner } from '../components/StoreQRScanner';
 
 
 const levelConfig = {
@@ -45,6 +46,7 @@ export const CustomerQRCode: React.FC = () => {
   const { customer } = useCustomerAuth();
   const [copied, setCopied] = useState(false);
   const [qrRefresh, setQrRefresh] = useState(0);
+  const [showScanner, setShowScanner] = useState(false);
 
   const getLevelInfo = (level: string) => {
     return levelConfig[level as keyof typeof levelConfig] || levelConfig.BASIC;
@@ -187,6 +189,24 @@ export const CustomerQRCode: React.FC = () => {
           </div>
         </div>
 
+        {/* 店舗QRコードスキャンボタン */}
+        <div className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 mb-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-400/30 to-emerald-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-300/40 shadow-lg">
+              <Camera className="h-8 w-8 text-green-100" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">店舗決済</h3>
+            <p className="text-sm text-white/70 mb-4">店舗が表示したQRコードをスキャンして決済</p>
+            <button
+              onClick={() => setShowScanner(true)}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+            >
+              <Camera className="h-5 w-5" />
+              <span>店舗QRコードをスキャン</span>
+            </button>
+          </div>
+        </div>
+
         {/* 顧客情報カード */}
         <div className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-6 flex items-center">
@@ -251,6 +271,11 @@ export const CustomerQRCode: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 店舗QRコードスキャナー */}
+      {showScanner && (
+        <StoreQRScanner onClose={() => setShowScanner(false)} />
+      )}
     </div>
   );
 };

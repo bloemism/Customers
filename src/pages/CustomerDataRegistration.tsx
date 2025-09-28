@@ -38,6 +38,29 @@ const CustomerDataRegistration: React.FC = () => {
         address: customer.address || '',
         birth_date: customer.birth_date || ''
       });
+    } else {
+      // customerデータがない場合は直接データベースから取得
+      const fetchCustomerData = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: customerData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          if (customerData) {
+            console.log('取得した顧客データ:', customerData);
+            setRegisteredData(customerData);
+            setFormData({
+              name: customerData.name || '',
+              alphabet: customerData.alphabet || '',
+              address: customerData.address || '',
+              birth_date: customerData.birth_date || ''
+            });
+          }
+        }
+      };
+      fetchCustomerData();
     }
   }, [customer]);
 
@@ -89,7 +112,7 @@ const CustomerDataRegistration: React.FC = () => {
           const { data: updatedCustomer } = await supabase
             .from('customers')
             .select('*')
-            .eq('id', user.id)
+            .eq('user_id', user.id)
             .single();
           if (updatedCustomer) {
             setRegisteredData(updatedCustomer);
@@ -196,37 +219,62 @@ const CustomerDataRegistration: React.FC = () => {
                   </div>
                 </div>
                 
-                {registeredData.alphabet && (
-                  <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm text-green-600">アルファベット名</p>
-                      <p className="font-medium text-green-800">{registeredData.alphabet}</p>
-                    </div>
+                <div className="flex items-center space-x-3">
+                  <Mail className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-green-600">メールアドレス</p>
+                    <p className="font-medium text-green-800">{registeredData.email}</p>
                   </div>
-                )}
+                </div>
                 
-                {registeredData.address && (
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm text-green-600">住所</p>
-                      <p className="font-medium text-green-800">{registeredData.address}</p>
-                    </div>
+                <div className="flex items-center space-x-3">
+                  <User className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-green-600">アルファベット名</p>
+                    <p className="font-medium text-green-800">{registeredData.alphabet || '未入力'}</p>
                   </div>
-                )}
+                </div>
                 
-                {registeredData.birth_date && (
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm text-green-600">誕生日</p>
-                      <p className="font-medium text-green-800">
-                        {convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date}
-                      </p>
-                    </div>
+                <div className="flex items-center space-x-3">
+                  <MapPin className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-green-600">住所</p>
+                    <p className="font-medium text-green-800">{registeredData.address || '未入力'}</p>
                   </div>
-                )}
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-green-600">誕生日</p>
+                    <p className="font-medium text-green-800">
+                      {registeredData.birth_date ? 
+                        (convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date) : 
+                        '未入力'
+                      }
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="h-5 w-5 flex items-center justify-center">
+                    <span className="text-green-600 text-sm">📊</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-600">ポイント</p>
+                    <p className="font-medium text-green-800">{registeredData.points || 0} pt</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="h-5 w-5 flex items-center justify-center">
+                    <span className="text-green-600 text-sm">⭐</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-600">レベル</p>
+                    <p className="font-medium text-green-800">{registeredData.level || 'BASIC'}</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

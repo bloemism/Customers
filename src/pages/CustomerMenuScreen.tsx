@@ -216,7 +216,12 @@ export const CustomerMenuScreen: React.FC = () => {
   const levelProgress = getLevelProgress(defaultCustomer.points, defaultCustomer.level);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed md:bg-fixed"
+      style={{
+        backgroundImage: 'url(/background.jpg)',
+      }}
+    >
       {/* ヘッダー */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -274,7 +279,7 @@ export const CustomerMenuScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 顧客情報カード */}
         <div className="mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
@@ -333,34 +338,32 @@ export const CustomerMenuScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* メニューリスト - PC: 横3列、モバイル: 縦並び */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {menuItems.map((item) => {
-            const IconComponent = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                className="group bg-white/50 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-lg hover:bg-white/95 active:bg-white/95 active:scale-95 active:shadow-xl transition-all duration-300 border border-white/20 overflow-hidden touch-manipulation"
               >
-                {/* グラデーション背景 */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                
-                <div className="relative p-8 text-left">
-                  {/* アイコン */}
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="h-8 w-8" />
+                <div className="flex items-center p-4">
+                  {/* コンテンツ */}
+                  <div className="flex-1 text-left">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-800 group-active:text-gray-900 transition-colors duration-200">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 group-hover:text-gray-700 group-active:text-gray-800 transition-colors duration-200 mt-1">
+                      {item.description}
+                    </p>
                   </div>
                   
-                  {/* タイトル */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
-                    {item.title}
-                  </h3>
-                  
-                  {/* 説明 */}
-                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
-                    {item.description}
-                  </p>
+                  {/* 矢印アイコン */}
+                  <div className="flex-shrink-0 text-gray-300 group-hover:text-gray-400 group-active:text-gray-600 transition-colors duration-200">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
               </button>
             );

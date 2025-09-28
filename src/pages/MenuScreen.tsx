@@ -62,6 +62,37 @@ export const MenuScreen: React.FC = () => {
     }
   ];
 
+  const quickActions = [
+    {
+      id: 'map',
+      title: '地図表示',
+      icon: Map,
+      color: 'text-blue-500',
+      route: '/florist-map'
+    },
+    {
+      id: 'customer-search',
+      title: '顧客検索',
+      icon: UserCheck,
+      color: 'text-purple-500',
+      route: '/customer-management'
+    },
+    {
+      id: 'settings',
+      title: '設定',
+      icon: Settings,
+      color: 'text-orange-500',
+      route: '/settings'
+    },
+    {
+      id: 'product-management',
+      title: '商品管理',
+      icon: Flower,
+      color: 'text-pink-500',
+      route: '/product-management'
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       {/* ヘッダー */}
@@ -98,40 +129,32 @@ export const MenuScreen: React.FC = () => {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* メニューグリッド */}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* メインメニュー - モバイル対応の横バー形式 */}
+        <div className="space-y-4 mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">メインメニュー</h2>
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                className="group w-full bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 overflow-hidden"
               >
-                {/* グラデーション背景 */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                
-                <div className="relative p-8 text-left">
-                  {/* アイコン */}
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="h-8 w-8" />
+                <div className="flex items-center p-4">
+                  {/* コンテンツ */}
+                  <div className="flex-1 text-left">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-800 transition-colors duration-200">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-200 mt-1">
+                      {item.description}
+                    </p>
                   </div>
                   
-                  {/* タイトル */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
-                    {item.title}
-                  </h3>
-                  
-                  {/* 説明 */}
-                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
-                    {item.description}
-                  </p>
-                  
                   {/* 矢印アイコン */}
-                  <div className="absolute top-6 right-6 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex-shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
@@ -141,32 +164,35 @@ export const MenuScreen: React.FC = () => {
           })}
         </div>
 
-        {/* クイックアクション */}
-        <div className="mt-12 max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Receipt className="h-5 w-5 mr-2 text-green-500" />
-              クイックアクション
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Map className="h-6 w-6 text-blue-500 mb-2" />
-                <span className="text-sm text-gray-600">地図表示</span>
+        {/* クイックアクション - モバイル対応の横バー形式 */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">クイックアクション</h2>
+          {quickActions.map((action) => {
+            const IconComponent = action.icon;
+            return (
+              <button
+                key={action.id}
+                onClick={() => navigate(action.route)}
+                className="group w-full bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 overflow-hidden"
+              >
+                <div className="flex items-center p-4">
+                  {/* コンテンツ */}
+                  <div className="flex-1 text-left">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-800 transition-colors duration-200">
+                      {action.title}
+                    </h3>
+                  </div>
+                  
+                  {/* 矢印アイコン */}
+                  <div className="flex-shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors duration-200">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
               </button>
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <UserCheck className="h-6 w-6 text-purple-500 mb-2" />
-                <span className="text-sm text-gray-600">顧客検索</span>
-              </button>
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Settings className="h-6 w-6 text-orange-500 mb-2" />
-                <span className="text-sm text-gray-600">設定</span>
-              </button>
-              <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Flower className="h-6 w-6 text-pink-500 mb-2" />
-                <span className="text-sm text-gray-600">商品管理</span>
-              </button>
-            </div>
-          </div>
+            );
+          })}
         </div>
 
         {/* フッター */}

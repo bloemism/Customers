@@ -999,7 +999,7 @@ export const FloristMap: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => navigate('/menu')}
+                onClick={() => navigate('/customer-menu')}
                 className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
               >
                 <ArrowLeft className="h-6 w-6" />

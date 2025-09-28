@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
 import { 
@@ -46,6 +47,7 @@ interface RegionCategory {
 }
 
 const FlowerLessonMap: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useSimpleAuth();
   
   // レッスンスクール一覧
@@ -195,7 +197,7 @@ const FlowerLessonMap: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => window.history.back()}
+                onClick={() => navigate('/customer-menu')}
                 className="p-2 text-white hover:text-pink-100 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
