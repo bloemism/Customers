@@ -76,3 +76,4 @@ WHERE name = 'テストフラワースクール';
 SELECT 
     '同期機能テスト完了' as status,
     'INSERT、UPDATE、DELETEの同期が正常に動作しています' as message;
+

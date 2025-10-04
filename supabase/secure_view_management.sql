@@ -107,3 +107,4 @@ WHERE c.relkind = 'v'
     WHERE r.ev_class = c.oid
       AND r.ev_security_definer = true
   );
+

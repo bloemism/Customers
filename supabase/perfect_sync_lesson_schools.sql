@@ -136,3 +136,4 @@ SELECT
 SELECT 
     'lesson_schools完全同期機能実装完了' as status,
     'lesson_schoolsとlesson_schools_backupが完全に同期されます' as message;
+

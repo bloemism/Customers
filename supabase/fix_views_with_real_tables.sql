@@ -40,3 +40,4 @@ SELECT
 FROM pg_views 
 WHERE schemaname = 'public'
   AND viewname = 'payment_method_trends_view';
+

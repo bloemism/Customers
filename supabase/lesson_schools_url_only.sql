@@ -45,3 +45,4 @@ LIMIT 3;
 SELECT 
     'lesson_schools URL機能有効化完了' as status,
     'アプリケーションでURL機能が利用可能です' as message;
+

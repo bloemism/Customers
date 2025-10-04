@@ -60,3 +60,4 @@ ORDER BY tablename, policyname;
 SELECT 
     '✅ セキュリティ状況' as status,
     'SECURITY DEFINERビューが削除され、適切な権限が設定されました' as summary;
+

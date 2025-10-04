@@ -112,3 +112,4 @@ FROM lesson_schools_backup;
 SELECT 
     '安全なlesson_schools_backup同期機能実装完了' as status,
     '存在するカラムのみを使用して同期されます' as message;
+

@@ -111,3 +111,4 @@ GRANT EXECUTE ON FUNCTION delete_lesson_school_dual TO authenticated;
 SELECT 
     'dual table functions created' as status,
     '両テーブル同期用の関数が作成されました' as message;
+

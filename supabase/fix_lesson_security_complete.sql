@@ -174,3 +174,4 @@ CREATE POLICY "lesson_completions_delete_own" ON lesson_completions
         AND lesson_schools.store_email = auth.jwt() ->> 'email'
     )
   );
+

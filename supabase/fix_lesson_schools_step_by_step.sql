@@ -116,3 +116,4 @@ ORDER BY column_name;
 SELECT 
     'lesson_schoolsテーブル修正完了' as status,
     'URLカラムが追加されました' as message;
+

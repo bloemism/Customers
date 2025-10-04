@@ -150,3 +150,4 @@ SELECT
         THEN '✅ 同期成功' 
         ELSE '❌ 同期エラー' 
     END as sync_status;
+

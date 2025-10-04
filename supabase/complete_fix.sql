@@ -35,3 +35,4 @@ FROM information_schema.table_privileges
 WHERE table_schema = 'public' 
   AND table_name = 'payment_method_trends_view'
   AND table_type = 'VIEW';
+

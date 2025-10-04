@@ -22,3 +22,4 @@ WHERE table_schema = 'public'
 SELECT 
     'セキュリティ修正完了' as status,
     'Supabaseの警告は解消されています' as message;
+

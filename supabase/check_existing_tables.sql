@@ -35,3 +35,4 @@ WHERE table_schema = 'public'
     'customers'
   )
 ORDER BY table_name, ordinal_position;
+

@@ -33,3 +33,4 @@ WHERE table_schema = 'public'
   AND table_type = 'VIEW'
   AND grantee = 'authenticated'
 ORDER BY table_name;
+

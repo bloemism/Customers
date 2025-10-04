@@ -39,3 +39,4 @@ ORDER BY column_name;
 SELECT 
     'URLカラム追加完了' as status,
     'lesson_schoolsテーブルでURL機能が利用可能です' as message;
+

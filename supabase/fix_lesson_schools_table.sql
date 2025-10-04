@@ -223,3 +223,4 @@ SELECT
   COUNT(*) as total_schools,
   COUNT(CASE WHEN is_active = true THEN 1 END) as active_schools
 FROM lesson_schools;
+

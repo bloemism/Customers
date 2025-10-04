@@ -64,3 +64,4 @@ WHERE table_schema = 'public'
     'lesson_completions'
   )
 ORDER BY table_name, ordinal_position;
+

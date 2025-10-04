@@ -48,3 +48,4 @@ WHERE schemaname = 'public'
     viewname LIKE '%report%'
   )
 ORDER BY viewname;
+

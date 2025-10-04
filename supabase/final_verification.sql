@@ -31,3 +31,4 @@ FROM information_schema.table_privileges
 WHERE table_schema = 'public' 
   AND grantee = 'authenticated'
 ORDER BY table_name;
+

@@ -23,3 +23,4 @@ CREATE POLICY "lesson_schools_owner_management" ON lesson_schools
 -- lesson_completionsは店舗オーナーのみアクセス可能
 
 -- これらのポリシーは既存のものをそのまま維持
+

@@ -75,3 +75,4 @@ SELECT
         THEN '✅ 同期機能正常'
         ELSE '❌ 同期機能異常'
     END as overall_status;
+

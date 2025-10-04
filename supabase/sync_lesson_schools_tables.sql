@@ -135,3 +135,4 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT 
     'lesson_schoolsテーブルの同期設定完了' as status,
     '両テーブルにデータが自動同期されます' as message;
+

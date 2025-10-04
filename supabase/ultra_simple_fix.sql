@@ -18,3 +18,4 @@ ORDER BY month DESC;
 
 -- 3. 権限設定
 GRANT SELECT ON public.payment_method_trends_view TO authenticated;
+

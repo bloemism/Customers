@@ -59,3 +59,4 @@ SELECT
 SELECT 
     'lesson_schools_backupテーブル作成完了' as status,
     'lesson_schoolsと完全に同じ構造のバックアップテーブルが作成されました' as message;
+

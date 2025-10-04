@@ -34,3 +34,4 @@ ORDER BY table_name, grantee;
 SELECT 
     '✅ 修正完了' as status,
     'Supabaseのセキュリティ警告が解消されました' as message;
+

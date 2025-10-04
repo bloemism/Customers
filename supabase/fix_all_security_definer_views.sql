@@ -94,3 +94,4 @@ SELECT
 FROM pg_views 
 WHERE schemaname = 'public'
 ORDER BY viewname;
+

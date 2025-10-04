@@ -44,3 +44,4 @@ LIMIT 1;
 SELECT 
     'lesson_schoolsテーブルにURLカラムを追加しました' as status,
     'website_url と instagram_url が利用可能です' as message;
+

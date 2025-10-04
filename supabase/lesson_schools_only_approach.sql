@@ -46,3 +46,4 @@ SELECT
 SELECT 
     'lesson_schoolsテーブルのみ使用アプローチ' as status,
     'URL機能は正常に動作し、データは安全に保存されます' as message;
+

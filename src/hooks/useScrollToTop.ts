@@ -18,3 +18,4 @@ export const useScrollToTopOnMount = () => {
     window.scrollTo(0, 0);
   }, []);
 };
+

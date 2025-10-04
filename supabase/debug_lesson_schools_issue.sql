@@ -81,3 +81,4 @@ SELECT
   COUNT(CASE WHEN name IS NULL OR name = '' THEN 1 END) as missing_names,
   COUNT(CASE WHEN email IS NULL OR email = '' THEN 1 END) as missing_emails
 FROM lesson_schools;
+

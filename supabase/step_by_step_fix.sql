@@ -28,3 +28,4 @@ SELECT EXISTS (
     WHERE table_schema = 'public' 
       AND table_name = 'transactions'
 ) as table_exists;
+

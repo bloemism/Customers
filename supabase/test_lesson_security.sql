@@ -52,3 +52,4 @@ WHERE schemaname = 'public'
     'lesson_completions'
   )
 ORDER BY tablename, policyname;
+

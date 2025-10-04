@@ -129,3 +129,4 @@ FROM lesson_schools_backup;
 SELECT 
     'lesson_schools_backup同期機能実装完了' as status,
     '両テーブルが自動同期されます' as message;
+

@@ -45,3 +45,4 @@ WHERE table_schema = 'public'
   AND table_name IN ('lesson_schools', 'lesson_schools_backup')
   AND column_name IN ('website_url', 'instagram_url')
 ORDER BY table_name, column_name;
+

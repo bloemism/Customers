@@ -93,3 +93,4 @@ CREATE POLICY "critical_data_access_log_admin_only" ON public.critical_data_acce
 SELECT 
     '重要データセキュリティ強化完了' as status,
     '銀行口座情報と電話番号が厳重に保護されています' as message;
+
