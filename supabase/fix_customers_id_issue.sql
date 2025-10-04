@@ -36,3 +36,4 @@ VALUES (
 -- 5. データ確認
 SELECT * FROM customers WHERE user_id = 'a10425fb-db28-4db1-b731-0a5368aa7c06';
 
+

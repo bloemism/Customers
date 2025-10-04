@@ -42,3 +42,4 @@ WHERE table_schema = 'public'
   AND (table_name LIKE '%store%' OR table_name LIKE '%lesson%')
 ORDER BY table_name, ordinal_position;
 
+

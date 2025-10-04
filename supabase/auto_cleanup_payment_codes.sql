@@ -122,3 +122,4 @@ BEGIN
     RAISE NOTICE '- 使用済みデータ: 1週間以上経過';
     RAISE NOTICE '- 古いデータ: 1ヶ月半（45日）以上経過';
 END $$;
+

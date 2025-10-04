@@ -70,3 +70,4 @@ WHERE c.email = 'botanism2011@gmail.com';
 SELECT * FROM customers 
 WHERE user_id = 'a10425fb-db28-4db1-b731-0a5368aa7c06';
 
+

@@ -62,3 +62,4 @@ BEGIN
     RAISE NOTICE 'payment_codesテーブルのRLSポリシーを修正しました！';
     RAISE NOTICE '全ユーザーが読み取り・書き込み可能になりました';
 END $$;
+

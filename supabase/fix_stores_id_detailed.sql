@@ -181,3 +181,4 @@ BEGIN
     RAISE NOTICE 'storesテーブルのid型変更とpayment_codesテーブル作成が完了しました！';
     RAISE NOTICE 'customer_paymentテーブルの構造も確認されました';
 END $$;
+

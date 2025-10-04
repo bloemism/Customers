@@ -221,3 +221,4 @@ export const StoreQRScanner: React.FC<StoreQRScannerProps> = ({ onClose }) => {
   );
 };
 
+

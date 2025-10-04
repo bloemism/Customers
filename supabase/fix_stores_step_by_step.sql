@@ -127,3 +127,4 @@ FROM information_schema.columns
 WHERE table_name IN ('stores', 'customer_payment', 'payment_codes') 
 AND table_schema = 'public'
 ORDER BY table_name, ordinal_position;
+

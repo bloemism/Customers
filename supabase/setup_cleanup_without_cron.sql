@@ -130,3 +130,4 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '定期的なクリーンアップを推奨します！';
 END $$;
+

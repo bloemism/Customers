@@ -65,3 +65,4 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '管理画面（AdminCleanup.tsx）でもクリーンアップ可能です';
 END $$;
+

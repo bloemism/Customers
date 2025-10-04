@@ -141,3 +141,4 @@ CREATE POLICY "minimize_personal_data" ON customers
      auth.uid() IN (SELECT user_id FROM store_owner_profiles))
   );
 
+

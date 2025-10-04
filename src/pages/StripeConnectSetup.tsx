@@ -436,3 +436,4 @@ export const StripeConnectSetup: React.FC = () => {
     </div>
   );
 };
+

@@ -51,3 +51,4 @@ ORDER BY ordinal_position;
 -- 6. データ確認
 SELECT * FROM lesson_schools;
 
+

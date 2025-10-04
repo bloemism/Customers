@@ -132,3 +132,4 @@ BEGIN
     RAISE NOTICE 'payment_codesテーブルの作成が完了しました！';
     RAISE NOTICE 'テストデータ（コード: 12345）も挿入されました';
 END $$;
+

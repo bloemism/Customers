@@ -249,3 +249,4 @@ const testAccount = await stripe.accounts.create({
 - Stripeサポート
 - 開発者ドキュメント
 - コミュニティフォーラム
+

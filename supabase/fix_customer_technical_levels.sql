@@ -104,3 +104,4 @@ JOIN customers c ON ctl.customer_id = c.id
 JOIN lesson_schools ls ON ctl.lesson_school_id = ls.id
 WHERE c.email = 'botanism2011@gmail.com';
 
+

@@ -119,3 +119,4 @@ DO $$
 BEGIN
     RAISE NOTICE 'payment_codesテーブルの作成が完了しました！';
 END $$;
+

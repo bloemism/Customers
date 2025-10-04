@@ -53,3 +53,4 @@ $$ LANGUAGE plpgsql;
 
 -- テスト用の期限切れデータクリーンアップ
 SELECT cleanup_expired_payment_codes();
+

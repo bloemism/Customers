@@ -270,3 +270,4 @@ BEGIN
     RAISE NOTICE '手数料計算関数: calculate_payment_fees(amount_cents)';
     RAISE NOTICE '使用例: SELECT * FROM calculate_payment_fees(10000); -- 100円の決済';
 END $$;
+

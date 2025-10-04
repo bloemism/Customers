@@ -39,3 +39,4 @@ BEGIN
     RAISE NOTICE '注意: pg_cronはSupabase Pro以上で利用可能です';
     RAISE NOTICE '無料プランの場合は、手動でクリーンアップを実行してください';
 END $$;
+

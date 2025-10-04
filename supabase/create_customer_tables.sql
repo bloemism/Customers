@@ -133,3 +133,4 @@ CREATE TRIGGER update_customer_notifications_updated_at
   BEFORE UPDATE ON customer_notifications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+

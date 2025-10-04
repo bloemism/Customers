@@ -31,3 +31,4 @@ FROM auth.users au
 LEFT JOIN customers c ON au.id = c.user_id
 WHERE au.email = 'botanism2011@gmail.com';
 
+

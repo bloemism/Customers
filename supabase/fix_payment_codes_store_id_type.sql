@@ -82,3 +82,4 @@ BEGIN
     RAISE NOTICE 'payment_codesテーブルのstore_idをTEXT型に変更しました！';
     RAISE NOTICE 'テストデータ（コード: 54321）も挿入されました';
 END $$;
+

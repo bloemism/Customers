@@ -139,3 +139,4 @@ DO $$
 BEGIN
     RAISE NOTICE 'storesテーブルのid型変更とpayment_codesテーブル作成が完了しました！';
 END $$;
+

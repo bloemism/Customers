@@ -61,7 +61,7 @@ export const StripeCheckout: React.FC = () => {
     }
   }, [location.search]);
 
-  // Stripe決済処理
+  // Stripe決済処理（直接Checkout URLにリダイレクト）
   const handleStripePayment = async () => {
     if (!paymentData) return;
 
@@ -69,44 +69,20 @@ export const StripeCheckout: React.FC = () => {
     setError('');
 
     try {
-      // Stripe初期化
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-      if (!stripe) {
-        throw new Error('Stripeの初期化に失敗しました');
-      }
-
-      // Payment Intent作成（実際のAPIエンドポイントが必要）
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: Math.round(paymentData.finalAmount * 100), // 円をセントに変換
-          currency: 'jpy',
-          metadata: {
-            customerId: paymentData.customerData.id,
-            storeId: paymentData.storeData.storeId,
-            paymentCode: paymentData.paymentCode,
-            storeName: paymentData.storeData.storeName
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Payment Intentの作成に失敗しました');
-      }
-
-      const { clientSecret } = await response.json();
+      // 決済データをURLパラメータとして渡す
+      const checkoutUrl = new URL('https://buy.stripe.com/test_bJedRbbhY832ez8cGtgnK02');
+      
+      // 決済情報をクエリパラメータとして追加
+      checkoutUrl.searchParams.set('prefilled_email', paymentData.customerData.email);
+      checkoutUrl.searchParams.set('client_reference_id', paymentData.paymentCode);
+      
+      // カスタムフィールドとして決済情報を追加
+      checkoutUrl.searchParams.set('customer_name', paymentData.customerData.name);
+      checkoutUrl.searchParams.set('store_name', paymentData.storeData.storeName);
+      checkoutUrl.searchParams.set('amount', paymentData.finalAmount.toString());
 
       // Stripe Checkoutページにリダイレクト
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        clientSecret: clientSecret,
-      });
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
+      window.location.href = checkoutUrl.toString();
 
     } catch (error) {
       console.error('Stripe決済エラー:', error);
