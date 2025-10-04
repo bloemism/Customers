@@ -1,0 +1,141 @@
+-- storesテーブルのidカラム型修正スクリプト
+
+-- 1. 現在のstoresテーブル構造を確認
+SELECT 
+    column_name, 
+    data_type, 
+    is_nullable,
+    character_maximum_length
+FROM information_schema.columns 
+WHERE table_name = 'stores' 
+AND table_schema = 'public'
+ORDER BY ordinal_position;
+
+-- 2. storesテーブルの現在のデータを確認（最初の5件）
+SELECT id, name, address 
+FROM stores 
+LIMIT 5;
+
+-- 3. storesテーブルのidカラムをUUID型に変更
+-- 注意：この操作は既存データをUUID形式に変換します
+DO $$
+BEGIN
+    -- idカラムがtext型の場合のみ実行
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'stores' 
+        AND column_name = 'id' 
+        AND data_type = 'text'
+        AND table_schema = 'public'
+    ) THEN
+        RAISE NOTICE 'storesテーブルのidカラムをUUID型に変更します...';
+        
+        -- まず、idカラムのデータがUUID形式かチェック
+        IF EXISTS (
+            SELECT 1 FROM stores 
+            WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            LIMIT 1
+        ) THEN
+            RAISE NOTICE 'storesテーブルのidにUUID形式でないデータがあります。新しいUUIDを生成します...';
+            
+            -- 新しいUUIDを生成してidを更新
+            UPDATE stores 
+            SET id = gen_random_uuid()::text 
+            WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+        END IF;
+        
+        -- idカラムをUUID型に変更
+        ALTER TABLE stores ALTER COLUMN id TYPE UUID USING id::UUID;
+        
+        RAISE NOTICE 'storesテーブルのidカラムをUUID型に変更しました';
+    ELSE
+        RAISE NOTICE 'storesテーブルのidカラムは既にUUID型です';
+    END IF;
+END $$;
+
+-- 4. 変更後のstoresテーブル構造を確認
+SELECT 
+    column_name, 
+    data_type, 
+    is_nullable,
+    character_maximum_length
+FROM information_schema.columns 
+WHERE table_name = 'stores' 
+AND table_schema = 'public'
+ORDER BY ordinal_position;
+
+-- 5. payment_codesテーブルを作成（外部キー制約付き）
+CREATE TABLE IF NOT EXISTS payment_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code VARCHAR(5) NOT NULL UNIQUE,
+  store_id UUID NOT NULL,
+  payment_data JSONB NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. 外部キー制約を追加
+ALTER TABLE payment_codes 
+ADD CONSTRAINT payment_codes_store_id_fkey 
+FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE;
+
+-- 7. インデックス作成
+CREATE INDEX IF NOT EXISTS idx_payment_codes_code ON payment_codes(code);
+CREATE INDEX IF NOT EXISTS idx_payment_codes_store_id ON payment_codes(store_id);
+CREATE INDEX IF NOT EXISTS idx_payment_codes_expires_at ON payment_codes(expires_at);
+
+-- 8. コード生成関数
+CREATE OR REPLACE FUNCTION generate_payment_code()
+RETURNS VARCHAR(5) AS $$
+DECLARE
+  new_code VARCHAR(5);
+  code_exists BOOLEAN;
+BEGIN
+  LOOP
+    -- 5桁の数字を生成（10000-99999）
+    new_code := LPAD(FLOOR(RANDOM() * 90000 + 10000)::TEXT, 5, '0');
+    
+    -- 既存コードチェック
+    SELECT EXISTS(SELECT 1 FROM payment_codes WHERE code = new_code) INTO code_exists;
+    
+    -- 期限切れチェック（期限切れの場合は再利用可能）
+    IF code_exists THEN
+      DELETE FROM payment_codes WHERE code = new_code AND expires_at < NOW();
+      SELECT EXISTS(SELECT 1 FROM payment_codes WHERE code = new_code) INTO code_exists;
+    END IF;
+    
+    -- 重複がなければ終了
+    EXIT WHEN NOT code_exists;
+  END LOOP;
+  
+  RETURN new_code;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 9. RLS設定
+ALTER TABLE payment_codes ENABLE ROW LEVEL SECURITY;
+
+-- 10. ポリシー設定
+CREATE POLICY "Enable all access for store owners" ON payment_codes
+FOR ALL USING (auth.uid() = (SELECT user_id FROM public.stores WHERE id = store_id));
+
+CREATE POLICY "Customers can view valid payment codes" ON payment_codes
+FOR SELECT USING (expires_at > NOW() AND used_at IS NULL);
+
+-- 11. 最終確認
+SELECT 
+    table_name, 
+    column_name, 
+    data_type, 
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name IN ('stores', 'payment_codes') 
+AND table_schema = 'public'
+ORDER BY table_name, ordinal_position;
+
+-- 12. 成功メッセージ
+DO $$
+BEGIN
+    RAISE NOTICE 'storesテーブルのid型変更とpayment_codesテーブル作成が完了しました！';
+END $$;
