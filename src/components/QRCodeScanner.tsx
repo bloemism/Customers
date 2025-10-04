@@ -203,3 +203,4 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onClose }) => {
 };
 
 export default QRCodeScanner;
+export { QRCodeScanner };
