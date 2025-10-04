@@ -121,23 +121,32 @@ export const StorePayment: React.FC = () => {
           } 
         };
 
-        // まず背面カメラを試す（モバイル）
-        try {
-          const mobileStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            } 
-          });
-          mobileStream.getTracks().forEach(track => track.stop());
-          console.log('Mobile camera access confirmed');
-        } catch (mobileError) {
-          console.log('Mobile camera not available, trying default camera');
-          // 背面カメラが失敗した場合、デフォルトカメラを試す（PC対応）
+        // デバイス判定（簡易版）
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // モバイルの場合：背面カメラを優先
+          try {
+            const mobileStream = await navigator.mediaDevices.getUserMedia({ 
+              video: { 
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              } 
+            });
+            mobileStream.getTracks().forEach(track => track.stop());
+            console.log('Mobile camera access confirmed');
+          } catch (mobileError) {
+            console.log('Mobile camera not available, trying default camera');
+            const defaultStream = await navigator.mediaDevices.getUserMedia(constraints);
+            defaultStream.getTracks().forEach(track => track.stop());
+            console.log('Default camera access confirmed');
+          }
+        } else {
+          // PCの場合：デフォルトカメラを直接使用
           const defaultStream = await navigator.mediaDevices.getUserMedia(constraints);
           defaultStream.getTracks().forEach(track => track.stop());
-          console.log('Default camera access confirmed');
+          console.log('PC camera access confirmed');
         }
       } catch (cameraError) {
         console.error('Camera access denied:', cameraError);
@@ -147,16 +156,24 @@ export const StorePayment: React.FC = () => {
       }
 
       console.log('Creating Html5QrcodeScanner...');
+      
+      // デバイス判定（簡易版）
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       const newScanner = new Html5QrcodeScanner(
         qrReaderElement.id || "qr-reader",
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
-          // PC対応：最もシンプルな設定
-          showTorchButtonIfSupported: false,
-          showZoomSliderIfSupported: false,
-          useBarCodeDetectorIfSupported: false
+          // PC対応：デバイスに応じた設定
+          showTorchButtonIfSupported: isMobile,
+          showZoomSliderIfSupported: isMobile,
+          useBarCodeDetectorIfSupported: false,
+          // PC対応：カメラ制約を削除
+          videoConstraints: isMobile ? {
+            facingMode: "environment"
+          } : undefined
         },
         false
       );
