@@ -315,6 +315,7 @@ const CheckoutScreen: React.FC = () => {
       const { data, error } = await supabase
         .from('payment_codes')
         .insert({
+          code: Math.floor(Math.random() * 90000 + 10000).toString(), // 5桁の数字を生成
           store_id: store.id,
           payment_data: paymentData,
           expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
@@ -322,41 +323,7 @@ const CheckoutScreen: React.FC = () => {
         .select('code')
         .single();
 
-      // もしcodeフィールドが自動生成されない場合は、手動で生成
-      if (error && error.message.includes('code')) {
-        console.log('自動コード生成に失敗、手動生成を試行');
-        
-        // 手動で5桁コード生成
-        let manualCode = '';
-        do {
-          manualCode = Math.floor(Math.random() * 90000 + 10000).toString();
-        } while (manualCode.length !== 5);
-        
-        const { data: retryData, error: retryError } = await supabase
-          .from('payment_codes')
-          .insert({
-            code: manualCode,
-            store_id: store.id,
-            payment_data: paymentData,
-            expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
-          })
-          .select('code')
-          .single();
-          
-        if (retryError) {
-          console.error('手動コード生成も失敗:', retryError);
-          throw retryError;
-        }
-        
-        // 成功した場合はretryDataを使用
-        if (retryData && retryData.code) {
-          setPaymentCode(retryData.code);
-          console.log('手動決済コード生成成功:', retryData.code);
-          await copyToClipboard(retryData.code);
-          return;
-        }
-      }
-
+      // エラーハンドリング
       if (error) {
         console.error('決済コード生成エラー:', error);
         alert(`決済コード生成エラー: ${error.message}`);
