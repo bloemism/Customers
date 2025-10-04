@@ -43,13 +43,16 @@ const CustomerDataRegistration: React.FC = () => {
       const fetchCustomerData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: customerData } = await supabase
+          console.log('顧客データを直接取得中:', user.id);
+          const { data: customerData, error } = await supabase
             .from('customers')
             .select('*')
             .eq('user_id', user.id)
             .single();
+          
+          console.log('取得した顧客データ:', customerData, error);
+          
           if (customerData) {
-            console.log('取得した顧客データ:', customerData);
             setRegisteredData(customerData);
             setFormData({
               name: customerData.name || '',
@@ -163,7 +166,10 @@ const CustomerDataRegistration: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">マイプロフィール</h2>
             {registeredData ? (
-              <p className="text-gray-600">登録済みのプロフィール情報</p>
+              <>
+                <p className="text-gray-600">登録済みのプロフィール情報</p>
+                <p className="text-gray-500 text-sm">編集ボタンから情報を更新できます</p>
+              </>
             ) : (
               <>
                 <p className="text-gray-600">アカウント認証が完了しました</p>
@@ -227,34 +233,37 @@ const CustomerDataRegistration: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-3">
-                  <User className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm text-green-600">アルファベット名</p>
-                    <p className="font-medium text-green-800">{registeredData.alphabet || '未入力'}</p>
+                {registeredData.alphabet && (
+                  <div className="flex items-center space-x-3">
+                    <User className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm text-green-600">アルファベット名</p>
+                      <p className="font-medium text-green-800">{registeredData.alphabet}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-center space-x-3">
-                  <MapPin className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm text-green-600">住所</p>
-                    <p className="font-medium text-green-800">{registeredData.address || '未入力'}</p>
+                {registeredData.address && (
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm text-green-600">住所</p>
+                      <p className="font-medium text-green-800">{registeredData.address}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm text-green-600">誕生日</p>
-                    <p className="font-medium text-green-800">
-                      {registeredData.birth_date ? 
-                        (convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date) : 
-                        '未入力'
-                      }
-                    </p>
+                {registeredData.birth_date && (
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm text-green-600">誕生日</p>
+                      <p className="font-medium text-green-800">
+                        {convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 <div className="flex items-center space-x-3">
                   <div className="h-5 w-5 flex items-center justify-center">
@@ -279,6 +288,22 @@ const CustomerDataRegistration: React.FC = () => {
             </div>
           )}
 
+          {/* 登録済み情報の簡易表示 */}
+          {registeredData && !isEditing && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">📋 登録済み情報</h3>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p>• お名前: {registeredData.name}</p>
+                <p>• メール: {registeredData.email}</p>
+                {registeredData.alphabet && <p>• アルファベット名: {registeredData.alphabet}</p>}
+                {registeredData.address && <p>• 住所: {registeredData.address}</p>}
+                {registeredData.birth_date && <p>• 誕生日: {convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date}</p>}
+                <p>• ポイント: {registeredData.points || 0} pt</p>
+                <p>• レベル: {registeredData.level || 'BASIC'}</p>
+              </div>
+            </div>
+          )}
+
           {/* 入力フォーム */}
           {(!registeredData || isEditing) && (
             <>
@@ -291,7 +316,7 @@ const CustomerDataRegistration: React.FC = () => {
               </label>
               <input
                 type="email"
-                value={userEmail}
+                value={registeredData?.email || userEmail}
                 disabled
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
                 placeholder="認証済みメールアドレス"
@@ -313,7 +338,7 @@ const CustomerDataRegistration: React.FC = () => {
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="山田太郎"
+                placeholder={registeredData?.name || "山田太郎"}
                 maxLength={30}
               />
               <div className="mt-2 text-xs text-gray-500">
@@ -340,7 +365,7 @@ const CustomerDataRegistration: React.FC = () => {
                 value={formData.alphabet}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="taro yamada"
+                placeholder={registeredData?.alphabet || "taro yamada"}
                 maxLength={50}
               />
               <div className="mt-2 text-xs text-gray-500">
@@ -367,7 +392,7 @@ const CustomerDataRegistration: React.FC = () => {
                 value={formData.address}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="東京都渋谷区恵比寿"
+                placeholder={registeredData?.address || "東京都渋谷区恵比寿"}
                 maxLength={50}
               />
               <div className="mt-2 text-xs text-gray-500">
@@ -394,7 +419,7 @@ const CustomerDataRegistration: React.FC = () => {
                 value={formData.birth_date}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="1990年3月3日"
+                placeholder={registeredData?.birth_date ? convertISODateToJapanese(registeredData.birth_date) || registeredData.birth_date : "1990年3月3日"}
                 maxLength={20}
               />
               <div className="mt-2 text-xs text-gray-500">

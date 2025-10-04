@@ -122,6 +122,9 @@ export const FloristMap: React.FC = () => {
   const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   useEffect(() => {
+    // ページの最上部にスクロール
+    window.scrollTo(0, 0);
+    
     loadStores();
     
     // モバイル判定
@@ -174,6 +177,9 @@ export const FloristMap: React.FC = () => {
   // Google Maps JavaScript APIの読み込み
   useEffect(() => {
     const loadGoogleMapsAPI = () => {
+      console.log('=== Google Maps API読み込み開始 ===');
+      console.log('API Key:', GOOGLE_MAPS_API_KEY ? '設定済み' : '未設定');
+      
       if (window.google && window.google.maps) {
         console.log('Google Maps API already loaded');
         if (stores.length > 0) {
@@ -185,6 +191,27 @@ export const FloristMap: React.FC = () => {
       const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
       if (existingScript) {
         console.log('Google Maps API script already exists');
+        // 既存のスクリプトが読み込み完了を待つ
+        const checkLoaded = setInterval(() => {
+          if (window.google && window.google.maps) {
+            console.log('Existing Google Maps API loaded');
+            clearInterval(checkLoaded);
+            if (stores.length > 0) {
+              initializeMap();
+            }
+          }
+        }, 100);
+        
+        // 10秒でタイムアウト
+        setTimeout(() => {
+          clearInterval(checkLoaded);
+        }, 10000);
+        return;
+      }
+
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.error('Google Maps API Key is not set');
+        setError('Google Maps APIキーが設定されていません');
         return;
       }
 
@@ -194,12 +221,14 @@ export const FloristMap: React.FC = () => {
       script.defer = true;
       script.onload = () => {
         console.log('Google Maps API loaded successfully');
+        setError(''); // エラーをクリア
         if (stores.length > 0) {
           initializeMap();
         }
       };
-      script.onerror = () => {
-        console.error('Failed to load Google Maps API');
+      script.onerror = (error) => {
+        console.error('Failed to load Google Maps API:', error);
+        setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。');
       };
       document.head.appendChild(script);
     };
@@ -217,16 +246,34 @@ export const FloristMap: React.FC = () => {
 
   // 地図の初期化
   const initializeMap = () => {
-    if (!mapRef.current || !window.google) return;
+    console.log('=== 地図初期化開始 ===');
+    console.log('mapRef.current:', mapRef.current ? '存在' : 'なし');
+    console.log('window.google:', window.google ? '存在' : 'なし');
+    console.log('stores.length:', stores.length);
+    
+    if (!mapRef.current) {
+      console.error('Map ref is not available');
+      setError('地図のコンテナが見つかりません');
+      return;
+    }
+    
+    if (!window.google || !window.google.maps) {
+      console.error('Google Maps API is not loaded');
+      setError('Google Maps APIが読み込まれていません');
+      return;
+    }
 
     try {
-      console.log('Initializing Google Maps...');
+      console.log('Creating Google Maps instance...');
       
       let center = mapCenter;
       if (stores.length > 0) {
         const centerLat = stores.reduce((sum, store) => sum + store.latitude, 0) / stores.length;
         const centerLng = stores.reduce((sum, store) => sum + store.longitude, 0) / stores.length;
         center = { lat: centerLat, lng: centerLng };
+        console.log('Calculated center from stores:', center);
+      } else {
+        console.log('Using default center:', center);
       }
       
       const mapInstance = new window.google.maps.Map(mapRef.current, {
@@ -255,15 +302,24 @@ export const FloristMap: React.FC = () => {
       
       // 現在地マーカーを表示
       if (userLocation) {
+        console.log('Adding user location marker:', userLocation);
         addUserLocationMarker(mapInstance, userLocation);
         // 現在地を中心に設定（PC・モバイル共通）
         mapInstance.setCenter(userLocation);
         mapInstance.setZoom(isMobile ? 15 : 13);
       }
       
+      // 地図の読み込み完了を待つ
       window.google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
         console.log('Map is idle - fully loaded');
         setMapLoaded(true);
+        setError(''); // エラーをクリア
+      });
+      
+      // 地図の読み込みエラーをキャッチ
+      window.google.maps.event.addListenerOnce(mapInstance, 'error', (error: any) => {
+        console.error('Map error:', error);
+        setError('地図の読み込み中にエラーが発生しました');
       });
       
       setMap(mapInstance);
@@ -272,9 +328,10 @@ export const FloristMap: React.FC = () => {
         suppressMarkers: true
       }));
       
-      console.log('Map initialization completed');
+      console.log('Map initialization completed successfully');
     } catch (error) {
       console.error('Error initializing map:', error);
+      setError('地図の初期化に失敗しました: ' + (error as Error).message);
     }
   };
 
@@ -592,20 +649,33 @@ export const FloristMap: React.FC = () => {
 
   const loadStores = async () => {
     try {
+      console.log('=== 店舗データ読み込み開始 ===');
       setLoading(true);
+      setError('');
       
       // Supabaseから実際の店舗データを取得
       const storeData = await StoreService.getAllStores();
+      console.log('取得した店舗データ:', storeData);
       
       // 座標がある店舗のみをフィルタリング
       const storesWithCoordinates = storeData.filter(store => 
         store.latitude && store.longitude && store.is_active
       );
+      console.log('座標がある店舗:', storesWithCoordinates.length);
+
+      if (storesWithCoordinates.length === 0) {
+        console.warn('座標がある店舗がありません');
+        setError('表示可能な店舗が見つかりません');
+        setStores([]);
+        return;
+      }
 
       // 各店舗の画像、掲示板、タグ情報を取得
       const enrichedStores = await Promise.all(
         storesWithCoordinates.map(async (store) => {
           try {
+            console.log(`店舗 ${store.store_name} の詳細情報を取得中...`);
+            
             // 店舗画像を取得
             const { data: images, error: imagesError } = await supabase
               .from('store_images')
@@ -649,6 +719,10 @@ export const FloristMap: React.FC = () => {
             // デバッグ情報を出力
             console.log(`店舗 ${store.store_name} の詳細情報:`, {
               store_id: store.id,
+              store_name: store.store_name,
+              latitude: store.latitude,
+              longitude: store.longitude,
+              is_active: store.is_active,
               old_photos_from_stores: store.photos, // 古いphotosカラム
               new_images_from_store_images: images?.length || 0,
               new_image_urls: images?.map((img: any) => img.image_url) || [],
@@ -667,6 +741,7 @@ export const FloristMap: React.FC = () => {
         })
       );
 
+      console.log('=== 店舗データ読み込み完了 ===');
       console.log('Loaded enriched stores from Supabase:', enrichedStores);
       setStores(enrichedStores);
       
@@ -677,8 +752,9 @@ export const FloristMap: React.FC = () => {
       if (err.message?.includes('fetch') || err.message?.includes('network')) {
         setError('ネットワークエラー: Supabaseに接続できません');
       } else {
-        setError('店舗情報の読み込みに失敗しました');
+        setError('店舗情報の読み込みに失敗しました: ' + err.message);
       }
+      setStores([]);
     } finally {
       setLoading(false);
     }
@@ -1095,12 +1171,16 @@ export const FloristMap: React.FC = () => {
                     
                     {/* デバッグ情報（開発時のみ表示） */}
                     {process.env.NODE_ENV === 'development' && (
-                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded max-w-xs">
                         <div>Map Loaded: {mapLoaded ? 'Yes' : 'No'}</div>
                         <div>Map Instance: {map ? 'Yes' : 'No'}</div>
                         <div>Stores: {stores.length}</div>
                         <div>Markers: {markers.length}</div>
                         <div>Mobile: {isMobile ? 'Yes' : 'No'}</div>
+                        <div>API Key: {GOOGLE_MAPS_API_KEY ? 'Set' : 'Not Set'}</div>
+                        <div>Google API: {window.google ? 'Loaded' : 'Not Loaded'}</div>
+                        <div>Error: {error || 'None'}</div>
+                        <div>Loading: {loading ? 'Yes' : 'No'}</div>
                       </div>
                     )}
                     
