@@ -257,3 +257,4 @@ export const PaymentConfirmation: React.FC = () => {
     </div>
   );
 };
+

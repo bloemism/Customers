@@ -109,3 +109,4 @@ CREATE POLICY "minimize_personal_data" ON customers
     (auth.jwt() ->> 'user_type' = 'store_owner' AND 
      auth.uid() IN (SELECT user_id FROM store_owner_profiles))
   );
+

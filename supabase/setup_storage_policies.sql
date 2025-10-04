@@ -33,3 +33,4 @@ DROP POLICY IF EXISTS "Enable read access for all users" ON storage.objects;
 DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON storage.objects;
 DROP POLICY IF EXISTS "Enable update for users based on user_id" ON storage.objects;
 DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON storage.objects;
+

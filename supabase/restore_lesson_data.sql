@@ -142,3 +142,4 @@ ORDER BY created_at DESC;
 
 -- 4. データ件数の確認
 SELECT COUNT(*) as total_count FROM lesson_schools;
+

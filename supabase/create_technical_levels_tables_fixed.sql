@@ -180,3 +180,4 @@ FROM customer_technical_levels ctl
 JOIN customers c ON ctl.customer_id = c.id
 JOIN lesson_schools ls ON ctl.lesson_school_id = ls.id
 WHERE c.user_id = 'a10425fb-db28-4db1-b731-0a5368aa7c06';
+

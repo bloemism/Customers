@@ -33,3 +33,4 @@ WHERE tablename = 'customers';
 
 -- 4. 既存データの確認
 SELECT COUNT(*) as customer_count FROM customers;
+

@@ -72,3 +72,4 @@ CREATE TRIGGER update_customers_updated_at
 
 -- 9. 既存の顧客データを確認
 SELECT COUNT(*) as customer_count FROM customers;
+

@@ -34,3 +34,4 @@ SELECT
   character_maximum_length
 FROM information_schema.columns 
 WHERE table_name = 'customers' AND column_name = 'id';
+

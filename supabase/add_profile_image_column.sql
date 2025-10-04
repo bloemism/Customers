@@ -9,3 +9,4 @@ COMMENT ON COLUMN customers.profile_image_url IS '顧客のプロフィール画
 
 -- 3. 既存のデータを確認
 SELECT id, name, email, profile_image_url FROM customers LIMIT 5;
+

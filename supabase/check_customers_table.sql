@@ -37,3 +37,4 @@ JOIN information_schema.constraint_column_usage ccu
 WHERE tc.table_name = 'customers' 
   AND tc.table_schema = 'public'
   AND tc.constraint_type = 'FOREIGN KEY';
+
