@@ -7,7 +7,7 @@ interface QRCodeScannerProps {
   onClose: () => void;
 }
 
-export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onClose }) => {
+const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -201,3 +201,5 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onClose }) => {
     </div>
   );
 };
+
+export default QRCodeScanner;
