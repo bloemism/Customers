@@ -76,7 +76,11 @@ export const StorePayment: React.FC = () => {
 
       // 既存のスキャナーをクリア
       if (scanner) {
-        scanner.clear();
+        try {
+          scanner.clear();
+        } catch (e) {
+          console.log('Scanner clear error (ignored):', e);
+        }
         setScanner(null);
       }
 
@@ -91,7 +95,16 @@ export const StorePayment: React.FC = () => {
 
       // カメラアクセス許可を確認
       try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment', // 背面カメラを優先
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+        // ストリームを停止してからスキャナーを初期化
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Camera access confirmed');
       } catch (cameraError) {
         console.error('Camera access denied:', cameraError);
         setError('カメラへのアクセスが許可されていません。ブラウザの設定でカメラアクセスを許可してください。');
@@ -104,7 +117,11 @@ export const StorePayment: React.FC = () => {
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true,
+          showZoomSliderIfSupported: true,
+          defaultZoomValueIfSupported: 2,
+          useBarCodeDetectorIfSupported: true
         },
         false
       );
@@ -138,17 +155,17 @@ export const StorePayment: React.FC = () => {
       const qrData = JSON.parse(decodedText);
       console.log('パースされたQRデータ:', qrData);
       
-      // 87app側のQRコード形式をチェック（store_name, items, total）
-      if (!qrData.store_name || !qrData.items || !qrData.total) {
-        console.error('無効な店舗QRコード形式:', qrData);
-        setError('無効な店舗QRコードです。店舗側で生成された決済用QRコードを読み取ってください。');
+      // 決済用QRコード形式をチェック（type, storeId, items, totalAmount）
+      if (qrData.type !== 'payment' || !qrData.storeId || !qrData.items || !qrData.totalAmount) {
+        console.error('無効なQRコード形式:', qrData);
+        setError('無効なQRコードです。店舗側で生成された決済用QRコードを読み取ってください。');
         return;
       }
 
-      console.log('有効な店舗QRコードを検出:', {
-        storeName: qrData.store_name,
+      console.log('有効な決済QRコードを検出:', {
+        storeName: qrData.storeName,
         itemsCount: qrData.items.length,
-        total: qrData.total
+        total: qrData.totalAmount
       });
 
       // 顧客データを取得（現在ログイン中のユーザー）
@@ -166,18 +183,13 @@ export const StorePayment: React.FC = () => {
 
         setCustomerData(customerData);
         
-        // QRコードデータを保存（87app側のデータ構造に合わせて変換）
+        // QRコードデータを保存（新しい決済用データ構造）
         const qrStoreData: QRStoreData = {
-          storeId: qrData.store_name || 'unknown', // store_nameをstoreIdとして使用
-          storeName: qrData.store_name || '店舗',
-          items: qrData.items.map((item: any) => ({
-            id: `${item.flower_item_name}_${item.color_name}`,
-            name: `${item.flower_item_name} (${item.color_name})`,
-            price: item.unit_price,
-            quantity: item.quantity
-          })),
-          pointsUsed: qrData.points_used || 0,
-          totalAmount: qrData.total,
+          storeId: qrData.storeId,
+          storeName: qrData.storeName,
+          items: qrData.items,
+          pointsUsed: qrData.pointsUsed || 0,
+          totalAmount: qrData.totalAmount,
           timestamp: qrData.timestamp || new Date().toISOString()
         };
 
@@ -187,7 +199,7 @@ export const StorePayment: React.FC = () => {
           ...prev,
           customerId: customerData.id,
           qrStoreData: qrStoreData,
-          finalAmount: qrData.total - (qrData.points_used || 0)
+          finalAmount: qrData.totalAmount - (qrData.pointsUsed || 0)
         }));
       }
 
