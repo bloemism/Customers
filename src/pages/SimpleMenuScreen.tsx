@@ -331,7 +331,7 @@ export const SimpleMenuScreen: React.FC = () => {
                   </div>
                   
                   {/* タイトル */}
-                  <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-2 group-hover:text-gray-900 transition-colors duration-200 leading-tight">
+                  <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 mb-2 group-hover:text-gray-900 transition-colors duration-200 leading-tight">
                     {item.title}
                   </h3>
                   

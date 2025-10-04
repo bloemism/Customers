@@ -23,6 +23,7 @@ import { supabase } from '../lib/supabase';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { EditCustomerModal } from '../components/EditCustomerModal';
 import QRCodeScanner from '../components/QRCodeScanner';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 interface Customer {
   id: string;
@@ -64,6 +65,9 @@ interface PurchaseHistory {
 
 export const CustomerManagement: React.FC = () => {
   const navigate = useNavigate();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'email' | 'phone'>('email');
   const [customers, setCustomers] = useState<Customer[]>([]);

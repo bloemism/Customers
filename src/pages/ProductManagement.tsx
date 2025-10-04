@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Plus, Edit2, Trash2, Save, X, Database, Download, Upload } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // 品目カテゴリの型定義
 interface FlowerItemCategory {
@@ -35,6 +36,9 @@ interface Store {
 
 const ProductManagement: React.FC = () => {
   const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   
   // 店舗情報
   const [store, setStore] = useState<Store | null>(null);
@@ -484,13 +488,13 @@ const ProductManagement: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white">商品管理</h1>
-              <p className="mt-2 text-pink-100">品目・色の管理でお客様会計を効率化</p>
+        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">商品管理</h1>
+              <p className="mt-1 sm:mt-2 text-sm sm:text-base text-pink-100">品目・色の管理でお客様会計を効率化</p>
               {store && (
-                <p className="mt-1 text-sm text-pink-200">
+                <p className="mt-1 text-xs sm:text-sm text-pink-200">
                   🏪 店舗: {store.name}
                 </p>
               )}

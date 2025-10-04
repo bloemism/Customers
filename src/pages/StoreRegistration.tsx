@@ -17,6 +17,7 @@ import {
   CheckCircle,
   MapPin
 } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // 店舗情報の型定義
 interface Store {
@@ -125,6 +126,9 @@ interface StoreFormData {
 export const StoreRegistration: React.FC = () => {
   // const navigate = useNavigate();
   const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

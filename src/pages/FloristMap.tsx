@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { StoreService } from '../services/storeService';
 import { supabase } from '../lib/supabase';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // Google Maps JavaScript APIの型定義
 declare global {
@@ -94,6 +95,9 @@ interface StoreDetails {
 
 export const FloristMap: React.FC = () => {
   const navigate = useNavigate();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreDetails | null>(null);
   const [loading, setLoading] = useState(true);

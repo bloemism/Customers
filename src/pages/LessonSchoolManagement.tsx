@@ -14,6 +14,7 @@ import {
   User,
   BookOpen
 } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // レッスンスクールの型定義
 interface LessonSchool {
@@ -33,6 +34,8 @@ interface LessonSchool {
   regular_price: number;
   latitude: number;
   longitude: number;
+  website_url?: string;
+  instagram_url?: string;
   is_active: boolean;
   created_at: string;
 }
@@ -54,10 +57,15 @@ interface NewLessonSchool {
   regular_price: number;
   latitude: number;
   longitude: number;
+  website_url?: string;
+  instagram_url?: string;
 }
 
 const LessonSchoolManagement: React.FC = () => {
   const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   
   // レッスンスクール一覧
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
@@ -82,7 +90,9 @@ const LessonSchoolManagement: React.FC = () => {
     trial_price: 0,
     regular_price: 0,
     latitude: 0,
-    longitude: 0
+    longitude: 0,
+    website_url: '',
+    instagram_url: ''
   });
   
   // ローディング状態
@@ -94,10 +104,15 @@ const LessonSchoolManagement: React.FC = () => {
   // レッスンスクールを読み込み
   useEffect(() => {
     const loadLessonSchools = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        console.log('ユーザー情報が取得できません:', user);
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('レッスンスクールを読み込み中... ユーザーEmail:', user.email);
+        
         const { data, error } = await supabase
           .from('lesson_schools')
           .select('*')
@@ -106,8 +121,10 @@ const LessonSchoolManagement: React.FC = () => {
 
         if (error) {
           console.error('レッスンスクール読み込みエラー:', error);
-          setMessage({ type: 'error', text: 'レッスンスクールの読み込みに失敗しました' });
+          setMessage({ type: 'error', text: `レッスンスクールの読み込みに失敗しました: ${error.message}` });
         } else if (data) {
+          console.log('読み込まれたレッスンスクール:', data);
+          console.log('レッスンスクール数:', data.length);
           setLessonSchools(data);
         }
       } catch (error) {
@@ -163,7 +180,9 @@ const LessonSchoolManagement: React.FC = () => {
       trial_price: school.trial_price,
       regular_price: school.regular_price,
       latitude: school.latitude,
-      longitude: school.longitude
+      longitude: school.longitude,
+      website_url: school.website_url || '',
+      instagram_url: school.instagram_url || ''
     });
   };
 
@@ -186,7 +205,9 @@ const LessonSchoolManagement: React.FC = () => {
       trial_price: 0,
       regular_price: 0,
       latitude: 0,
-      longitude: 0
+      longitude: 0,
+      website_url: '',
+      instagram_url: ''
     });
   };
 
@@ -215,7 +236,7 @@ const LessonSchoolManagement: React.FC = () => {
 
     try {
       if (editingSchool) {
-        // 更新処理
+        // 更新処理（両テーブルに保存）
         const { error } = await supabase
           .from('lesson_schools')
           .update({
@@ -230,19 +251,24 @@ const LessonSchoolManagement: React.FC = () => {
 
         setMessage({ type: 'success', text: 'レッスンスクールを更新しました' });
       } else {
-        // 新規作成処理
-        const { error } = await supabase
+        // 新規作成処理（両テーブルに保存）
+        const { data: insertData, error } = await supabase
           .from('lesson_schools')
           .insert({
             ...newSchool,
             store_email: user.email,
             is_active: true,
-            created_at: new Date().toISOString()
-          });
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select();
 
         if (error) {
-          throw error;
+          console.error('詳細なエラー情報:', error);
+          throw new Error(`データベースエラー: ${error.message} (コード: ${error.code})`);
         }
+
+        console.log('挿入されたデータ:', insertData);
 
         setMessage({ type: 'success', text: 'レッスンスクールを作成しました' });
       }
@@ -262,7 +288,8 @@ const LessonSchoolManagement: React.FC = () => {
       cancelEdit();
     } catch (error) {
       console.error('保存エラー:', error);
-      setMessage({ type: 'error', text: '保存に失敗しました' });
+      const errorMessage = error instanceof Error ? error.message : '保存に失敗しました';
+      setMessage({ type: 'error', text: errorMessage });
     }
   };
 
@@ -437,6 +464,34 @@ const LessonSchoolManagement: React.FC = () => {
                       onChange={(e) => setNewSchool(prev => ({ ...prev, phone: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="電話番号"
+                    />
+                  </div>
+                </div>
+
+                {/* URL情報 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🌐 ウェブサイトURL
+                    </label>
+                    <input
+                      type="url"
+                      value={newSchool.website_url || ''}
+                      onChange={(e) => setNewSchool(prev => ({ ...prev, website_url: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📸 Instagram URL
+                    </label>
+                    <input
+                      type="url"
+                      value={newSchool.instagram_url || ''}
+                      onChange={(e) => setNewSchool(prev => ({ ...prev, instagram_url: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://instagram.com/your_account"
                     />
                   </div>
                 </div>
@@ -628,6 +683,32 @@ const LessonSchoolManagement: React.FC = () => {
                           通常料金: ¥{school.regular_price.toLocaleString()}
                         </span>
                       </div>
+                      
+                      {/* URL情報の表示 */}
+                      {(school.website_url || school.instagram_url) && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {school.website_url && (
+                            <a
+                              href={school.website_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full hover:bg-blue-200 transition-colors"
+                            >
+                              🌐 ウェブサイト
+                            </a>
+                          )}
+                          {school.instagram_url && (
+                            <a
+                              href={school.instagram_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-xs rounded-full hover:from-purple-200 hover:to-pink-200 transition-colors"
+                            >
+                              📸 Instagram
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 sm:ml-4">
                       <button

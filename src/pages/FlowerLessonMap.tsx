@@ -11,8 +11,10 @@ import {
   Phone,
   Star,
   Search,
-  X
+  X,
+  Globe
 } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // レッスンスクールの型定義
 interface LessonSchool {
@@ -32,6 +34,8 @@ interface LessonSchool {
   regular_price: number;
   latitude: number;
   longitude: number;
+  website_url?: string;
+  instagram_url?: string;
   is_active: boolean;
   created_at: string;
 }
@@ -46,6 +50,9 @@ interface RegionCategory {
 
 const FlowerLessonMap: React.FC = () => {
   // const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   
   // レッスンスクール一覧
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
@@ -95,6 +102,7 @@ const FlowerLessonMap: React.FC = () => {
     const loadLessonSchools = async () => {
       try {
         setLoading(true);
+        // 顧客向け：全スクール情報を表示（マップ検索用）
         const { data, error } = await supabase
           .from('lesson_schools')
           .select('*')
@@ -386,6 +394,33 @@ const FlowerLessonMap: React.FC = () => {
                   <p className="text-sm text-gray-700">{selectedSchool.lesson_content}</p>
                 </div>
               </div>
+
+              {/* URLボタン */}
+              {(selectedSchool.website_url || selectedSchool.instagram_url) && (
+                <div className="mt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">リンク</h4>
+                  <div className="flex space-x-3">
+                    {selectedSchool.website_url && (
+                      <button
+                        onClick={() => window.open(selectedSchool.website_url, '_blank')}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Globe className="w-4 h-4" />
+                        <span>URL</span>
+                      </button>
+                    )}
+                    {selectedSchool.instagram_url && (
+                      <button
+                        onClick={() => window.open(selectedSchool.instagram_url, '_blank')}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
+                      >
+                        <span>📸</span>
+                        <span>Instagram</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 flex space-x-3">
                 <button

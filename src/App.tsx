@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { ScrollToTop } from './components/ScrollToTop';
 import './App.css';
 
 // コード分割: ページコンポーネントを遅延読み込み
@@ -52,6 +53,7 @@ function App() {
     <Router>
     <SimpleAuthProvider>
         <div className="App">
+          <ScrollToTop />
           <Suspense fallback={<PageLoader />}>
           <Routes>
               {/* 公開ルート */}

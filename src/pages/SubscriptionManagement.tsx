@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { SimpleStripeService } from '../services/simpleStripeService';
 import type { EligibilityCheck } from '../services/simpleStripeService';
 import { SUBSCRIPTION_PRODUCTS, AVAILABLE_FEATURES } from '../lib/stripe';
+import { ArrowLeft } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 interface SubscriptionPlan {
   id: string;
@@ -14,7 +17,11 @@ interface SubscriptionPlan {
 }
 
 const SubscriptionManagement: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,9 +131,19 @@ const SubscriptionManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">サブスクリプション管理</h1>
-          <p className="text-gray-600">プランを選択してサービスを開始してください</p>
+        {/* ヘッダー */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/menu')}
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+          >
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            戻る
+          </button>
+          <div className="text-center">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">サブスクリプション管理</h1>
+            <p className="text-gray-600">プランを選択してサービスを開始してください</p>
+          </div>
         </div>
 
         {/* 現在のサブスクリプション状態 */}
