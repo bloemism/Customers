@@ -479,27 +479,30 @@ const CheckoutScreen: React.FC = () => {
     try {
       console.log('伝票全体QRコード生成開始');
       
+      // 決済用QRコードデータ（顧客側アプリで認識される形式）
       const receiptData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
+        type: 'payment', // 決済用QRコードであることを明示
+        storeId: store?.id || 'unknown',
+        storeName: store?.name || '不明',
+        storeAddress: store?.address || '不明',
+        storePhone: store?.phone || '不明',
+        storeEmail: store?.email || '不明',
         items: checkoutItems.map(item => {
           const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
           const color = colorCategories.find(cat => cat.id === item.color_category_id);
           return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
             quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
+            total: item.total_price
           };
         }),
         subtotal: subtotal,
         tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
+        totalAmount: total, // 顧客側が期待するフィールド名
+        pointsUsed: pointsToUse, // 顧客側が期待するフィールド名
+        pointsEarned: pointsEarned,
         timestamp: new Date().toISOString()
       };
 
