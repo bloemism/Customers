@@ -134,13 +134,22 @@ export const StorePayment: React.FC = () => {
 
   const handleQRCodeScanned = async (decodedText: string) => {
     try {
+      console.log('QRコード読み取り結果:', decodedText);
       const qrData = JSON.parse(decodedText);
+      console.log('パースされたQRデータ:', qrData);
       
-      // 店舗QRコードの形式をチェック
-      if (!qrData.storeId || !qrData.items || !qrData.totalAmount) {
-        setError('無効な店舗QRコードです');
+      // 87app側のQRコード形式をチェック（store_name, items, total）
+      if (!qrData.store_name || !qrData.items || !qrData.total) {
+        console.error('無効な店舗QRコード形式:', qrData);
+        setError('無効な店舗QRコードです。店舗側で生成された決済用QRコードを読み取ってください。');
         return;
       }
+
+      console.log('有効な店舗QRコードを検出:', {
+        storeName: qrData.store_name,
+        itemsCount: qrData.items.length,
+        total: qrData.total
+      });
 
       // 顧客データを取得（現在ログイン中のユーザー）
       if (user?.id) {
@@ -157,21 +166,28 @@ export const StorePayment: React.FC = () => {
 
         setCustomerData(customerData);
         
-        // QRコードデータを保存
+        // QRコードデータを保存（87app側のデータ構造に合わせて変換）
         const qrStoreData: QRStoreData = {
-          storeId: qrData.storeId,
-          storeName: qrData.storeName || '店舗',
-          items: qrData.items,
-          pointsUsed: qrData.pointsUsed || 0,
-          totalAmount: qrData.totalAmount,
+          storeId: qrData.store_name || 'unknown', // store_nameをstoreIdとして使用
+          storeName: qrData.store_name || '店舗',
+          items: qrData.items.map((item: any) => ({
+            id: `${item.flower_item_name}_${item.color_name}`,
+            name: `${item.flower_item_name} (${item.color_name})`,
+            price: item.unit_price,
+            quantity: item.quantity
+          })),
+          pointsUsed: qrData.points_used || 0,
+          totalAmount: qrData.total,
           timestamp: qrData.timestamp || new Date().toISOString()
         };
+
+        console.log('変換されたQRStoreData:', qrStoreData);
 
         setPaymentData(prev => ({
           ...prev,
           customerId: customerData.id,
           qrStoreData: qrStoreData,
-          finalAmount: qrData.totalAmount - (qrData.pointsUsed || 0)
+          finalAmount: qrData.total - (qrData.points_used || 0)
         }));
       }
 
