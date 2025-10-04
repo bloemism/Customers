@@ -30,6 +30,7 @@ const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen')
 const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode').then(module => ({ default: module.CustomerQRCode })));
 const StorePayment = React.lazy(() => import('./pages/StorePayment').then(module => ({ default: module.StorePayment })));
 const PaymentConfirmation = React.lazy(() => import('./pages/PaymentConfirmation').then(module => ({ default: module.PaymentConfirmation })));
+const StripeCheckout = React.lazy(() => import('./pages/StripeCheckout').then(module => ({ default: module.StripeCheckout })));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
 
 
@@ -163,6 +164,11 @@ function App() {
               <Route path="/store-payment" element={
                 <CustomerAuthGuard>
                   <StorePayment />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/stripe-checkout" element={
+                <CustomerAuthGuard>
+                  <StripeCheckout />
                 </CustomerAuthGuard>
               } />
               <Route path="/customer-readme" element={

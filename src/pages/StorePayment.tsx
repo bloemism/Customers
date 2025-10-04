@@ -164,44 +164,30 @@ export const StorePayment: React.FC = () => {
     }
   };
 
-  // 決済処理
+  // 決済処理（Stripe Checkoutページにリダイレクト）
   const handlePayment = async () => {
-    if (!paymentData.storeData) return;
+    if (!paymentData.storeData || !customerData) {
+      setError('決済データが不足しています');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
-      // Stripe決済処理
-      const stripe = await getStripe();
-      if (!stripe) {
-        throw new Error('Stripeの初期化に失敗しました');
-      }
+      // 決済データをローカルストレージに保存
+      const paymentSessionData = {
+        customerData,
+        storeData: paymentData.storeData,
+        finalAmount: paymentData.finalAmount,
+        paymentCode,
+        timestamp: new Date().toISOString()
+      };
 
-      const paymentIntent = await createPaymentIntent({
-        amount: paymentData.finalAmount,
-        currency: 'jpy',
-        metadata: {
-          customerId: paymentData.customerId,
-          storeId: paymentData.storeData.storeId,
-          paymentCode: paymentCode
-        }
-      });
+      localStorage.setItem('payment_session', JSON.stringify(paymentSessionData));
 
-      const { error: stripeError } = await stripe.confirmCardPayment(paymentIntent.client_secret);
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
-
-      // 決済コードを使用済みにマーク
-      await supabase
-        .from('payment_codes')
-        .update({ used_at: new Date().toISOString() })
-        .eq('code', paymentCode);
-
-      setStep('complete');
-      setSuccess(true);
+      // Stripe Checkoutページにリダイレクト
+      window.location.href = `/stripe-checkout?amount=${paymentData.finalAmount}&store=${paymentData.storeData.storeId}&customer=${customerData.id}`;
 
     } catch (error) {
       console.error('決済エラー:', error);
