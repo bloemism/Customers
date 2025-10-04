@@ -93,6 +93,10 @@ const CheckoutScreen: React.FC = () => {
   // 支払い方法
   // const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
   
+  // 決済コード情報
+  const [paymentCode, setPaymentCode] = useState<string | null>(null);
+  const [paymentCodeLoading, setPaymentCodeLoading] = useState(false);
+  
   // QRコード・URL情報
   const [itemQRInfo, setItemQRInfo] = useState<{
     type: 'item' | 'receipt';
@@ -264,6 +268,85 @@ const CheckoutScreen: React.FC = () => {
       alert('URLをクリップボードにコピーしました');
     } catch (error) {
       console.error('コピーエラー:', error);
+    }
+  };
+
+  // 決済コード生成
+  const generatePaymentCode = async () => {
+    if (!store || checkoutItems.length === 0) {
+      alert('店舗情報または商品が不足しています');
+      return;
+    }
+
+    try {
+      setPaymentCodeLoading(true);
+      console.log('決済コード生成開始');
+
+      // 決済データの準備
+      const paymentData = {
+        type: 'payment',
+        storeId: store.id,
+        storeName: store.name,
+        storeAddress: store.address,
+        storePhone: store.phone,
+        storeEmail: store.email,
+        items: checkoutItems.map(item => {
+          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
+          const color = colorCategories.find(cat => cat.id === item.color_category_id);
+          return {
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
+            quantity: item.quantity,
+            total: item.total_price
+          };
+        }),
+        subtotal: subtotal,
+        tax: tax,
+        totalAmount: total,
+        pointsUsed: pointsToUse,
+        pointsEarned: pointsEarned,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('決済データ:', paymentData);
+
+      // 5桁の決済コードを生成
+      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
+      console.log('生成された決済コード:', generatedCode);
+
+      // 決済コード生成（5分間有効）
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .insert({
+          code: generatedCode,
+          store_id: store.id, // store_idはTEXT型に変更済み
+          payment_data: paymentData,
+          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
+        })
+        .select('code')
+        .single();
+
+      // エラーハンドリング
+      if (error) {
+        console.error('決済コード生成エラー:', error);
+        alert(`決済コード生成エラー: ${error.message}`);
+        return;
+      }
+
+      if (data && data.code) {
+        setPaymentCode(data.code);
+        console.log('決済コード生成成功:', data.code);
+        
+        // クリップボードにコピー
+        await copyToClipboard(data.code);
+      }
+
+    } catch (error) {
+      console.error('決済コード生成エラー:', error);
+      alert(`決済コード生成エラー: ${error}`);
+    } finally {
+      setPaymentCodeLoading(false);
     }
   };
 
@@ -479,27 +562,30 @@ const CheckoutScreen: React.FC = () => {
     try {
       console.log('伝票全体QRコード生成開始');
       
+      // 決済用QRコードデータ（顧客側アプリで認識される形式）
       const receiptData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
+        type: 'payment', // 決済用QRコードであることを明示
+        storeId: store?.id || 'unknown',
+        storeName: store?.name || '不明',
+        storeAddress: store?.address || '不明',
+        storePhone: store?.phone || '不明',
+        storeEmail: store?.email || '不明',
         items: checkoutItems.map(item => {
           const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
           const color = colorCategories.find(cat => cat.id === item.color_category_id);
           return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
             quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
+            total: item.total_price
           };
         }),
         subtotal: subtotal,
         tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
+        totalAmount: total, // 顧客側が期待するフィールド名
+        pointsUsed: pointsToUse, // 顧客側が期待するフィールド名
+        pointsEarned: pointsEarned,
         timestamp: new Date().toISOString()
       };
 
@@ -820,6 +906,29 @@ const CheckoutScreen: React.FC = () => {
               <Plus className="w-5 h-5 mr-2 inline" />
               品目を追加
             </button>
+
+            {/* テストデータ追加ボタン */}
+            <button
+              onClick={() => {
+                // テスト用の品目を追加
+                if (flowerItemCategories.length > 0 && colorCategories.length > 0) {
+                  const testItem: CheckoutItem = {
+                    id: `test-${Date.now()}`,
+                    flower_item_category_id: flowerItemCategories[0].id,
+                    color_category_id: colorCategories[0].id,
+                    quantity: 2,
+                    unit_price: 500,
+                    total_price: 1000
+                  };
+                  setCheckoutItems([...checkoutItems, testItem]);
+                  console.log('テスト品目を追加しました:', testItem);
+                }
+              }}
+              className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mt-2"
+            >
+              <Plus className="w-5 h-5 mr-2 inline" />
+              テスト品目追加（QRテスト用）
+            </button>
           </div>
 
           {/* 右側：品目一覧・計算結果 */}
@@ -951,6 +1060,37 @@ const CheckoutScreen: React.FC = () => {
 
             {/* 支払い方法選択 */}
             <div className="mt-6 space-y-3">
+              {/* 決済コード生成（新機能） */}
+              <button 
+                onClick={generatePaymentCode}
+                disabled={paymentCodeLoading}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {paymentCodeLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl mr-2">🔢</span>
+                    決済コード生成（5桁）
+                  </>
+                )}
+              </button>
+
+              {/* 生成された決済コード表示 */}
+              {paymentCode && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <p className="text-sm text-purple-700 mb-2">決済コード</p>
+                    <p className="text-3xl font-bold text-purple-900 mb-2">{paymentCode}</p>
+                    <p className="text-xs text-purple-600">お客様にこのコードをお伝えください</p>
+                    <p className="text-xs text-purple-500 mt-1">（5分間有効）</p>
+                  </div>
+                </div>
+              )}
+
               <button 
                 onClick={() => generateCashQRCode()}
                 className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
