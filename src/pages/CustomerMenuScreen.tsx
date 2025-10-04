@@ -350,21 +350,33 @@ export const CustomerMenuScreen: React.FC = () => {
                   border: '1px solid rgba(255, 255, 255, 0.3)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.4) 0%, rgba(234, 88, 12, 0.5) 100%)';
+                  const target = e.currentTarget;
+                  if (target) {
+                    target.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.4) 0%, rgba(234, 88, 12, 0.5) 100%)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
+                  const target = e.currentTarget;
+                  if (target) {
+                    target.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
+                  }
                 }}
                 onTouchStart={(e) => {
                   setTouchedButton(item.id);
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.7) 0%, rgba(234, 88, 12, 0.8) 100%)';
-                  e.currentTarget.style.transform = 'scale(0.95)';
+                  const target = e.currentTarget;
+                  if (target) {
+                    target.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.7) 0%, rgba(234, 88, 12, 0.8) 100%)';
+                    target.style.transform = 'scale(0.95)';
+                  }
                 }}
                 onTouchEnd={(e) => {
+                  const target = e.currentTarget;
                   setTimeout(() => {
                     setTouchedButton(null);
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
-                    e.currentTarget.style.transform = 'scale(1)';
+                    if (target) {
+                      target.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
+                      target.style.transform = 'scale(1)';
+                    }
                   }, 150);
                 }}
               >
