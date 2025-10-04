@@ -469,44 +469,60 @@ export const StorePayment: React.FC = () => {
 
         {/* 決済画面 */}
         {step === 'payment' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 決済情報 */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">決済情報</h3>
+          <div className="space-y-6">
+            {/* 店舗データ（QRコードから読み取り） */}
+            {paymentData.qrStoreData && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center mb-4">
+                  <div className="bg-blue-100 rounded-full p-2 mr-3">
+                    <QrCode className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">店舗データ</h3>
+                </div>
                 
-              {/* エラーメッセージ */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center">
-                    <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-                    <p className="text-red-600 text-sm">{error}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* デバッグ情報 */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-medium text-yellow-800 mb-2">デバッグ情報</h4>
-                  <div className="text-xs text-yellow-700 space-y-1">
-                    <p>QRStoreData: {JSON.stringify(paymentData.qrStoreData, null, 2)}</p>
-                    <p>Final Amount: ¥{paymentData.finalAmount}</p>
-                    <p>Customer Data: {customerData ? 'Loaded' : 'Not loaded'}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* 店舗情報 */}
-              {paymentData.qrStoreData && (
+                {/* 店舗情報 */}
                 <div className="bg-blue-50 rounded-lg p-4 mb-4">
                   <h4 className="font-medium text-blue-900 mb-2">店舗情報</h4>
-                  <div className="text-sm text-blue-800">
+                  <div className="text-sm text-blue-800 space-y-1">
                     <p><strong>店舗名:</strong> {paymentData.qrStoreData.storeName}</p>
                     <p><strong>店舗ID:</strong> {paymentData.qrStoreData.storeId}</p>
-                    <p><strong>タイムスタンプ:</strong> {new Date(paymentData.qrStoreData.timestamp).toLocaleString()}</p>
+                    <p><strong>読み取り時刻:</strong> {new Date(paymentData.qrStoreData.timestamp).toLocaleString()}</p>
                   </div>
                 </div>
-              )}
+
+                {/* エラーメッセージ */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                      <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* デバッグ情報 */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <h4 className="font-medium text-yellow-800 mb-2">デバッグ情報</h4>
+                    <div className="text-xs text-yellow-700 space-y-1">
+                      <p>QRStoreData: {JSON.stringify(paymentData.qrStoreData, null, 2)}</p>
+                      <p>Final Amount: ¥{paymentData.finalAmount}</p>
+                      <p>Customer Data: {customerData ? 'Loaded' : 'Not loaded'}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 決済データ */}
+            {paymentData.qrStoreData && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center mb-4">
+                  <div className="bg-green-100 rounded-full p-2 mr-3">
+                    <CreditCard className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">決済データ</h3>
+                </div>
 
               {/* 商品合計 */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
@@ -650,63 +666,89 @@ export const StorePayment: React.FC = () => {
                 </button>
               </div>
             </div>
+            )}
 
-            {/* 顧客・店舗情報 */}
-            <div className="space-y-6">
-              {/* 顧客情報 */}
-              {customerData && (
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">顧客情報</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <User className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">お名前</p>
-                        <p className="font-medium text-gray-900">{customerData.name}</p>
+            {/* 顧客情報 */}
+            {customerData && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center mb-4">
+                  <div className="bg-purple-100 rounded-full p-2 mr-3">
+                    <User className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">顧客情報</h3>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-purple-900 mb-2">基本情報</h4>
+                      <div className="text-sm text-purple-800 space-y-1">
+                        <p><strong>名前:</strong> {customerData.name || '未設定'}</p>
+                        <p><strong>メール:</strong> {customerData.email}</p>
+                        <p><strong>電話:</strong> {customerData.phone || '未設定'}</p>
+                        <p><strong>レベル:</strong> {customerData.level}</p>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <Mail className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">メールアドレス</p>
-                        <p className="font-medium text-gray-900">{customerData.email}</p>
+                    <div>
+                      <h4 className="font-medium text-purple-900 mb-2">ポイント情報</h4>
+                      <div className="text-sm text-purple-800 space-y-1">
+                        <p><strong>現在のポイント:</strong> {customerData.points.toLocaleString()}pt</p>
+                        {paymentData.qrStoreData && (
+                          <p><strong>獲得予定ポイント:</strong> +{calculatePoints(paymentData.qrStoreData.totalAmount)}pt</p>
+                        )}
+                        {paymentData.qrStoreData && (
+                          <p><strong>決済後ポイント:</strong> {((customerData.points || 0) + calculatePoints(paymentData.qrStoreData.totalAmount)).toLocaleString()}pt</p>
+                        )}
                       </div>
-                    </div>
-
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <p className="text-sm text-blue-500">現在のポイント</p>
-                      <p className="text-2xl font-bold text-blue-800">{customerData.points.toLocaleString()}pt</p>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* 店舗情報 */}
-              {paymentData.qrStoreData && (
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">店舗情報</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500">店舗名</p>
-                      <p className="font-medium text-gray-900">{paymentData.qrStoreData.storeName}</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500">店舗ID</p>
-                      <p className="font-medium text-gray-900">{paymentData.qrStoreData.storeId}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-500">発行日時</p>
-                      <p className="font-medium text-gray-900">
-                        {new Date(paymentData.qrStoreData.timestamp).toLocaleString('ja-JP')}
-                      </p>
+            {/* 決済ボタン */}
+            {paymentData.qrStoreData && customerData && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">決済を実行</h3>
+                    <p className="text-gray-600 text-sm">最終確認後、決済を実行してください</p>
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-medium text-green-800">最終決済金額</span>
+                      <span className="text-3xl font-bold text-green-800">
+                        ¥{paymentData.finalAmount.toLocaleString()}
+                      </span>
                     </div>
                   </div>
+
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={() => setStep('scan')}
+                      className="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                    >
+                      戻る
+                    </button>
+                    <button
+                      onClick={processPayment}
+                      disabled={loading || paymentData.finalAmount <= 0}
+                      className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center">
+                          <Loader className="animate-spin h-5 w-5 mr-2" />
+                          処理中...
+                        </div>
+                      ) : (
+                        paymentData.paymentMethod === 'cash' ? '現金決済実行' : 'ストライプ決済実行'
+                      )}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
