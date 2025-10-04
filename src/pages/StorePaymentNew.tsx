@@ -109,13 +109,7 @@ export const StorePayment: React.FC = () => {
 
       if (error) {
         console.error('決済コード取得エラー:', error);
-        if (error.code === 'PGRST116') {
-          setCodeError('決済コードが見つかりません');
-        } else if (error.code === '406') {
-          setCodeError('アクセス権限がありません。管理者にお問い合わせください。');
-        } else {
-          setCodeError(`決済コードの取得に失敗しました: ${error.message}`);
-        }
+        setCodeError('決済コードが見つかりません');
         return;
       }
 
