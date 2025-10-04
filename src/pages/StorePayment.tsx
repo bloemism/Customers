@@ -195,12 +195,21 @@ export const StorePayment: React.FC = () => {
 
         console.log('変換されたQRStoreData:', qrStoreData);
 
+        const finalAmount = qrData.totalAmount - (qrData.pointsUsed || 0);
+        console.log('最終決済金額計算:', {
+          totalAmount: qrData.totalAmount,
+          pointsUsed: qrData.pointsUsed,
+          finalAmount: finalAmount
+        });
+
         setPaymentData(prev => ({
           ...prev,
           customerId: customerData.id,
           qrStoreData: qrStoreData,
-          finalAmount: qrData.totalAmount - (qrData.pointsUsed || 0)
+          finalAmount: finalAmount
         }));
+
+        console.log('PaymentData更新完了');
       }
 
       setShowScanner(false);
@@ -475,23 +484,53 @@ export const StorePayment: React.FC = () => {
                 </div>
               )}
 
+              {/* デバッグ情報 */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-yellow-800 mb-2">デバッグ情報</h4>
+                  <div className="text-xs text-yellow-700 space-y-1">
+                    <p>QRStoreData: {JSON.stringify(paymentData.qrStoreData, null, 2)}</p>
+                    <p>Final Amount: ¥{paymentData.finalAmount}</p>
+                    <p>Customer Data: {customerData ? 'Loaded' : 'Not loaded'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 店舗情報 */}
+              {paymentData.qrStoreData && (
+                <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-blue-900 mb-2">店舗情報</h4>
+                  <div className="text-sm text-blue-800">
+                    <p><strong>店舗名:</strong> {paymentData.qrStoreData.storeName}</p>
+                    <p><strong>店舗ID:</strong> {paymentData.qrStoreData.storeId}</p>
+                    <p><strong>タイムスタンプ:</strong> {new Date(paymentData.qrStoreData.timestamp).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+
               {/* 商品合計 */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h4 className="font-medium text-gray-900 mb-2">購入商品</h4>
-                <div className="space-y-2">
-                  {paymentData.qrStoreData?.items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.name} × {item.quantity}</span>
-                      <span>¥{(item.price * item.quantity).toLocaleString()}</span>
+                {paymentData.qrStoreData?.items && paymentData.qrStoreData.items.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      {paymentData.qrStoreData.items.map((item) => (
+                        <div key={item.id} className="flex justify-between text-sm">
+                          <span>{item.name} × {item.quantity}</span>
+                          <span>¥{(item.price * item.quantity).toLocaleString()}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <div className="border-t border-gray-200 pt-2 mt-2">
-                  <div className="flex justify-between font-medium">
-                    <span>小計</span>
-                    <span>¥{paymentData.qrStoreData?.totalAmount.toLocaleString()}</span>
-                  </div>
-                </div>
+                    <div className="border-t border-gray-200 pt-2 mt-2">
+                      <div className="flex justify-between font-medium">
+                        <span>小計</span>
+                        <span>¥{paymentData.qrStoreData.totalAmount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-sm">商品データがありません</p>
+                )}
               </div>
 
               {/* 使用ポイント表示 */}
@@ -539,7 +578,27 @@ export const StorePayment: React.FC = () => {
 
               {/* 最終金額 */}
               <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                <div className="border-t border-blue-200 pt-2">
+                <div className="space-y-2">
+                  {paymentData.qrStoreData && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-blue-700">商品合計</span>
+                        <span className="text-lg font-medium text-blue-700">
+                          ¥{paymentData.qrStoreData.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                      {paymentData.qrStoreData.pointsUsed > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">使用ポイント</span>
+                          <span className="text-lg font-medium text-blue-700">
+                            -¥{paymentData.qrStoreData.pointsUsed.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="border-t border-blue-200 pt-2 mt-2">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-medium text-blue-800">最終決済金額</span>
                     <span className="text-2xl font-bold text-blue-800">
