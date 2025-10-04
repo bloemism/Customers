@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
@@ -71,6 +71,7 @@ const levelConfig = {
 export const CustomerMenuScreen: React.FC = () => {
   const navigate = useNavigate();
   const { customer, signOut, refreshCustomer } = useCustomerAuth();
+  const [touchedButton, setTouchedButton] = useState<string | null>(null);
 
   useEffect(() => {
     // 顧客データを取得
@@ -216,13 +217,16 @@ export const CustomerMenuScreen: React.FC = () => {
   const levelProgress = getLevelProgress(defaultCustomer.points, defaultCustomer.level);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed"
+      style={{ backgroundImage: 'url(/background.jpg)' }}
+    >
       {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-teal-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <Flower className="h-8 w-8 text-blue-500" />
+              <Flower className="h-8 w-8 text-teal-500" />
               <h1 className="text-xl font-bold text-gray-900">87app</h1>
             </div>
             
@@ -274,11 +278,11 @@ export const CustomerMenuScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 顧客情報カード */}
         <div className="mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-teal-200/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center shadow-lg">
+                  <User className="h-8 w-8 text-teal-600" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">{defaultCustomer.name}</h2>
@@ -334,34 +338,65 @@ export const CustomerMenuScreen: React.FC = () => {
         </div>
 
         {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {menuItems.map((item) => {
-            const IconComponent = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 overflow-hidden"
+                className="group relative backdrop-blur-md rounded-xl shadow-lg hover:shadow-xl active:shadow-2xl transition-all duration-300 overflow-hidden touch-manipulation transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.4) 0%, rgba(234, 88, 12, 0.5) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
+                }}
+                onTouchStart={(e) => {
+                  setTouchedButton(item.id);
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.7) 0%, rgba(234, 88, 12, 0.8) 100%)';
+                  e.currentTarget.style.transform = 'scale(0.95)';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    setTouchedButton(null);
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }, 150);
+                }}
               >
-                {/* グラデーション背景 */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                {/* グラデーションオーバーレイ */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/5 opacity-50" />
                 
-                <div className="relative p-8 text-left">
-                  {/* アイコン */}
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="h-8 w-8" />
-                  </div>
-                  
+                {/* 光沢効果 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* モバイル用の光沢効果 */}
+                {touchedButton === item.id && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-100 transition-opacity duration-200" />
+                )}
+                
+                {/* コンテンツ */}
+                <div className="relative p-4 text-left">
                   {/* タイトル */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-200">
+                  <h3 className="text-sm font-bold text-white mb-2 group-hover:text-white group-active:text-white transition-colors duration-200 drop-shadow-lg shadow-black/50">
                     {item.title}
                   </h3>
                   
                   {/* 説明 */}
-                  <p className="text-gray-600 text-sm leading-relaxed group-hover:text-gray-700 transition-colors duration-200">
+                  <p className="text-white text-xs leading-relaxed group-hover:text-white group-active:text-white transition-colors duration-200 drop-shadow-lg shadow-black/50">
                     {item.description}
                   </p>
                 </div>
+                
+                {/* ボタン下部のアクセントライン */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-white/40 via-white/60 to-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* 上部のハイライト */}
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </button>
             );
           })}

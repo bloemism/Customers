@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
 import { 
@@ -12,7 +13,9 @@ import {
   Star,
   Search,
   Filter,
-  X
+  X,
+  Globe,
+  Instagram
 } from 'lucide-react';
 
 // レッスンスクールの型定義
@@ -35,6 +38,8 @@ interface LessonSchool {
   longitude: number;
   is_active: boolean;
   created_at: string;
+  website_url?: string;
+  instagram_url?: string;
 }
 
 // 地域分類の型定義
@@ -46,6 +51,7 @@ interface RegionCategory {
 }
 
 const FlowerLessonMap: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useSimpleAuth();
   
   // レッスンスクール一覧
@@ -90,6 +96,11 @@ const FlowerLessonMap: React.FC = () => {
     const index = id.charCodeAt(0) % colors.length;
     return colors[index];
   };
+
+  // ページの最上部にスクロール
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // レッスンスクールを読み込み
   useEffect(() => {
@@ -195,7 +206,7 @@ const FlowerLessonMap: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => window.history.back()}
+                onClick={() => navigate('/customer-menu')}
                 className="p-2 text-white hover:text-pink-100 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
@@ -353,6 +364,37 @@ const FlowerLessonMap: React.FC = () => {
                       <span>{selectedSchool.instructor_name}</span>
                     </div>
                   </div>
+                  
+                  {/* URLボタン */}
+                  {(selectedSchool.website_url || selectedSchool.instagram_url) && (
+                    <div className="mt-4">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">公式リンク</h5>
+                      <div className="flex space-x-3">
+                        {selectedSchool.website_url && (
+                          <a
+                            href={selectedSchool.website_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            <Globe className="w-4 h-4" />
+                            <span>ウェブサイト</span>
+                          </a>
+                        )}
+                        {selectedSchool.instagram_url && (
+                          <a
+                            href={selectedSchool.instagram_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors text-sm"
+                          >
+                            <Instagram className="w-4 h-4" />
+                            <span>Instagram</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
