@@ -56,10 +56,10 @@ export const StorePayment: React.FC = () => {
 
   useEffect(() => {
     if (showScanner) {
-      // 少し遅延させてから初期化（DOM要素が確実に存在することを保証）
+      // DOM要素のレンダリングを待ってから初期化
       setTimeout(() => {
         initializeScanner();
-      }, 300);
+      }, 100);
     }
     return () => {
       if (scanner) {
@@ -89,7 +89,7 @@ export const StorePayment: React.FC = () => {
       }
 
       // DOM要素が存在することを確認（少し待ってから確認）
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // 複数の方法でDOM要素を取得
       let qrReaderElement = document.getElementById("qr-reader");
@@ -468,13 +468,14 @@ export const StorePayment: React.FC = () => {
                 </div>
               ) : (
                 <div>
-                  {cameraLoading ? (
+                  {/* QR reader要素は常にレンダリング */}
+                  <div id="qr-reader" ref={scannerRef} className="max-w-md mx-auto mb-4"></div>
+                  
+                  {cameraLoading && (
                     <div className="flex flex-col items-center space-y-4 py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <p className="text-gray-600">カメラを起動中...</p>
                     </div>
-                  ) : (
-                    <div id="qr-reader" ref={scannerRef} className="max-w-md mx-auto mb-4"></div>
                   )}
                   <button
                     onClick={stopCamera}
