@@ -820,6 +820,29 @@ const CheckoutScreen: React.FC = () => {
               <Plus className="w-5 h-5 mr-2 inline" />
               品目を追加
             </button>
+
+            {/* テストデータ追加ボタン */}
+            <button
+              onClick={() => {
+                // テスト用の品目を追加
+                if (flowerItemCategories.length > 0 && colorCategories.length > 0) {
+                  const testItem: CheckoutItem = {
+                    id: `test-${Date.now()}`,
+                    flower_item_category_id: flowerItemCategories[0].id,
+                    color_category_id: colorCategories[0].id,
+                    quantity: 2,
+                    unit_price: 500,
+                    total_price: 1000
+                  };
+                  setCheckoutItems([...checkoutItems, testItem]);
+                  console.log('テスト品目を追加しました:', testItem);
+                }
+              }}
+              className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mt-2"
+            >
+              <Plus className="w-5 h-5 mr-2 inline" />
+              テスト品目追加（QRテスト用）
+            </button>
           </div>
 
           {/* 右側：品目一覧・計算結果 */}
