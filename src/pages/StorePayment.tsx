@@ -57,11 +57,76 @@ export const StorePayment: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [step, setStep] = useState<'scan' | 'payment' | 'complete'>('scan');
-  const scannerRef = useRef<HTMLDivElement>(null);
 
-  // 決済コードからデータを取得
+  // 決済コードからデータを取得する関数
   const fetchPaymentByCode = async (code: string) => {
     if (!code || code.length !== 5) {
+      setCodeError('5桁の数字を入力してください');
+      return;
+    }
+
+    try {
+      setCodeLoading(true);
+      setCodeError('');
+      console.log('決済コード取得開始:', code);
+
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .select('payment_data, expires_at, used_at')
+        .eq('code', code)
+        .single();
+
+      if (error) {
+        console.error('決済コード取得エラー:', error);
+        setCodeError('決済コードが見つかりません');
+        return;
+      }
+
+      if (!data) {
+        setCodeError('決済コードが見つかりません');
+        return;
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(data.expires_at);
+      if (now > expiresAt) {
+        setCodeError('決済コードの有効期限が切れています');
+        return;
+      }
+
+      if (data.used_at) {
+        setCodeError('この決済コードは既に使用されています');
+        return;
+      }
+
+      const paymentData = data.payment_data;
+      console.log('取得した決済データ:', paymentData);
+
+      setPaymentData({
+        paymentMethod: 'credit',
+        customerId: customerData?.id || '',
+        qrStoreData: {
+          storeId: paymentData.storeId,
+          storeName: paymentData.storeName,
+          items: paymentData.items,
+          pointsUsed: paymentData.pointsUsed,
+          totalAmount: paymentData.totalAmount,
+          timestamp: paymentData.timestamp
+        },
+        finalAmount: paymentData.totalAmount
+      });
+
+      setStep('payment');
+      console.log('決済データ設定完了');
+
+    } catch (error) {
+      console.error('決済コード取得エラー:', error);
+      setCodeError('決済コードの取得に失敗しました');
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+  const scannerRef = useRef<HTMLDivElement>(null);
       setCodeError('5桁の数字を入力してください');
       return;
     }
