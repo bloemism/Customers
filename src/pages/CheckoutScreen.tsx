@@ -311,12 +311,16 @@ const CheckoutScreen: React.FC = () => {
 
       console.log('決済データ:', paymentData);
 
+      // 5桁の決済コードを生成
+      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
+      console.log('生成された決済コード:', generatedCode);
+
       // 決済コード生成（5分間有効）
       const { data, error } = await supabase
         .from('payment_codes')
         .insert({
-          code: Math.floor(Math.random() * 90000 + 10000).toString(), // 5桁の数字を生成
-          store_id: store.id,
+          code: generatedCode,
+          store_id: store.id, // store_idはTEXT型に変更済み
           payment_data: paymentData,
           expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
         })
