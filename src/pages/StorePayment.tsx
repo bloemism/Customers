@@ -48,11 +48,88 @@ export const StorePayment: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
+  
+  // 決済コード入力用の状態
+  const [paymentCode, setPaymentCode] = useState('');
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeError, setCodeError] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [step, setStep] = useState<'scan' | 'payment' | 'complete'>('scan');
   const scannerRef = useRef<HTMLDivElement>(null);
+
+  // 決済コードからデータを取得
+  const fetchPaymentByCode = async (code: string) => {
+    if (!code || code.length !== 5) {
+      setCodeError('5桁の数字を入力してください');
+      return;
+    }
+
+    try {
+      setCodeLoading(true);
+      setCodeError('');
+      console.log('決済コード取得開始:', code);
+
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .select('payment_data, expires_at, used_at')
+        .eq('code', code)
+        .single();
+
+      if (error) {
+        console.error('決済コード取得エラー:', error);
+        setCodeError('決済コードが見つかりません');
+        return;
+      }
+
+      if (!data) {
+        setCodeError('決済コードが見つかりません');
+        return;
+      }
+
+      // 期限チェック
+      const now = new Date();
+      const expiresAt = new Date(data.expires_at);
+      if (now > expiresAt) {
+        setCodeError('決済コードの有効期限が切れています');
+        return;
+      }
+
+      // 使用済みチェック
+      if (data.used_at) {
+        setCodeError('この決済コードは既に使用されています');
+        return;
+      }
+
+      // 決済データを設定
+      const paymentData = data.payment_data;
+      console.log('取得した決済データ:', paymentData);
+
+      setPaymentData({
+        paymentMethod: 'credit',
+        customerId: customerData?.id || '',
+        qrStoreData: {
+          storeId: paymentData.storeId,
+          storeName: paymentData.storeName,
+          items: paymentData.items,
+          pointsUsed: paymentData.pointsUsed,
+          totalAmount: paymentData.totalAmount,
+          timestamp: paymentData.timestamp
+        },
+        finalAmount: paymentData.totalAmount
+      });
+
+      setStep('payment');
+      console.log('決済データ設定完了');
+
+    } catch (error) {
+      console.error('決済コード取得エラー:', error);
+      setCodeError('決済コードの取得に失敗しました');
+    } finally {
+      setCodeLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (showScanner) {
@@ -470,6 +547,67 @@ export const StorePayment: React.FC = () => {
 
         {/* QRスキャナー */}
         {step === 'scan' && (
+          {/* 決済コード入力 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="text-center mb-4">
+              <div className="bg-purple-100 rounded-full p-3 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                <span className="text-2xl">🔢</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">決済コード入力</h3>
+              <p className="text-sm text-gray-600">店舗から伝えられた5桁のコードを入力</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  value={paymentCode}
+                  onChange={(e) => setPaymentCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="12345"
+                  className="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  maxLength={5}
+                />
+              </div>
+
+              <button
+                onClick={() => fetchPaymentByCode(paymentCode)}
+                disabled={codeLoading || paymentCode.length !== 5}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {codeLoading ? (
+                  <>
+                    <Loader className="w-5 h-5 mr-2 animate-spin" />
+                    確認中...
+                  </>
+                ) : (
+                  '決済データを取得'
+                )}
+              </button>
+
+              {codeError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-4 w-4 text-red-600 mr-2" />
+                    <p className="text-red-600 text-sm">{codeError}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* または */}
+          <div className="text-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">または</span>
+              </div>
+            </div>
+          </div>
+
+          {/* QRコードスキャン */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">店舗QRコードをスキャン</h2>
             <div className="text-center">
