@@ -186,8 +186,8 @@ export const StorePayment: React.FC = () => {
 
       localStorage.setItem('payment_session', JSON.stringify(paymentSessionData));
 
-      // Stripe Checkoutページにリダイレクト
-      window.location.href = `/stripe-checkout?amount=${paymentData.finalAmount}&store=${paymentData.storeData.storeId}&customer=${customerData.id}`;
+      // 動的決済ページにリダイレクト（金額が正確に反映される）
+      navigate('/dynamic-stripe-checkout');
 
     } catch (error) {
       console.error('決済エラー:', error);

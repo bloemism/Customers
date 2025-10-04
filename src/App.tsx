@@ -31,6 +31,7 @@ const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode').then(mo
 const StorePayment = React.lazy(() => import('./pages/StorePayment').then(module => ({ default: module.StorePayment })));
 const PaymentConfirmation = React.lazy(() => import('./pages/PaymentConfirmation').then(module => ({ default: module.PaymentConfirmation })));
 const StripeCheckout = React.lazy(() => import('./pages/StripeCheckout').then(module => ({ default: module.StripeCheckout })));
+const DynamicStripeCheckout = React.lazy(() => import('./pages/DynamicStripeCheckout').then(module => ({ default: module.DynamicStripeCheckout })));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
 
 
@@ -169,6 +170,11 @@ function App() {
               <Route path="/stripe-checkout" element={
                 <CustomerAuthGuard>
                   <StripeCheckout />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/dynamic-stripe-checkout" element={
+                <CustomerAuthGuard>
+                  <DynamicStripeCheckout />
                 </CustomerAuthGuard>
               } />
               <Route path="/customer-readme" element={
