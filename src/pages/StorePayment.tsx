@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
-import { QrCode, CreditCard, Banknote, Check, AlertCircle, User, Mail, Loader } from 'lucide-react';
+import { QrCode, CreditCard, Banknote, Check, AlertCircle, User, Loader } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { getStripe, createPaymentIntent } from '../services/stripeService';
 
@@ -111,18 +111,34 @@ export const StorePayment: React.FC = () => {
 
       console.log('QR reader element found, proceeding with scanner initialization');
 
-      // カメラアクセス許可を確認
+      // カメラアクセス許可を確認（PC対応）
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        // PCとモバイルの両方に対応
+        const constraints = {
           video: { 
-            facingMode: 'environment', // 背面カメラを優先
             width: { ideal: 1280 },
             height: { ideal: 720 }
           } 
-        });
-        // ストリームを停止してからスキャナーを初期化
-        stream.getTracks().forEach(track => track.stop());
-        console.log('Camera access confirmed');
+        };
+
+        // まず背面カメラを試す（モバイル）
+        try {
+          const mobileStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } 
+          });
+          mobileStream.getTracks().forEach(track => track.stop());
+          console.log('Mobile camera access confirmed');
+        } catch (mobileError) {
+          console.log('Mobile camera not available, trying default camera');
+          // 背面カメラが失敗した場合、デフォルトカメラを試す（PC対応）
+          const defaultStream = await navigator.mediaDevices.getUserMedia(constraints);
+          defaultStream.getTracks().forEach(track => track.stop());
+          console.log('Default camera access confirmed');
+        }
       } catch (cameraError) {
         console.error('Camera access denied:', cameraError);
         setError('カメラへのアクセスが許可されていません。ブラウザの設定でカメラアクセスを許可してください。');
@@ -137,10 +153,10 @@ export const StorePayment: React.FC = () => {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
-          showTorchButtonIfSupported: true,
-          showZoomSliderIfSupported: true,
-          defaultZoomValueIfSupported: 2,
-          useBarCodeDetectorIfSupported: true
+          // PC対応：最もシンプルな設定
+          showTorchButtonIfSupported: false,
+          showZoomSliderIfSupported: false,
+          useBarCodeDetectorIfSupported: false
         },
         false
       );
