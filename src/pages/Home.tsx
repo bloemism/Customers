@@ -20,9 +20,9 @@ export const Home: React.FC = () => {
       {/* メインコンテンツ */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* ヘッダー */}
-        <header className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-white/30 relative z-50">
+        <header className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-white/30 relative z-50 w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
+            <div className="flex justify-between items-center py-3 sm:py-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
                   <Flower className="h-6 w-6 text-white" />
@@ -32,24 +32,25 @@ export const Home: React.FC = () => {
                 </h1>
               </div>
               
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 <button
                   onClick={() => {
                     console.log('新規登録ボタンがクリックされました');
                     navigate('/customer-signup');
                   }}
-                  className="bg-white text-pink-600 hover:text-pink-700 text-sm font-medium transition-colors border-2 border-pink-300 px-4 py-2 rounded-lg hover:bg-pink-50 hover:border-pink-400 shadow-md hover:shadow-lg cursor-pointer"
-                  style={{ minWidth: '80px', minHeight: '36px' }}
+                  className="bg-white text-pink-600 hover:text-pink-700 text-xs sm:text-sm font-medium transition-colors border-2 border-pink-300 px-2 sm:px-4 py-1 sm:py-2 rounded-lg hover:bg-pink-50 hover:border-pink-400 shadow-md hover:shadow-lg cursor-pointer block"
+                  style={{ minWidth: '60px', minHeight: '32px' }}
                 >
-                  新規登録
+                  <span className="hidden sm:inline">新規登録</span>
+                  <span className="sm:hidden">登録</span>
                 </button>
                 <button
                   onClick={() => {
                     console.log('ログインボタンがクリックされました');
                     navigate('/customer-login');
                   }}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer"
-                  style={{ minWidth: '80px', minHeight: '36px' }}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 sm:px-6 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer block"
+                  style={{ minWidth: '60px', minHeight: '32px' }}
                 >
                   ログイン
                 </button>
