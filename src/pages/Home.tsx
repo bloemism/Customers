@@ -20,7 +20,7 @@ export const Home: React.FC = () => {
       {/* メインコンテンツ */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* ヘッダー */}
-        <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-white/20">
+        <header className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-white/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-3">
@@ -35,13 +35,13 @@ export const Home: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => navigate('/customer-signup')}
-                  className="text-pink-600 hover:text-pink-700 text-sm font-medium transition-colors"
+                  className="text-pink-600 hover:text-pink-700 text-sm font-medium transition-colors border border-pink-300 px-3 py-1 rounded-md hover:bg-pink-50"
                 >
                   新規登録
                 </button>
                 <button
                   onClick={() => navigate('/customer-login')}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   ログイン
                 </button>
