@@ -84,14 +84,18 @@ export const StorePayment: React.FC = () => {
         setScanner(null);
       }
 
-      // DOM要素が存在することを確認
+      // DOM要素が存在することを確認（少し待ってから確認）
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       const qrReaderElement = document.getElementById("qr-reader");
       if (!qrReaderElement) {
-        console.error('QR reader element not found');
+        console.error('QR reader element not found after delay');
         setError('カメラの初期化に失敗しました');
         setCameraLoading(false);
         return;
       }
+
+      console.log('QR reader element found, proceeding with scanner initialization');
 
       // カメラアクセス許可を確認
       try {
@@ -112,6 +116,7 @@ export const StorePayment: React.FC = () => {
         return;
       }
 
+      console.log('Creating Html5QrcodeScanner...');
       const newScanner = new Html5QrcodeScanner(
         "qr-reader",
         {
@@ -126,6 +131,7 @@ export const StorePayment: React.FC = () => {
         false
       );
 
+      console.log('Scanner created, calling render...');
       newScanner.render(
         (decodedText) => {
           console.log('QR Code detected:', decodedText);
@@ -139,6 +145,7 @@ export const StorePayment: React.FC = () => {
         }
       );
 
+      console.log('Scanner render completed');
       setScanner(newScanner);
       setCameraLoading(false);
       setError(''); // エラーをクリア
@@ -227,14 +234,24 @@ export const StorePayment: React.FC = () => {
     setShowScanner(true);
   };
 
-  const stopCamera = () => {
-    if (scanner) {
-      scanner.clear();
-      setScanner(null);
+  const stopCamera = async () => {
+    try {
+      if (scanner) {
+        console.log('Stopping camera and clearing scanner...');
+        await scanner.clear();
+        setScanner(null);
+        console.log('Scanner cleared successfully');
+      }
+      setShowScanner(false);
+      setCameraLoading(false);
+      setError('');
+    } catch (error) {
+      console.error('Error stopping camera:', error);
+      // エラーが発生しても状態はリセット
+      setShowScanner(false);
+      setCameraLoading(false);
+      setError('');
     }
-    setShowScanner(false);
-    setCameraLoading(false);
-    setError('');
   };
 
 
