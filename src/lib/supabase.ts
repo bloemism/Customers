@@ -17,6 +17,8 @@ const createDummyClient = () => ({
   auth: {
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
     signIn: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+    signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+    signInWithOAuth: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
     signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
     signOut: () => Promise.resolve({ error: null }),
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
