@@ -55,15 +55,19 @@ export const StorePayment: React.FC = () => {
   const scannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (showScanner && scannerRef.current) {
+    if (showScanner) {
       // 少し遅延させてから初期化（DOM要素が確実に存在することを保証）
       setTimeout(() => {
         initializeScanner();
-      }, 100);
+      }, 300);
     }
     return () => {
       if (scanner) {
-        scanner.clear();
+        try {
+          scanner.clear();
+        } catch (e) {
+          console.log('Scanner clear error in useEffect cleanup (ignored):', e);
+        }
         setScanner(null);
       }
     };
@@ -87,9 +91,19 @@ export const StorePayment: React.FC = () => {
       // DOM要素が存在することを確認（少し待ってから確認）
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      const qrReaderElement = document.getElementById("qr-reader");
+      // 複数の方法でDOM要素を取得
+      let qrReaderElement = document.getElementById("qr-reader");
+      if (!qrReaderElement && scannerRef.current) {
+        qrReaderElement = scannerRef.current;
+      }
+      
       if (!qrReaderElement) {
         console.error('QR reader element not found after delay');
+        console.log('Available elements:', {
+          byId: document.getElementById("qr-reader"),
+          byRef: scannerRef.current,
+          showScanner: showScanner
+        });
         setError('カメラの初期化に失敗しました');
         setCameraLoading(false);
         return;
@@ -118,7 +132,7 @@ export const StorePayment: React.FC = () => {
 
       console.log('Creating Html5QrcodeScanner...');
       const newScanner = new Html5QrcodeScanner(
-        "qr-reader",
+        qrReaderElement.id || "qr-reader",
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
