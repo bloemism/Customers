@@ -34,6 +34,12 @@ export const Home: React.FC = () => {
               
               <div className="flex items-center space-x-4">
                 <button
+                  onClick={() => navigate('/customer-signup')}
+                  className="text-pink-600 hover:text-pink-700 text-sm font-medium transition-colors"
+                >
+                  新規登録
+                </button>
+                <button
                   onClick={() => navigate('/customer-login')}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >

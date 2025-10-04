@@ -147,6 +147,8 @@ function App() {
               } />
 
               {/* 顧客向けルート */}
+              <Route path="/customer-login" element={<CustomerLogin />} />
+              <Route path="/customer-signup" element={<CustomerSignUp />} />
               <Route path="/customer-menu" element={
                 <CustomerAuthGuard>
                   <CustomerMenuScreen />
