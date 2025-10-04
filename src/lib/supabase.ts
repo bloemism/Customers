@@ -30,7 +30,17 @@ const createDummyClient = () => ({
   })
 })
 
-export const supabase = supabaseUrl && supabaseAnonKey 
+// URLの有効性をチェックする関数
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const supabase = supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
@@ -41,15 +51,17 @@ export const supabase = supabaseUrl && supabaseAnonKey
     })
   : createDummyClient()
 
-// 接続テスト（環境変数が設定されている場合のみ）
-if (supabaseUrl && supabaseAnonKey) {
+// 接続テスト（環境変数が設定されていて有効な場合のみ）
+if (supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)) {
   supabase.auth.getSession().then(({ data, error }) => {
     if (error) {
       console.error('Supabase connection error:', error)
     } else {
       console.log('Supabase connected successfully')
     }
+  }).catch((error) => {
+    console.error('Supabase connection failed:', error)
   })
 } else {
-  console.log('Supabase client initialized in dummy mode (environment variables not set)')
+  console.log('Supabase client initialized in dummy mode (environment variables not set or invalid)')
 }
