@@ -93,6 +93,10 @@ const CheckoutScreen: React.FC = () => {
   // 支払い方法
   // const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
   
+  // 決済コード情報
+  const [paymentCode, setPaymentCode] = useState<string | null>(null);
+  const [paymentCodeLoading, setPaymentCodeLoading] = useState(false);
+  
   // QRコード・URL情報
   const [itemQRInfo, setItemQRInfo] = useState<{
     type: 'item' | 'receipt';
@@ -264,6 +268,79 @@ const CheckoutScreen: React.FC = () => {
       alert('URLをクリップボードにコピーしました');
     } catch (error) {
       console.error('コピーエラー:', error);
+    }
+  };
+
+  // 決済コード生成
+  const generatePaymentCode = async () => {
+    if (!store || checkoutItems.length === 0) {
+      alert('店舗情報または商品が不足しています');
+      return;
+    }
+
+    try {
+      setPaymentCodeLoading(true);
+      console.log('決済コード生成開始');
+
+      // 決済データの準備
+      const paymentData = {
+        type: 'payment',
+        storeId: store.id,
+        storeName: store.name,
+        storeAddress: store.address,
+        storePhone: store.phone,
+        storeEmail: store.email,
+        items: checkoutItems.map(item => {
+          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
+          const color = colorCategories.find(cat => cat.id === item.color_category_id);
+          return {
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
+            quantity: item.quantity,
+            total: item.total_price
+          };
+        }),
+        subtotal: subtotal,
+        tax: tax,
+        totalAmount: total,
+        pointsUsed: pointsToUse,
+        pointsEarned: pointsEarned,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('決済データ:', paymentData);
+
+      // 決済コード生成（5分間有効）
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .insert({
+          store_id: store.id,
+          payment_data: paymentData,
+          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
+        })
+        .select('code')
+        .single();
+
+      if (error) {
+        console.error('決済コード生成エラー:', error);
+        alert(`決済コード生成エラー: ${error.message}`);
+        return;
+      }
+
+      if (data && data.code) {
+        setPaymentCode(data.code);
+        console.log('決済コード生成成功:', data.code);
+        
+        // クリップボードにコピー
+        await copyToClipboard(data.code);
+      }
+
+    } catch (error) {
+      console.error('決済コード生成エラー:', error);
+      alert(`決済コード生成エラー: ${error}`);
+    } finally {
+      setPaymentCodeLoading(false);
     }
   };
 
@@ -977,6 +1054,37 @@ const CheckoutScreen: React.FC = () => {
 
             {/* 支払い方法選択 */}
             <div className="mt-6 space-y-3">
+              {/* 決済コード生成（新機能） */}
+              <button 
+                onClick={generatePaymentCode}
+                disabled={paymentCodeLoading}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {paymentCodeLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl mr-2">🔢</span>
+                    決済コード生成（5桁）
+                  </>
+                )}
+              </button>
+
+              {/* 生成された決済コード表示 */}
+              {paymentCode && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <p className="text-sm text-purple-700 mb-2">決済コード</p>
+                    <p className="text-3xl font-bold text-purple-900 mb-2">{paymentCode}</p>
+                    <p className="text-xs text-purple-600">お客様にこのコードをお伝えください</p>
+                    <p className="text-xs text-purple-500 mt-1">（5分間有効）</p>
+                  </div>
+                </div>
+              )}
+
               <button 
                 onClick={() => generateCashQRCode()}
                 className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
