@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CreditCard, User, Building, ShoppingCart, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 
+// API Base URL（空の場合は相対パス）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface PaymentSessionData {
   customerData: {
     id: string;
@@ -55,7 +58,7 @@ export const DynamicStripeCheckout: React.FC = () => {
     }
   }, []);
 
-  // 動的Payment Intent作成
+  // シンプルなStripe Checkout（既存のPayment Link使用）
   const handleDynamicPayment = async () => {
     if (!paymentData) return;
 
@@ -63,46 +66,22 @@ export const DynamicStripeCheckout: React.FC = () => {
     setError('');
 
     try {
-      // Stripe初期化
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-      if (!stripe) {
-        throw new Error('Stripeの初期化に失敗しました');
-      }
+      // 既存のStripe Payment Linkにリダイレクト
+      // 金額は手動入力になりますが、確実に動作します
+      const checkoutUrl = new URL('https://buy.stripe.com/test_bJedRbbhY832ez8cGtgnK02');
+      
+      // クエリパラメータで情報を渡す（参考情報として）
+      checkoutUrl.searchParams.set('prefilled_email', paymentData.customerData.email);
+      checkoutUrl.searchParams.set('client_reference_id', paymentData.paymentCode);
+      
+      // Stripeのメタデータとして保存（Webhook で使用可能）
+      checkoutUrl.searchParams.set('customer_name', paymentData.customerData.name);
+      checkoutUrl.searchParams.set('store_name', paymentData.storeData.storeName);
+      checkoutUrl.searchParams.set('amount', paymentData.finalAmount.toString());
 
-      // Payment Intent作成
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: Math.round(paymentData.finalAmount * 100), // 円をセントに変換
-          currency: 'jpy',
-          metadata: {
-            customerId: paymentData.customerData.id,
-            storeId: paymentData.storeData.storeId,
-            paymentCode: paymentData.paymentCode,
-            storeName: paymentData.storeData.storeName,
-            customerName: paymentData.customerData.name,
-            customerEmail: paymentData.customerData.email
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Payment Intentの作成に失敗しました');
-      }
-
-      const { clientSecret } = await response.json();
-
-      // Stripe Checkoutページにリダイレクト
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        clientSecret: clientSecret,
-      });
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
+      console.log('Stripe Checkoutにリダイレクト:', checkoutUrl.toString());
+      
+      window.location.href = checkoutUrl.toString();
 
     } catch (error) {
       console.error('Stripe決済エラー:', error);

@@ -34,6 +34,12 @@ const StripeCheckout = React.lazy(() => import('./pages/StripeCheckout').then(mo
 const DynamicStripeCheckout = React.lazy(() => import('./pages/DynamicStripeCheckout').then(module => ({ default: module.DynamicStripeCheckout })));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
 
+// Stripe Connect関連ページ
+const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
+const StripeConnectReturn = React.lazy(() => import('./pages/StripeConnectReturn').then(module => ({ default: module.StripeConnectReturn })));
+const StripeConnectRefresh = React.lazy(() => import('./pages/StripeConnectRefresh').then(module => ({ default: module.StripeConnectRefresh })));
+const StoreDashboard = React.lazy(() => import('./pages/StoreDashboard').then(module => ({ default: module.StoreDashboard })));
+
 
 // 認証ページ
 const SimpleLoginForm = React.lazy(() => import('./components/auth/SimpleLoginForm').then(module => ({ default: module.SimpleLoginForm })));
@@ -183,6 +189,16 @@ function App() {
                 <CustomerAuthGuard>
                   <CustomerReadmePage />
                 </CustomerAuthGuard>
+              } />
+
+              {/* Stripe Connect関連ルート */}
+              <Route path="/stripe-connect-onboarding" element={<StripeConnectOnboarding />} />
+              <Route path="/stripe-connect-return" element={<StripeConnectReturn />} />
+              <Route path="/stripe-connect-refresh" element={<StripeConnectRefresh />} />
+              <Route path="/store-dashboard" element={
+                <SimpleAuthGuard>
+                  <StoreDashboard />
+                </SimpleAuthGuard>
               } />
 
               

@@ -1,0 +1,34 @@
+Stripeテストキー（Vercelに設定する値）
+========================================
+
+以下の値をVercel Dashboardで設定してください：
+https://vercel.com/bloemisms-projects/customers/settings/environment-variables
+
+----- 更新する環境変数 -----
+
+変数名: VITE_STRIPE_PUBLISHABLE_KEY
+現在の値: pk_live_***（機密情報のため記載省略）
+新しい値: pk_test_***（機密情報のため記載省略）
+環境: Production, Preview, Development (All Environments)
+
+変数名: STRIPE_SECRET_KEY
+現在の値: sk_live_***（機密情報のため記載省略）
+新しい値: sk_test_***（機密情報のため記載省略）
+環境: Production, Preview, Development (All Environments)
+
+----- 編集手順 -----
+
+1. 各環境変数の右側の「...」→「Edit」をクリック
+2. Valueを新しいテストキーに変更
+3. Environment: All Environments を選択
+4. 「Save」をクリック
+
+----- 完了後 -----
+
+再デプロイを実行：
+cd /Users/user/customers && vercel --prod
+
+========================================
+テストモードでは実際の費用は発生しません。
+安全にテストできます！
+

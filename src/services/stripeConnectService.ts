@@ -1,331 +1,317 @@
 import { supabase } from '../lib/supabase';
 
-// Stripe Connect関連の型定義
-export interface ConnectedAccount {
+// API Base URL（空の場合は相対パス）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+export interface ConnectedAccountInfo {
   id: string;
-  email: string;
-  businessName: string;
-  businessType: 'individual' | 'company';
-  country: string;
-  currency: string;
-  status: 'pending' | 'restricted' | 'active';
-  chargesEnabled: boolean;
-  payoutsEnabled: boolean;
-  detailsSubmitted: boolean;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  email?: string;
+  business_profile?: {
+    name?: string;
+    product_description?: string;
+    support_email?: string;
+  };
+  requirements?: {
+    currently_due?: string[];
+    eventually_due?: string[];
+    past_due?: string[];
+  };
 }
 
-export interface PaymentFees {
-  totalAmount: number;
-  platformFee: number;
-  stripeFee: number;
-  storeAmount: number;
+export interface StoreAccountInfo {
+  id: string;
+  name: string;
+  stripe_account_id?: string;
+  stripe_account_status?: string;
+  stripe_charges_enabled?: boolean;
+  stripe_payouts_enabled?: boolean;
+  stripe_details_submitted?: boolean;
+  stripe_onboarding_completed?: boolean;
 }
 
 export interface PaymentTransaction {
   id: string;
-  storeId: string;
-  customerId?: string;
-  stripePaymentIntentId: string;
+  store_id: string;
+  customer_id: string;
+  payment_code: string;
+  stripe_payment_intent_id: string;
   amount: number;
+  platform_fee: number;
+  stripe_fee: number;
+  store_amount: number;
+  status: string;
+  created_at: string;
+  metadata?: any;
+}
+
+export interface RevenueStats {
+  total_sales: number;
+  total_transactions: number;
+  total_platform_fees: number;
+  total_stripe_fees: number;
+  total_net_revenue: number;
+  average_transaction_amount: number;
+}
+
+/**
+ * Stripe Connected Accountを作成
+ */
+export const createConnectedAccount = async (
+  storeId: string,
+  email: string,
+  businessName: string,
+  businessType: 'individual' | 'company' = 'individual'
+): Promise<{ success: boolean; accountId?: string; onboardingUrl?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/create-connected-account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        storeId,
+        email,
+        businessName,
+        businessType,
+        country: 'JP',
+        currency: 'jpy',
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Connected Accountの作成に失敗しました');
+    }
+
+    return {
+      success: true,
+      accountId: data.accountId,
+      onboardingUrl: data.onboardingUrl,
+    };
+  } catch (error) {
+    console.error('Connected Account作成エラー:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Connected Accountの作成に失敗しました',
+    };
+  }
+};
+
+/**
+ * Connected Account情報を取得
+ */
+export const getConnectedAccount = async (
+  storeId: string
+): Promise<{ success: boolean; hasAccount: boolean; account?: ConnectedAccountInfo; store?: StoreAccountInfo; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/get-connected-account?storeId=${storeId}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'アカウント情報の取得に失敗しました');
+    }
+
+    return {
+      success: true,
+      hasAccount: data.hasAccount,
+      account: data.account,
+      store: data.store,
+    };
+  } catch (error) {
+    console.error('Connected Account情報取得エラー:', error);
+    return {
+      success: false,
+      hasAccount: false,
+      error: error instanceof Error ? error.message : 'アカウント情報の取得に失敗しました',
+    };
+  }
+};
+
+/**
+ * オンボーディングリンクを再生成
+ */
+export const createAccountLink = async (
+  storeId: string,
+  accountId: string
+): Promise<{ success: boolean; url?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/create-account-link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        storeId,
+        accountId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'オンボーディングリンクの作成に失敗しました');
+    }
+
+    return {
+      success: true,
+      url: data.url,
+    };
+  } catch (error) {
+    console.error('オンボーディングリンク作成エラー:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'オンボーディングリンクの作成に失敗しました',
+    };
+  }
+};
+
+/**
+ * 店舗の決済トランザクション履歴を取得
+ */
+export const getStoreTransactions = async (
+  storeId: string,
+  limit: number = 50
+): Promise<{ success: boolean; transactions?: PaymentTransaction[]; error?: string }> => {
+  try {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      success: true,
+      transactions: data as PaymentTransaction[],
+    };
+  } catch (error) {
+    console.error('トランザクション履歴取得エラー:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'トランザクション履歴の取得に失敗しました',
+    };
+  }
+};
+
+/**
+ * 店舗の売上統計を取得
+ */
+export const getStoreRevenueStats = async (
+  storeId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<{ success: boolean; stats?: RevenueStats; error?: string }> => {
+  try {
+    const { data, error } = await supabase.rpc('get_store_revenue_stats', {
+      p_store_id: storeId,
+      p_start_date: startDate || null,
+      p_end_date: endDate || null,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      success: true,
+      stats: data[0] as RevenueStats,
+    };
+  } catch (error) {
+    console.error('売上統計取得エラー:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '売上統計の取得に失敗しました',
+    };
+  }
+};
+
+/**
+ * 手数料を計算
+ */
+export const calculateFees = (amount: number): {
+  total: number;
   platformFee: number;
   stripeFee: number;
   storeAmount: number;
-  status: 'pending' | 'succeeded' | 'failed' | 'canceled';
-  createdAt: string;
-}
+} => {
+  const platformFeeRate = 0.03; // 3%
+  const stripeFeeRate = 0.036; // 3.6%
+  const stripeFixedFee = 0; // Stripe Connectの場合、固定費は不要
 
-export class StripeConnectService {
-  // Connected Account作成
-  static async createConnectedAccount(storeData: {
-    email: string;
-    businessName: string;
-    businessType: 'individual' | 'company';
-    country: string;
-    currency: string;
-    phone?: string;
-    address?: string;
-  }): Promise<{ data: ConnectedAccount | null; error: string | null }> {
-    try {
-      console.log('Connected Account作成開始:', storeData);
+  const platformFee = Math.round(amount * platformFeeRate);
+  const stripeFee = Math.round(amount * stripeFeeRate) + stripeFixedFee;
+  const storeAmount = amount - platformFee - stripeFee;
 
-      // Supabase Edge Function経由でStripe APIを呼び出し
-      const { data, error } = await supabase.functions.invoke('create-connected-account', {
-        body: storeData
-      });
+  return {
+    total: amount,
+    platformFee,
+    stripeFee,
+    storeAmount,
+  };
+};
 
-      if (error) {
-        console.error('Connected Account作成エラー:', error);
-        return { data: null, error: error.message };
-      }
+/**
+ * Stripe Connect決済を作成（手数料分割あり）
+ */
+export const createConnectPayment = async (
+  amount: number,
+  storeId: string,
+  storeAccountId: string,
+  customerId: string,
+  paymentCode: string,
+  metadata: any
+): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+  try {
+    const fees = calculateFees(amount);
 
-      console.log('Connected Account作成成功:', data);
-      return { data, error: null };
-
-    } catch (error) {
-      console.error('Connected Account作成エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : 'Connected Account作成に失敗しました' 
-      };
-    }
-  }
-
-  // 店舗のConnected Account情報取得
-  static async getConnectedAccount(storeId: string): Promise<{ data: ConnectedAccount | null; error: string | null }> {
-    try {
-      // まずデータベースからStripe Account IDを取得
-      const { data: store, error: storeError } = await supabase
-        .from('stores')
-        .select('stripe_account_id')
-        .eq('id', storeId)
-        .single();
-
-      if (storeError || !store?.stripe_account_id) {
-        return { data: null, error: '店舗のStripe Account IDが見つかりません' };
-      }
-
-      // Supabase Edge Function経由でStripe APIを呼び出し
-      const { data, error } = await supabase.functions.invoke('get-connected-account', {
-        body: { accountId: store.stripe_account_id }
-      });
-
-      if (error) {
-        console.error('Connected Account取得エラー:', error);
-        return { data: null, error: error.message };
-      }
-
-      return { data, error: null };
-
-    } catch (error) {
-      console.error('Connected Account取得エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : 'Connected Account取得に失敗しました' 
-      };
-    }
-  }
-
-  // 手数料計算
-  static async calculateFees(amount: number): Promise<{ data: PaymentFees | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .rpc('calculate_payment_fees', {
-          amount_cents: Math.round(amount * 100) // 円をセントに変換
-        })
-        .single();
-
-      if (error) {
-        console.error('手数料計算エラー:', error);
-        return { data: null, error: error.message };
-      }
-
-      // セントを円に変換
-      const fees: PaymentFees = {
-        totalAmount: data.total_amount / 100,
-        platformFee: data.platform_fee / 100,
-        stripeFee: data.stripe_fee / 100,
-        storeAmount: data.store_amount / 100
-      };
-
-      return { data: fees, error: null };
-
-    } catch (error) {
-      console.error('手数料計算エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : '手数料計算に失敗しました' 
-      };
-    }
-  }
-
-  // Connect決済の作成
-  static async createConnectPayment(paymentData: {
-    amount: number;
-    storeId: string;
-    customerId?: string;
-    description?: string;
-    metadata?: Record<string, string>;
-  }): Promise<{ data: { clientSecret: string; paymentIntentId: string } | null; error: string | null }> {
-    try {
-      console.log('Connect決済作成開始:', paymentData);
-
-      // 手数料計算
-      const { data: fees, error: feesError } = await this.calculateFees(paymentData.amount);
-      if (feesError || !fees) {
-        return { data: null, error: feesError || '手数料計算に失敗しました' };
-      }
-
-      // Supabase Edge Function経由でStripe APIを呼び出し
-      const { data, error } = await supabase.functions.invoke('create-connect-payment', {
-        body: {
-          amount: Math.round(paymentData.amount * 100), // セントに変換
-          storeId: paymentData.storeId,
-          customerId: paymentData.customerId,
-          applicationFeeAmount: Math.round(fees.platformFee * 100),
-          description: paymentData.description,
-          metadata: paymentData.metadata
-        }
-      });
-
-      if (error) {
-        console.error('Connect決済作成エラー:', error);
-        return { data: null, error: error.message };
-      }
-
-      console.log('Connect決済作成成功:', data);
-      return { data, error: null };
-
-    } catch (error) {
-      console.error('Connect決済作成エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : 'Connect決済作成に失敗しました' 
-      };
-    }
-  }
-
-  // 決済履歴取得
-  static async getPaymentTransactions(storeId: string, limit: number = 50): Promise<{ data: PaymentTransaction[] | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('payment_transactions')
-        .select(`
-          id,
-          store_id,
-          customer_id,
-          stripe_payment_intent_id,
-          amount,
-          platform_fee,
-          stripe_fee,
-          store_amount,
-          status,
-          created_at
-        `)
-        .eq('store_id', storeId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.error('決済履歴取得エラー:', error);
-        return { data: null, error: error.message };
-      }
-
-      // セントを円に変換
-      const transactions: PaymentTransaction[] = (data || []).map(transaction => ({
-        id: transaction.id,
-        storeId: transaction.store_id,
-        customerId: transaction.customer_id,
-        stripePaymentIntentId: transaction.stripe_payment_intent_id,
-        amount: transaction.amount / 100,
-        platformFee: transaction.platform_fee / 100,
-        stripeFee: transaction.stripe_fee / 100,
-        storeAmount: transaction.store_amount / 100,
-        status: transaction.status,
-        createdAt: transaction.created_at
-      }));
-
-      return { data: transactions, error: null };
-
-    } catch (error) {
-      console.error('決済履歴取得エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : '決済履歴取得に失敗しました' 
-      };
-    }
-  }
-
-  // 店舗の決済設定取得
-  static async getStorePaymentSettings(storeId: string): Promise<{ data: any | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('store_payment_settings')
-        .select('*')
-        .eq('store_id', storeId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // データが見つからない場合はエラーではない
-        console.error('店舗決済設定取得エラー:', error);
-        return { data: null, error: error.message };
-      }
-
-      return { data: data || null, error: null };
-
-    } catch (error) {
-      console.error('店舗決済設定取得エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : '店舗決済設定取得に失敗しました' 
-      };
-    }
-  }
-
-  // 店舗の決済設定更新
-  static async updateStorePaymentSettings(storeId: string, settings: {
-    autoTransferEnabled?: boolean;
-    transferSchedule?: 'daily' | 'weekly' | 'monthly';
-    minimumTransferAmount?: number;
-    bankAccountInfo?: any;
-    taxId?: string;
-    businessLicense?: string;
-  }): Promise<{ data: any | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('store_payment_settings')
-        .upsert({
+    const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount: amount * 100, // 円をセントに変換
+        currency: 'jpy',
+        application_fee_amount: fees.platformFee * 100,
+        transfer_data: {
+          destination: storeAccountId,
+        },
+        metadata: {
+          ...metadata,
+          customer_id: customerId,
           store_id: storeId,
-          ...settings,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+          payment_code: paymentCode,
+          platform_fee: fees.platformFee,
+          stripe_fee: fees.stripeFee,
+          store_amount: fees.storeAmount,
+        },
+      }),
+    });
 
-      if (error) {
-        console.error('店舗決済設定更新エラー:', error);
-        return { data: null, error: error.message };
-      }
+    const data = await response.json();
 
-      return { data, error: null };
-
-    } catch (error) {
-      console.error('店舗決済設定更新エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : '店舗決済設定更新に失敗しました' 
-      };
+    if (!response.ok) {
+      throw new Error(data.error || '決済の作成に失敗しました');
     }
+
+    return {
+      success: true,
+      sessionId: data.sessionId,
+    };
+  } catch (error) {
+    console.error('Connect決済作成エラー:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '決済の作成に失敗しました',
+    };
   }
-
-  // 店舗のStripe Connect状況確認
-  static async checkConnectStatus(storeId: string): Promise<{ data: any | null; error: string | null }> {
-    try {
-      const { data: store, error: storeError } = await supabase
-        .from('stores')
-        .select(`
-          id,
-          name,
-          stripe_account_id,
-          stripe_account_status,
-          stripe_account_verified,
-          stripe_connect_enabled
-        `)
-        .eq('id', storeId)
-        .single();
-
-      if (storeError) {
-        console.error('店舗情報取得エラー:', storeError);
-        return { data: null, error: storeError.message };
-      }
-
-      return { data: store, error: null };
-
-    } catch (error) {
-      console.error('Connect状況確認エラー:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : 'Connect状況確認に失敗しました' 
-      };
-    }
-  }
-}
-
+};

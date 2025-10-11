@@ -38,8 +38,16 @@ export default async function handler(req, res) {
         await handlePaymentFailed(event.data.object);
         break;
       
+      case 'account.updated':
+        await handleAccountUpdated(event.data.object);
+        break;
+      
       case 'transfer.created':
         await handleTransferCreated(event.data.object);
+        break;
+      
+      case 'transfer.updated':
+        await handleTransferUpdated(event.data.object);
         break;
       
       default:
@@ -182,12 +190,75 @@ async function handlePaymentFailed(paymentIntent) {
   }
 }
 
+// アカウント更新時の処理
+async function handleAccountUpdated(account) {
+  console.log('アカウント更新処理開始:', account.id);
+
+  try {
+    // Supabaseで該当する店舗を検索
+    const { data: stores, error: searchError } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('stripe_account_id', account.id);
+
+    if (searchError) {
+      console.error('店舗検索エラー:', searchError);
+      return;
+    }
+
+    if (!stores || stores.length === 0) {
+      console.log('該当する店舗が見つかりません:', account.id);
+      return;
+    }
+
+    const storeId = stores[0].id;
+
+    // 店舗情報を更新
+    const { error: updateError } = await supabase
+      .from('stores')
+      .update({
+        stripe_account_status: account.details_submitted ? 'active' : 'pending',
+        stripe_charges_enabled: account.charges_enabled,
+        stripe_payouts_enabled: account.payouts_enabled,
+        stripe_details_submitted: account.details_submitted,
+        stripe_onboarding_completed: account.details_submitted && account.charges_enabled,
+        stripe_updated_at: new Date().toISOString()
+      })
+      .eq('id', storeId);
+
+    if (updateError) {
+      console.error('店舗情報更新エラー:', updateError);
+    } else {
+      console.log('店舗情報更新成功:', storeId);
+    }
+
+  } catch (error) {
+    console.error('アカウント更新処理エラー:', error);
+  }
+}
+
 // 送金作成時の処理
 async function handleTransferCreated(transfer) {
   console.log('送金作成処理開始:', transfer.id);
 
   try {
-    // 送金履歴を記録（必要に応じて）
+    // payment_transactionsテーブルを更新
+    if (transfer.source_transaction) {
+      const { error: updateError } = await supabase
+        .from('payment_transactions')
+        .update({
+          stripe_transfer_id: transfer.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('stripe_payment_intent_id', transfer.source_transaction);
+
+      if (updateError) {
+        console.error('トランザクション更新エラー:', updateError);
+      } else {
+        console.log('トランザクション更新成功');
+      }
+    }
+
     console.log('送金作成成功:', {
       id: transfer.id,
       amount: transfer.amount,
@@ -197,5 +268,23 @@ async function handleTransferCreated(transfer) {
 
   } catch (error) {
     console.error('送金作成処理エラー:', error);
+  }
+}
+
+// 送金更新時の処理
+async function handleTransferUpdated(transfer) {
+  console.log('送金更新処理開始:', transfer.id);
+
+  try {
+    // 送金ステータスを記録
+    console.log('送金更新成功:', {
+      id: transfer.id,
+      amount: transfer.amount,
+      destination: transfer.destination,
+      status: transfer.status
+    });
+
+  } catch (error) {
+    console.error('送金更新処理エラー:', error);
   }
 }

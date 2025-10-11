@@ -1,0 +1,51 @@
+Vercel環境変数設定値
+========================
+
+Vercelダッシュボードで以下の環境変数を設定してください：
+https://vercel.com/bloemisms-projects/customers/settings/environment-variables
+
+----- フロントエンド用環境変数 -----
+
+変数名: VITE_SUPABASE_URL
+値: https://aoqmdyapjsmmvjrwfdup.supabase.co
+環境: Production, Preview, Development
+
+変数名: VITE_SUPABASE_ANON_KEY
+値: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5OTY2NTAsImV4cCI6MjA3MDU3MjY1MH0.jPQ4jGvuLDDZ4sFU1sbakWJIRyBKbEkaXsTnirQR4PY
+環境: Production, Preview, Development
+
+変数名: VITE_GOOGLE_MAPS_API_KEY
+値: AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g
+環境: Production, Preview, Development
+
+変数名: VITE_STRIPE_PUBLISHABLE_KEY
+値: pk_live_***（機密情報のため記載省略 - Stripeダッシュボードから取得）
+環境: Production
+
+----- API用環境変数（サーバーレス関数で使用） -----
+
+変数名: STRIPE_SECRET_KEY
+値: sk_live_***（機密情報のため記載省略 - Stripeダッシュボードから取得）
+環境: Production
+
+変数名: SUPABASE_SERVICE_ROLE_KEY
+値: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDk5NjY1MCwiZXhwIjoyMDcwNTcyNjUwfQ.v8vniAL-aYfmFZgVDfBa6q_RoTrvmE_uXQjQweLiui8
+環境: Production
+
+変数名: VITE_SUPABASE_URL
+値: https://aoqmdyapjsmmvjrwfdup.supabase.co
+環境: Production
+※APIからも参照されるため、再度追加
+
+----- オプション（Webhook用） -----
+
+変数名: STRIPE_WEBHOOK_SECRET
+値: （Stripeダッシュボードから取得）
+環境: Production
+
+Webhook URL: https://customers-three-rust.vercel.app/api/stripe-webhook
+
+========================
+設定後、再デプロイしてください：
+cd /Users/user/customers && vercel --prod
+
