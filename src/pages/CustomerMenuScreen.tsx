@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
 import { 
-  QrCode, 
   MapPin, 
   Map, 
   Calendar, 
@@ -13,10 +12,10 @@ import {
   Flower,
   User,
   UserPlus,
-  CreditCard,
   Scan,
   Receipt,
-  History
+  History,
+  IdCard
 } from 'lucide-react';
 import TechnicalPointsDisplay from '../components/TechnicalPointsDisplay';
 
@@ -99,12 +98,12 @@ export const CustomerMenuScreen: React.FC = () => {
       route: '/customer-data-registration'
     },
     {
-      id: 'customer-qr',
-      title: 'マイQRコード',
-      description: '決済用QRコードとポイント残高を表示',
-      icon: QrCode,
-      color: 'from-blue-500 to-cyan-600',
-      route: '/customer-qr'
+      id: 'customer-code',
+      title: 'マイ顧客コード',
+      description: '店舗登録用コード（A1234形式）',
+      icon: IdCard,
+      color: 'from-cyan-500 to-blue-600',
+      route: '/customer-code'
     },
     {
       id: 'store-payment',
