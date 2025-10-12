@@ -143,16 +143,25 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
 
   const getPointHistory = async (): Promise<PointHistory[]> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('ユーザーが認証されていません');
+      if (!customer || !customer.id) {
+        console.error('顧客データが存在しません');
+        return [];
+      }
+
+      console.log('ポイント履歴取得開始:', customer.id);
 
       const { data, error } = await supabase
         .from('point_history')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('ポイント履歴取得エラー:', error);
+        throw error;
+      }
+
+      console.log('ポイント履歴取得成功:', data?.length || 0, '件');
       return data || [];
     } catch (err) {
       console.error('ポイント履歴取得エラー:', err);
@@ -162,16 +171,25 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
 
   const getPaymentHistory = async (): Promise<CustomerPayment[]> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('ユーザーが認証されていません');
+      if (!customer || !customer.id) {
+        console.error('顧客データが存在しません');
+        return [];
+      }
+
+      console.log('決済履歴取得開始:', customer.id);
 
       const { data, error } = await supabase
         .from('customer_payments')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('決済履歴取得エラー:', error);
+        throw error;
+      }
+
+      console.log('決済履歴取得成功:', data?.length || 0, '件');
       return data || [];
     } catch (err) {
       console.error('決済履歴取得エラー:', err);

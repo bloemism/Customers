@@ -108,7 +108,7 @@ const PaymentHistoryPage: React.FC = () => {
                 <p className="text-2xl font-bold text-purple-600">
                   {payments
                     .filter(p => p.status === 'completed')
-                    .reduce((sum, p) => sum + Math.floor(p.amount * 0.05), 0)} pt
+                    .reduce((sum, p) => sum + (p.points_earned || Math.floor(p.amount * 0.05)), 0)} pt
                 </p>
               </div>
             </div>
@@ -173,7 +173,7 @@ const PaymentHistoryPage: React.FC = () => {
                       <div>
                         <span className="text-gray-500">獲得ポイント:</span>
                         <span className="ml-2 font-medium text-blue-600">
-                          +{Math.floor(payment.amount * 0.05)} pt
+                          +{payment.points_earned || Math.floor(payment.amount * 0.05)} pt
                         </span>
                       </div>
                     </div>

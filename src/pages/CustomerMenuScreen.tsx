@@ -14,7 +14,9 @@ import {
   User,
   UserPlus,
   CreditCard,
-  Scan
+  Scan,
+  Receipt,
+  History
 } from 'lucide-react';
 import TechnicalPointsDisplay from '../components/TechnicalPointsDisplay';
 
@@ -111,6 +113,22 @@ export const CustomerMenuScreen: React.FC = () => {
       icon: Scan,
       color: 'from-green-500 to-emerald-600',
       route: '/store-payment'
+    },
+    {
+      id: 'payment-history',
+      title: '決済履歴',
+      description: '過去の決済履歴と総決済金額を確認',
+      icon: Receipt,
+      color: 'from-violet-500 to-purple-600',
+      route: '/payment-history'
+    },
+    {
+      id: 'point-history',
+      title: 'ポイント履歴',
+      description: 'ポイントの獲得・使用履歴を確認',
+      icon: History,
+      color: 'from-amber-500 to-orange-600',
+      route: '/point-history'
     },
     {
       id: 'florist-map',
