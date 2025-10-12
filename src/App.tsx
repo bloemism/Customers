@@ -36,7 +36,6 @@ const DynamicStripeCheckout = React.lazy(() => import('./pages/DynamicStripeChec
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
 const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
 const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
-const CustomerCodePage = React.lazy(() => import('./pages/CustomerCodePage').then(module => ({ default: module.CustomerCodePage })));
 
 // Stripe Connect関連ページ
 const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
@@ -203,11 +202,6 @@ function App() {
               <Route path="/point-history" element={
                 <CustomerAuthGuard>
                   <PointHistoryPage />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/customer-code" element={
-                <CustomerAuthGuard>
-                  <CustomerCodePage />
                 </CustomerAuthGuard>
               } />
 
