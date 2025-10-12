@@ -13,8 +13,13 @@ const PaymentHistoryPage: React.FC = () => {
   useEffect(() => {
     const fetchPayments = async () => {
       try {
-        const data = await getPaymentHistory();
-        setPayments(data);
+        if (customer && customer.id) {
+          const data = await getPaymentHistory();
+          setPayments(data);
+        } else {
+          console.log('顧客データがまだ読み込まれていません');
+          setPayments([]);
+        }
       } catch (error) {
         console.error('決済履歴の取得に失敗しました:', error);
       } finally {
@@ -23,7 +28,7 @@ const PaymentHistoryPage: React.FC = () => {
     };
 
     fetchPayments();
-  }, [getPaymentHistory]);
+  }, [customer, getPaymentHistory]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ja-JP', {

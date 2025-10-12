@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
+import { CustomerProvider } from './contexts/CustomerContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
 import { CustomerAuthGuard } from './components/CustomerAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -33,6 +34,8 @@ const PaymentConfirmation = React.lazy(() => import('./pages/PaymentConfirmation
 const StripeCheckout = React.lazy(() => import('./pages/StripeCheckout').then(module => ({ default: module.StripeCheckout })));
 const DynamicStripeCheckout = React.lazy(() => import('./pages/DynamicStripeCheckout').then(module => ({ default: module.DynamicStripeCheckout })));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
+const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
+const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
 
 // Stripe Connect関連ページ
 const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
@@ -70,6 +73,7 @@ function App() {
       <Router>
       <SimpleAuthProvider>
         <CustomerAuthProvider>
+          <CustomerProvider>
         <div className="App">
             <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -190,6 +194,16 @@ function App() {
                   <CustomerReadmePage />
                 </CustomerAuthGuard>
               } />
+              <Route path="/payment-history" element={
+                <CustomerAuthGuard>
+                  <PaymentHistoryPage />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/point-history" element={
+                <CustomerAuthGuard>
+                  <PointHistoryPage />
+                </CustomerAuthGuard>
+              } />
 
               {/* Stripe Connect関連ルート */}
               <Route path="/stripe-connect-onboarding" element={<StripeConnectOnboarding />} />
@@ -229,6 +243,7 @@ function App() {
           </Routes>
             </Suspense>
         </div>
+          </CustomerProvider>
         </CustomerAuthProvider>
       </SimpleAuthProvider>
       </Router>

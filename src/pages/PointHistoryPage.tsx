@@ -13,8 +13,13 @@ const PointHistoryPage: React.FC = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const data = await getPointHistory();
-        setHistory(data);
+        if (customer && customer.id) {
+          const data = await getPointHistory();
+          setHistory(data);
+        } else {
+          console.log('顧客データがまだ読み込まれていません');
+          setHistory([]);
+        }
       } catch (error) {
         console.error('ポイント履歴の取得に失敗しました:', error);
       } finally {
@@ -23,7 +28,7 @@ const PointHistoryPage: React.FC = () => {
     };
 
     fetchHistory();
-  }, [getPointHistory]);
+  }, [customer, getPointHistory]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ja-JP', {
