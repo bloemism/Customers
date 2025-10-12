@@ -130,3 +130,4 @@ export const StripeConnectReturn: React.FC = () => {
 
 export default StripeConnectReturn;
 
+

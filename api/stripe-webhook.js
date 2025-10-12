@@ -64,39 +64,65 @@ export default async function handler(req, res) {
 // 決済成功時の処理
 async function handlePaymentSucceeded(paymentIntent) {
   console.log('決済成功処理開始:', paymentIntent.id);
+  console.log('Payment Intent metadata:', paymentIntent.metadata);
 
   const metadata = paymentIntent.metadata;
   const customerId = metadata.customer_id;
+  const storeId = metadata.store_id;
+  const paymentCode = metadata.payment_code;
   const pointsUsed = parseInt(metadata.points_used || '0');
-  const pointsEarned = Math.floor(paymentIntent.amount * 0.05); // 5%のポイント付与
+  const pointsEarned = Math.floor(paymentIntent.amount / 100 * 0.05); // 5%のポイント付与（amountはセント単位）
+
+  if (!customerId) {
+    console.error('customer_idがmetadataに含まれていません');
+    return;
+  }
 
   try {
-    // 顧客データを更新
+    // 1. 顧客の現在のポイントを取得
+    const { data: customerData, error: fetchError } = await supabase
+      .from('customers')
+      .select('total_points')
+      .eq('id', customerId)
+      .single();
+
+    if (fetchError) {
+      console.error('顧客データ取得エラー:', fetchError);
+    } else {
+      console.log('顧客の現在のポイント:', customerData?.total_points || 0);
+    }
+
+    // 2. 顧客データを更新（ポイント付与）
+    const newPoints = (customerData?.total_points || 0) + pointsEarned - pointsUsed;
     const { error: updateError } = await supabase
       .from('customers')
       .update({
-        points: supabase.sql`points - ${pointsUsed} + ${pointsEarned}`,
+        total_points: newPoints,
+        total_purchase_amount: supabase.sql`total_purchase_amount + ${paymentIntent.amount / 100}`,
+        last_purchase_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', customerId);
+      .eq('id', customerId);
 
     if (updateError) {
       console.error('顧客データ更新エラー:', updateError);
     } else {
-      console.log('顧客データ更新成功');
+      console.log('顧客データ更新成功:', { customerId, newPoints });
     }
 
-    // 決済履歴を記録
+    // 3. 決済履歴を記録（customer_payments）
     const { error: historyError } = await supabase
       .from('customer_payments')
       .insert([
         {
-          user_id: customerId,
-          store_id: metadata.store_id || '',
-          amount: paymentIntent.amount,
+          customer_id: customerId,
+          store_id: storeId,
+          amount: paymentIntent.amount / 100, // 円に変換
+          points_earned: pointsEarned,
           points_used: pointsUsed,
-          payment_method: 'stripe_connect',
+          payment_method: 'stripe_checkout',
           status: 'completed',
+          payment_code: paymentCode,
           stripe_payment_intent_id: paymentIntent.id,
           created_at: new Date().toISOString()
         }
@@ -108,13 +134,13 @@ async function handlePaymentSucceeded(paymentIntent) {
       console.log('決済履歴記録成功');
     }
 
-    // ポイント履歴を記録
+    // 4. ポイント履歴を記録（付与）
     if (pointsEarned > 0) {
       const { error: pointError } = await supabase
         .from('point_history')
         .insert([
           {
-            user_id: customerId,
+            customer_id: customerId,
             points: pointsEarned,
             reason: `決済完了 - ${metadata.store_name || '不明な店舗'}`,
             type: 'earned',
@@ -123,19 +149,19 @@ async function handlePaymentSucceeded(paymentIntent) {
         ]);
 
       if (pointError) {
-        console.error('ポイント履歴記録エラー:', pointError);
+        console.error('ポイント履歴記録エラー（付与）:', pointError);
       } else {
-        console.log('ポイント履歴記録成功');
+        console.log('ポイント履歴記録成功（付与）:', pointsEarned);
       }
     }
 
-    // ポイント使用履歴を記録
+    // 5. ポイント使用履歴を記録
     if (pointsUsed > 0) {
       const { error: pointUsedError } = await supabase
         .from('point_history')
         .insert([
           {
-            user_id: customerId,
+            customer_id: customerId,
             points: -pointsUsed,
             reason: `決済時のポイント使用 - ${metadata.store_name || '不明な店舗'}`,
             type: 'used',
@@ -146,7 +172,7 @@ async function handlePaymentSucceeded(paymentIntent) {
       if (pointUsedError) {
         console.error('ポイント使用履歴記録エラー:', pointUsedError);
       } else {
-        console.log('ポイント使用履歴記録成功');
+        console.log('ポイント使用履歴記録成功:', pointsUsed);
       }
     }
 
@@ -158,9 +184,17 @@ async function handlePaymentSucceeded(paymentIntent) {
 // 決済失敗時の処理
 async function handlePaymentFailed(paymentIntent) {
   console.log('決済失敗処理開始:', paymentIntent.id);
+  console.log('Payment Intent metadata:', paymentIntent.metadata);
 
   const metadata = paymentIntent.metadata;
   const customerId = metadata.customer_id;
+  const storeId = metadata.store_id;
+  const paymentCode = metadata.payment_code;
+
+  if (!customerId) {
+    console.error('customer_idがmetadataに含まれていません');
+    return;
+  }
 
   try {
     // 決済履歴を記録（失敗）
@@ -168,12 +202,14 @@ async function handlePaymentFailed(paymentIntent) {
       .from('customer_payments')
       .insert([
         {
-          user_id: customerId,
-          store_id: metadata.store_id || '',
-          amount: paymentIntent.amount,
+          customer_id: customerId,
+          store_id: storeId,
+          amount: paymentIntent.amount / 100, // 円に変換
+          points_earned: 0,
           points_used: 0,
-          payment_method: 'stripe_connect',
+          payment_method: 'stripe_checkout',
           status: 'failed',
+          payment_code: paymentCode,
           stripe_payment_intent_id: paymentIntent.id,
           created_at: new Date().toISOString()
         }

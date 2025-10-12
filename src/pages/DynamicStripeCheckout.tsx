@@ -58,7 +58,7 @@ export const DynamicStripeCheckout: React.FC = () => {
     }
   }, []);
 
-  // シンプルなStripe Checkout（既存のPayment Link使用）
+  // Stripe Checkout（API経由でmetadataを正しく渡す）
   const handleDynamicPayment = async () => {
     if (!paymentData) return;
 
@@ -66,22 +66,45 @@ export const DynamicStripeCheckout: React.FC = () => {
     setError('');
 
     try {
-      // 既存のStripe Payment Linkにリダイレクト
-      // 金額は手動入力になりますが、確実に動作します
-      const checkoutUrl = new URL('https://buy.stripe.com/test_bJedRbbhY832ez8cGtgnK02');
-      
-      // クエリパラメータで情報を渡す（参考情報として）
-      checkoutUrl.searchParams.set('prefilled_email', paymentData.customerData.email);
-      checkoutUrl.searchParams.set('client_reference_id', paymentData.paymentCode);
-      
-      // Stripeのメタデータとして保存（Webhook で使用可能）
-      checkoutUrl.searchParams.set('customer_name', paymentData.customerData.name);
-      checkoutUrl.searchParams.set('store_name', paymentData.storeData.storeName);
-      checkoutUrl.searchParams.set('amount', paymentData.finalAmount.toString());
+      console.log('決済データ:', paymentData);
 
-      console.log('Stripe Checkoutにリダイレクト:', checkoutUrl.toString());
-      
-      window.location.href = checkoutUrl.toString();
+      // Payment Intent作成（metadata付き）
+      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: Math.round(paymentData.finalAmount * 100), // 円をセントに変換
+          currency: 'jpy',
+          metadata: {
+            customer_id: paymentData.customerData.id,
+            customer_name: paymentData.customerData.name,
+            customer_email: paymentData.customerData.email,
+            store_id: paymentData.storeData.storeId,
+            store_name: paymentData.storeData.storeName,
+            payment_code: paymentData.paymentCode,
+            points_used: '0', // 今後実装
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API エラーレスポンス:', errorData);
+        throw new Error(errorData.error || 'Payment Intentの作成に失敗しました');
+      }
+
+      const { url, sessionId } = await response.json();
+
+      console.log('Checkout Session作成成功:', { sessionId, url });
+
+      // Stripe Checkoutページにリダイレクト
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Checkout URLが取得できませんでした');
+      }
 
     } catch (error) {
       console.error('Stripe決済エラー:', error);

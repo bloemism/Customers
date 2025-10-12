@@ -134,3 +134,4 @@ AND table_name = 'customer_technical_levels';
 
 まず、RLSポリシーを修正してから、シークレットモードでテストしてください！
 
+
