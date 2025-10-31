@@ -16,7 +16,8 @@ import {
   CreditCard,
   Scan,
   Receipt,
-  History
+  History,
+  Shield
 } from 'lucide-react';
 import TechnicalPointsDisplay from '../components/TechnicalPointsDisplay';
 
@@ -100,8 +101,8 @@ export const CustomerMenuScreen: React.FC = () => {
     },
     {
       id: 'customer-qr',
-      title: 'マイQRコード',
-      description: '決済用QRコードとポイント残高を表示',
+      title: 'マイ顧客コード',
+      description: '顧客コードとポイント残高を表示',
       icon: QrCode,
       color: 'from-blue-500 to-cyan-600',
       route: '/customer-qr'
@@ -109,7 +110,7 @@ export const CustomerMenuScreen: React.FC = () => {
     {
       id: 'store-payment',
       title: '店舗決済',
-      description: '店舗のQRコードを読み取り決済（現金・クレジット）',
+      description: '店舗の決済コードを読み取り決済（現金・クレジット）',
       icon: Scan,
       color: 'from-green-500 to-emerald-600',
       route: '/store-payment'
@@ -169,6 +170,13 @@ export const CustomerMenuScreen: React.FC = () => {
       icon: BookOpen,
       color: 'from-gray-500 to-slate-600',
       route: '/customer-readme'
+    },
+    {
+      id: 'privacy-and-payment',
+      title: '個人データ保護と決済',
+      description: '個人情報保護とStripe決済について',
+      color: 'from-blue-500 to-indigo-600',
+      route: '/privacy-and-payment'
     }
   ];
 
@@ -191,7 +199,6 @@ export const CustomerMenuScreen: React.FC = () => {
     const currentPoints = Math.max(0, points - currentLevel.minPoints);
     const levelRange = currentLevel.maxPoints - currentLevel.minPoints + 1;
     const progress = Math.min(100, (currentPoints / levelRange) * 100);
-    
     return {
       progress,
       currentPoints,

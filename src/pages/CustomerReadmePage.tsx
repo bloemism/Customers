@@ -156,19 +156,20 @@ export const CustomerReadmePage: React.FC = () => {
             </div>
           </div>
 
-          {/* マイQRコード */}
+          {/* マイ顧客コード */}
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
             <div className="flex items-center mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mr-4 shadow-lg">
                 <QrCode className="h-6 w-6 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">4. マイQRコード</h2>
+              <h2 className="text-2xl font-bold text-gray-900">4. マイ顧客コード</h2>
             </div>
             <div className="space-y-4 text-gray-700">
-              <p className="text-lg font-medium">マイQRコードでは、ご自身の顧客アカウントデータやポイントなどの情報がQRコードで作られます。</p>
+              <p className="text-lg font-medium">マイ顧客コードでは、ご自身の顧客アカウントデータやポイントなどの情報がデータベースに組み込まれ、アルファベットと数字に置き換えられ作られます。</p>
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
                 <h3 className="font-semibold mb-3 text-blue-800">店舗での使用方法：</h3>
-                <p className="text-blue-700">店舗で残ポイントの掲示を求められると思いますので、見せていくつのポイントをその時に使うか直接口頭でお話しください。</p>
+                <p className="text-blue-700 mb-3">小売店舗で残ポイントの掲示を求められると思いますので、見せていくつのポイントをその時に使うか直接口頭でお話しください。</p>
+                <p className="text-blue-700">また、レッスン教室では先生に顧客コードを登録してもらうと、その先生のレッスンのスケジュールがスケジュール管理に反映されます。複数の教室の登録も可能です。</p>
               </div>
               <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="font-semibold mb-3 text-gray-800">データ管理：</h3>
@@ -194,7 +195,7 @@ export const CustomerReadmePage: React.FC = () => {
                 <h3 className="font-semibold mb-3 text-purple-800">レッスンについて：</h3>
                 <ul className="list-disc list-inside space-y-2 text-purple-700">
                   <li>ご自宅などでレッスンをされている方も多いので、住所の詳細は明記しておりません</li>
-                  <li>継続でレッスンを行いたい場合は、マイQRコードを先生に見せ登録してもらう</li>
+                  <li>継続でレッスンを行いたい場合は、マイ顧客コードを先生に見せ登録してもらう</li>
                   <li>レッスンスケジュール管理のページに、次回以降のレッスンが見れるようになります</li>
                   <li>ご自身のご都合の良いレッスン日を選択し登録してください</li>
                 </ul>

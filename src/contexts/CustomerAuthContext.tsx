@@ -9,6 +9,7 @@ interface Customer {
   phone?: string;
   address?: string;
   birth_date?: string;
+  customer_code?: string;
   points: number;
   level: 'BASIC' | 'REGULAR' | 'PRO' | 'EXPERT';
   created_at: string;
@@ -120,7 +121,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.log('customersテーブルからデータを取得中...');
       const { data, error } = await supabase
           .from('customers')
-          .select('*')
+          .select('id, email, name, alphabet, phone, address, birth_date, customer_code, points, level, created_at, updated_at, user_id')
           .eq('user_id', userId)
           .single();
       
@@ -166,8 +167,8 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
             // 再取得
             const { data: newData } = await supabase
               .from('customers')
-              .select('*')
-              .eq('id', userId)
+              .select('id, email, name, alphabet, phone, address, birth_date, customer_code, points, level, created_at, updated_at, user_id')
+              .eq('user_id', userId)
               .single();
             
             console.log('再取得結果:', newData);
@@ -186,8 +187,27 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       if (data) {
         console.log('顧客データ取得成功:', data);
-        setCustomer(data);
-        localStorage.setItem('customerAuth', JSON.stringify(data));
+        console.log('customer_code:', data.customer_code);
+        // customer_codeを含む全てのデータをcustomerオブジェクトに設定
+        const customerData: Customer = {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          alphabet: data.alphabet || undefined,
+          phone: data.phone || undefined,
+          address: data.address || undefined,
+          birth_date: data.birth_date || undefined,
+          customer_code: data.customer_code || undefined, // customer_codeを明示的に設定
+          points: data.points || 0,
+          level: (data.level || 'BASIC') as 'BASIC' | 'REGULAR' | 'PRO' | 'EXPERT',
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+        console.log('設定するcustomerData:', customerData);
+        console.log('設定するcustomerData.customer_code:', customerData.customer_code);
+        console.log('customerData.customer_code の型:', typeof customerData.customer_code);
+        setCustomer(customerData);
+        localStorage.setItem('customerAuth', JSON.stringify(customerData));
       }
     } catch (error) {
       console.error('顧客データ取得エラー:', error);

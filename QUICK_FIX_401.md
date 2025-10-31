@@ -117,3 +117,7 @@ VITE_SUPABASE_URL: undefined  ← 環境変数が設定されていない
 Vercel Dashboardで`VITE_SUPABASE_URL`を削除→再作成（全環境）→再デプロイしてください！
 
 
+
+
+
+

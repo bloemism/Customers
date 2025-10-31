@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, RefreshCw, Flower, Camera } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { StoreQRScanner } from '../components/StoreQRScanner';
+import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, Flower } from 'lucide-react';
 
 
 const levelConfig = {
@@ -45,8 +43,6 @@ export const CustomerQRCode: React.FC = () => {
   const navigate = useNavigate();
   const { customer } = useCustomerAuth();
   const [copied, setCopied] = useState(false);
-  const [qrRefresh, setQrRefresh] = useState(0);
-  const [showScanner, setShowScanner] = useState(false);
 
   const getLevelInfo = (level: string) => {
     return levelConfig[level as keyof typeof levelConfig] || levelConfig.BASIC;
@@ -62,33 +58,29 @@ export const CustomerQRCode: React.FC = () => {
     }
   };
 
-  const generateQRData = () => {
-    if (!customer) return '';
-    return JSON.stringify({
-      customerId: customer.id,
-      email: customer.email,
-      name: customer.name,
-      timestamp: new Date().toISOString(),
-      refresh: qrRefresh
-    });
-  };
-
-  const refreshQR = () => {
-    setQrRefresh(prev => prev + 1);
-  };
-
   // 顧客データが存在しない場合は、デフォルト値を設定
-  const defaultCustomer = customer || {
+  const defaultCustomer = customer ? {
+    ...customer,
+    customer_code: (customer as any)?.customer_code || undefined
+  } : {
     id: 'guest-12345',
     user_id: '',
     name: 'ゲストユーザー',
     email: 'guest@example.com',
     phone: '',
+    customer_code: undefined,
     points: 0,
     level: 'BASIC' as const,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
+
+  // customer_codeを取得
+  const customerCode = defaultCustomer.customer_code || (customer as any)?.customer_code;
+  
+  console.log('CustomerQRCode - customer:', customer);
+  console.log('CustomerQRCode - customerCode:', customerCode);
+  console.log('CustomerQRCode - defaultCustomer.customer_code:', defaultCustomer.customer_code);
 
   const levelInfo = getLevelInfo(defaultCustomer.level);
 
@@ -116,7 +108,7 @@ export const CustomerQRCode: React.FC = () => {
 
       {/* メインコンテンツ */}
       <div className="max-w-md mx-auto px-4 py-8">
-        {/* QRコードカード - 青い縦バー */}
+        {/* 顧客コードカード - 青い縦バー */}
         <div className="bg-gradient-to-b from-blue-600 to-blue-700 rounded-3xl shadow-2xl p-8 mb-6">
           <div className="text-center">
             {/* ヘッダー */}
@@ -124,29 +116,43 @@ export const CustomerQRCode: React.FC = () => {
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <QrCode className="h-8 w-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">マイQRコード</h2>
-              <p className="text-sm text-white/80">店舗でスキャンして決済</p>
+              <h2 className="text-2xl font-bold text-white mb-2">マイ顧客コード</h2>
+              <p className="text-sm text-white/80">店舗でコードを伝えて決済</p>
             </div>
 
-            {/* QRコード */}
-            <div className="relative mb-8 flex justify-center">
-              <div className="bg-white p-6 rounded-2xl shadow-xl">
-                <QRCodeSVG
-                  value={generateQRData()}
-                  size={200}
-                  level="M"
-                  includeMargin={true}
-                />
+            {/* 顧客コード表示 */}
+            {customerCode ? (
+              <div className="mb-8">
+                <div className="bg-white rounded-2xl p-8 shadow-xl">
+                  <div className="text-6xl font-mono font-bold text-purple-600 tracking-wider mb-4 break-all">
+                    {String(customerCode)}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(String(customerCode))}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-purple-700 font-medium transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>コピーしました</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-5 w-5" />
+                        <span>コードをコピー</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              
-              {/* リフレッシュボタン */}
-              <button
-                onClick={refreshQR}
-                className="absolute -top-2 -right-2 w-10 h-10 bg-white/90 rounded-full shadow-lg flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-white transition-all duration-300"
-              >
-                <RefreshCw className="h-5 w-5" />
-              </button>
-            </div>
+            ) : (
+              <div className="mb-8">
+                <div className="bg-white/20 rounded-2xl p-8 shadow-xl">
+                  <p className="text-white text-lg">顧客コードが設定されていません</p>
+                  <p className="text-white/70 text-sm mt-2">マイプロフィールで登録してください</p>
+                </div>
+              </div>
+            )}
 
             {/* ポイント表示 */}
             <div className="bg-white/20 rounded-2xl p-6 mb-6 text-white">
@@ -176,29 +182,6 @@ export const CustomerQRCode: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* 有効期限 */}
-            <div className="text-xs text-white/60">
-              QRコードの有効期限: 5分
-            </div>
-          </div>
-        </div>
-
-        {/* 店舗QRコードスキャンボタン */}
-        <div className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 mb-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-400/30 to-emerald-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-300/40 shadow-lg">
-              <Camera className="h-8 w-8 text-green-100" />
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">店舗決済</h3>
-            <p className="text-sm text-white/70 mb-4">店舗が表示したQRコードをスキャンして決済</p>
-            <button
-              onClick={() => setShowScanner(true)}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-            >
-              <Camera className="h-5 w-5" />
-              <span>店舗QRコードをスキャン</span>
-            </button>
           </div>
         </div>
 
@@ -230,6 +213,29 @@ export const CustomerQRCode: React.FC = () => {
               </div>
             </div>
 
+            {/* 顧客コード表示 */}
+            {customerCode && (
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
+                  <QrCode className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">顧客コード</p>
+                  <div className="flex items-center space-x-2">
+                    <code className="font-mono text-lg font-bold bg-gradient-to-r from-purple-100 to-blue-100 px-4 py-2 rounded-lg text-purple-700 border border-purple-300 tracking-wider">
+                      {String(customerCode)}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(String(customerCode))}
+                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300"
+                    >
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                 <div className="text-blue-600 font-bold text-sm">ID</div>
@@ -237,7 +243,7 @@ export const CustomerQRCode: React.FC = () => {
               <div className="flex-1">
                 <p className="text-sm text-gray-500">顧客ID</p>
                 <div className="flex items-center space-x-2">
-                  <code className="font-mono text-sm bg-gray-100 px-3 py-2 rounded-lg text-gray-700 border border-gray-200">
+                  <code className="font-mono text-sm bg-gray-100 px-3 py-2 rounded-lg text-gray-700 border border-gray-200 break-all">
                     {defaultCustomer.id}
                   </code>
                   <button
@@ -266,11 +272,6 @@ export const CustomerQRCode: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* 店舗QRコードスキャナー */}
-      {showScanner && (
-        <StoreQRScanner onClose={() => setShowScanner(false)} />
-      )}
     </div>
   );
 };
