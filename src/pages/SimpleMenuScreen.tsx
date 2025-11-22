@@ -13,7 +13,8 @@ import {
   Calendar,
   GraduationCap,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Shield
 } from 'lucide-react';
 import { checkFeatureAccess, AVAILABLE_FEATURES } from '../lib/stripe';
 import { supabase } from '../lib/supabase';
@@ -135,6 +136,15 @@ export const SimpleMenuScreen: React.FC = () => {
       color: 'from-gray-400 to-slate-500',
       route: '/readme',
       requiredFeature: 'FLORIST_MAP' // 常に表示
+    },
+    {
+      id: 'policy',
+      title: '個人データ保護と決済',
+      description: '個人情報保護とStripe決済について',
+      icon: Shield,
+      color: 'from-blue-400 to-indigo-500',
+      route: '/privacy-and-payment',
+      requiredFeature: 'FLORIST_MAP' // 常に表示
     }
   ];
 
@@ -212,7 +222,7 @@ export const SimpleMenuScreen: React.FC = () => {
 
   // ユーザーのプランで利用可能なメニュー項目をフィルタリング
   const availableMenuItems = menuItems.filter(item => {
-    if (item.id === 'subscription-management') return true; // 常に表示
+    if (item.id === 'subscription-management' || item.id === 'readme' || item.id === 'policy') return true; // 常に表示
     return checkFeatureAccess(userPlan, item.requiredFeature);
   });
 

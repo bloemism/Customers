@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
+import { CustomerProvider } from './contexts/CustomerContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -21,7 +22,10 @@ const PublicRankings = React.lazy(() => import('./pages/PublicRankings'));
 const StoreAnalytics = React.lazy(() => import('./pages/StoreAnalytics'));
 const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
 const ReadmePage = React.lazy(() => import('./pages/ReadmePage').then(module => ({ default: module.ReadmePage })));
+const PrivacyAndPaymentPage = React.lazy(() => import('./pages/PrivacyAndPaymentPage').then(module => ({ default: module.PrivacyAndPaymentPage })));
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
+const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
+const CashPaymentPage = React.lazy(() => import('./pages/CashPaymentPage'));
 
 
 // 認証ページ
@@ -32,6 +36,7 @@ const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(
 // その他のページ
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
 const Menu = React.lazy(() => import('./pages/Menu').then(module => ({ default: module.Menu })));
+const MenuPage = React.lazy(() => import('./pages/MenuPage').then(module => ({ default: module.default })));
 const MenuScreen = React.lazy(() => import('./pages/MenuScreen').then(module => ({ default: module.MenuScreen })));
 const StoreOwnerRegistration = React.lazy(() => import('./pages/StoreOwnerRegistration').then(module => ({ default: module.StoreOwnerRegistration })));
 const CustomerRegistration = React.lazy(() => import('./pages/CustomerRegistration').then(module => ({ default: module.CustomerRegistration })));
@@ -131,9 +136,47 @@ function App() {
                   <SubscriptionManagement />
                 </SimpleAuthGuard>
               } />
+              <Route path="/privacy-and-payment" element={
+                <SimpleAuthGuard>
+                  <PrivacyAndPaymentPage />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/policy" element={
+                <SimpleAuthGuard>
+                  <PrivacyAndPaymentPage />
+                </SimpleAuthGuard>
+              } />
               <Route path="/readme" element={
                 <SimpleAuthGuard>
                   <ReadmePage />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/customer-menu" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <MenuPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
+              } />
+              <Route path="/store-payment" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <PaymentPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
+              } />
+              <Route path="/dynamic-stripe-checkout" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <PaymentPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
+              } />
+              <Route path="/cash-payment" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <CashPaymentPage />
+                  </CustomerProvider>
                 </SimpleAuthGuard>
               } />
 

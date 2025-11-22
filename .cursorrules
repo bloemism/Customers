@@ -23,8 +23,9 @@ alwaysApply: false
 `.env`ファイルに以下の環境変数を設定：
 
 ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxx
-CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxx
+# 実際のキーに置き換えてください
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
+CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
 ```
 
 ### 2. ミドルウェアの設定
@@ -213,8 +214,9 @@ alwaysApply: false
 `.env`ファイルに以下の環境変数を設定：
 
 ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxx
-CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxx
+# 実際のキーに置き換えてください
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
+CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
 ```
 
 ### 2. ミドルウェアの設定
@@ -377,6 +379,16 @@ export default function ClientComponent() {
 ## ⚠️ 重要事項
 
 1. 特に**ミドルウェアの設定**と**サーバーサイドでの認証チェック**は遵守してください。アップデートされた内容を記述しています。守らなければ私開発者が解雇されます。あなたが責任を持って記述してください。
+
+
+
+
+
+
+
+
+
+
 
 
 

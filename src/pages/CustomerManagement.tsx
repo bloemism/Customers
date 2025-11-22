@@ -12,18 +12,18 @@ import {
   ShoppingBag,
   TrendingUp,
   Clock,
+  MapPin,
   Edit,
   Plus,
+  Filter,
   Download,
   AlertCircle,
-  QrCode,
-  BarChart3
+  QrCode
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { EditCustomerModal } from '../components/EditCustomerModal';
-import QRCodeScanner from '../components/QRCodeScanner';
-import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
+import { QRCodeScanner } from '../components/QRCodeScanner';
 
 interface Customer {
   id: string;
@@ -65,9 +65,6 @@ interface PurchaseHistory {
 
 export const CustomerManagement: React.FC = () => {
   const navigate = useNavigate();
-  
-  // ページマウント時にスクロール位置をトップにリセット
-  useScrollToTopOnMount();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'email' | 'phone'>('email');
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -85,15 +82,11 @@ export const CustomerManagement: React.FC = () => {
   const handleQRScan = async (qrData: string) => {
     try {
       setLoading(true);
-      setMessage('');
-      
-      console.log('QRデータ受信:', qrData);
       
       // QRデータを解析
       let customerData;
       try {
         customerData = JSON.parse(qrData);
-        console.log('JSON解析成功:', customerData);
       } catch {
         // プレーンテキストの場合
         const lines = qrData.split('\n');
@@ -105,58 +98,33 @@ export const CustomerManagement: React.FC = () => {
           address: lines[4] || '',
           total_points: parseInt(lines[5]) || 0
         };
-        console.log('プレーンテキスト解析:', customerData);
-      }
-
-      // 必須フィールドのチェック
-      if (!customerData.name || (!customerData.email && !customerData.phone)) {
-        setMessage('顧客名とメールアドレスまたは電話番号が必要です。');
-        setMessageType('error');
-        return;
       }
 
       // 既存顧客との重複チェック
       const existingCustomer = customers.find(c => 
-        (customerData.email && c.email === customerData.email) || 
-        (customerData.phone && c.phone === customerData.phone)
+        c.email === customerData.email || c.phone === customerData.phone
       );
 
       if (existingCustomer) {
-        setMessage(`この顧客は既に登録されています: ${existingCustomer.name}`);
+        setMessage('この顧客は既に登録されています。');
         setMessageType('error');
         return;
       }
 
       // 新規顧客として登録
-      const insertData = {
-        name: customerData.name,
-        email: customerData.email || null,
-        phone: customerData.phone || null,
-        address: customerData.address || null,
-        total_points: customerData.total_points || customerData.points || 0,
-        first_purchase_date: new Date().toISOString(),
-        last_purchase_date: new Date().toISOString(),
-        total_purchase_amount: 0,
-        purchases_last_2_months: 0,
-        avg_purchase_last_month: null,
-        points_used_last_month: null,
-        points_earned_last_month: null
-      };
-
-      console.log('顧客データ挿入:', insertData);
-
-      const { data: newCustomer, error } = await supabase
+      const { error } = await supabase
         .from('customers')
-        .insert([insertData])
-        .select()
-        .single();
+        .insert({
+          name: customerData.name,
+          email: customerData.email,
+          phone: customerData.phone,
+          address: customerData.address,
+          total_points: customerData.total_points || 0,
+          first_purchase_date: new Date().toISOString(),
+          last_purchase_date: new Date().toISOString()
+        });
 
-      if (error) {
-        console.error('顧客登録エラー:', error);
-        throw error;
-      }
-
-      console.log('新規顧客登録成功:', newCustomer);
+      if (error) throw error;
 
       setMessage('QRコードから顧客データを登録しました。');
       setMessageType('success');
@@ -352,13 +320,6 @@ export const CustomerManagement: React.FC = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-              <button
-                onClick={() => navigate('/store-analytics')}
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-white hover:bg-purple-50 transition-colors duration-200"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                店舗分析
-              </button>
               <button
                 onClick={() => setShowQRScanner(true)}
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-white hover:bg-purple-50 transition-colors duration-200"
