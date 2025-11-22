@@ -24,8 +24,8 @@ alwaysApply: false
 
 ```env
 # 実際のキーに置き換えてください
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
-CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
+# CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
 ```
 
 ### 2. ミドルウェアの設定
@@ -215,8 +215,8 @@ alwaysApply: false
 
 ```env
 # 実際のキーに置き換えてください
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
-CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_***（実際のキーに置き換え）
+# CLERK_SECRET_KEY=sk_test_***（実際のキーに置き換え）
 ```
 
 ### 2. ミドルウェアの設定
