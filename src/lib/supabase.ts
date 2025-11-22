@@ -1,13 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// 環境変数を強制的に設定
+const supabaseUrl = 'https://aoqmdyapjsmmvjrwfdup.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5OTY2NTAsImV4cCI6MjA3MDU3MjY1MH0.jPQ4jGvuLDDZ4sFU1sbakWJIRyBKbEkaXsTnirQR4PY'
+const isDev = import.meta.env.VITE_DEV_MODE === 'true'
+const isDebug = import.meta.env.VITE_DEBUG_MODE === 'true'
 
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Anon Key:', supabaseAnonKey ? 'Set' : 'Not set')
+// 本番環境ではログを制限
+if (isDev || isDebug) {
+  console.log('Supabase URL:', supabaseUrl)
+  console.log('Supabase Anon Key:', supabaseAnonKey ? 'Set' : 'Not set')
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+  const error = 'Missing Supabase environment variables'
+  console.error(error)
+  throw new Error(error)
+}
+
+// URLの妥当性をチェック
+try {
+  new URL(supabaseUrl)
+} catch (urlError) {
+  const error = `Invalid Supabase URL: ${supabaseUrl}`
+  console.error(error)
+  throw new Error(error)
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -16,15 +33,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'X-Client-Info': '87app-flower-shop'
+    }
   }
 })
 
-supabase.auth.getSession().then(({ data, error }) => {
-  if (error) {
-    console.error('Supabase connection error:', error)
-  } else {
-    console.log('Supabase connected successfully')
-  }
-}).catch((error) => {
-  console.error('Supabase connection failed:', error)
-})
+// 本番環境では接続確認を簡素化
+if (isDev || isDebug) {
+  supabase.auth.getSession().then(({ error }) => {
+    if (error) {
+      console.error('Supabase connection error:', error)
+    } else {
+      console.log('Supabase connected successfully')
+    }
+  })
+}

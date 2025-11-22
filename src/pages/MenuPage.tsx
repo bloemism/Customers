@@ -11,7 +11,10 @@ import {
   TrendingUp, 
   CreditCard, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Scan,
+  Banknote
 } from 'lucide-react';
 
 const MenuPage: React.FC = () => {
@@ -68,11 +71,18 @@ const MenuPage: React.FC = () => {
       color: 'bg-red-500 hover:bg-red-600'
     },
     {
-      title: '決済',
-      description: '店舗QRコード読み取り決済',
-      icon: CreditCard,
-      path: '/payment',
+      title: '店舗決済',
+      description: '店舗の決済コードを読み取り決済（クレジット・現金）',
+      icon: Scan,
+      path: '/store-payment',
       color: 'bg-emerald-500 hover:bg-emerald-600'
+    },
+    {
+      title: '現金決済',
+      description: '現金決済専用ページ（店舗で直接お支払い）',
+      icon: Banknote,
+      path: '/cash-payment',
+      color: 'bg-green-500 hover:bg-green-600'
     },
     {
       title: '決済履歴',
@@ -87,6 +97,13 @@ const MenuPage: React.FC = () => {
       icon: FileText,
       path: '/readme',
       color: 'bg-teal-500 hover:bg-teal-600'
+    },
+    {
+      title: '個人データ保護と決済',
+      description: '個人情報保護とStripe決済について',
+      icon: Shield,
+      path: '/privacy-and-payment',
+      color: 'bg-blue-500 hover:bg-blue-600'
     }
   ];
 

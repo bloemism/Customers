@@ -14,64 +14,27 @@ export const AuthCallback: React.FC = () => {
 
   const handleAuthCallback = async () => {
     try {
-      setStatus('loading');
-      setMessage('認証処理中...');
-
-      // URLからハッシュフラグメントを取得
-      const hash = window.location.hash;
-      const params = new URLSearchParams(hash.substring(1));
+      console.log('Auth callback - processing authentication');
       
-      // エラーパラメータをチェック
-      const error = params.get('error');
-      const errorDescription = params.get('error_description');
-
+      // セッションを確認
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
       if (error) {
-        console.error('OAuth error:', error, errorDescription);
-        setStatus('error');
-        setMessage(`認証エラー: ${errorDescription || error}`);
-        return;
+        console.error('Session error:', error);
       }
-
-      // アクセストークンを取得
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-
-      if (!accessToken) {
-        setStatus('error');
-        setMessage('アクセストークンが見つかりません');
-        return;
+      
+      if (session?.user) {
+        console.log('User authenticated:', session.user.email);
       }
-
-      // Supabaseでセッションを設定
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || '',
-      });
-
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        setStatus('error');
-        setMessage('セッション設定エラー');
-        return;
-      }
-
-      if (data.session) {
-        setStatus('success');
-        setMessage('認証が完了しました！');
-        
-        // 3秒後にメニュー画面にリダイレクト
-        setTimeout(() => {
-          navigate('/simple-menu');
-        }, 3000);
-      } else {
-        setStatus('error');
-        setMessage('セッションの作成に失敗しました');
-      }
-
+      
+      // メニューにリダイレクト
+      console.log('Redirecting to menu');
+      navigate('/simple-menu');
+      
     } catch (error) {
       console.error('Auth callback error:', error);
-      setStatus('error');
-      setMessage('認証処理中にエラーが発生しました');
+      // エラーが発生してもメニューに進む
+      navigate('/simple-menu');
     }
   };
 
@@ -103,6 +66,13 @@ export const AuthCallback: React.FC = () => {
           {status === 'success' && '認証完了'}
           {status === 'error' && '認証エラー'}
         </h2>
+        
+        {/* 説明 */}
+        {status === 'loading' && (
+          <p className="text-sm text-gray-500 mb-4">
+            Google認証が完了しました。メニュー画面に移動します...
+          </p>
+        )}
 
         {/* メッセージ */}
         <p className="text-gray-600 mb-6">

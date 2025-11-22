@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { supabase } from '../lib/supabase';
 import { 
@@ -12,11 +11,10 @@ import {
   Phone,
   Star,
   Search,
-  Filter,
   X,
-  Globe,
-  Instagram
+  Globe
 } from 'lucide-react';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // レッスンスクールの型定義
 interface LessonSchool {
@@ -36,10 +34,10 @@ interface LessonSchool {
   regular_price: number;
   latitude: number;
   longitude: number;
-  is_active: boolean;
-  created_at: string;
   website_url?: string;
   instagram_url?: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 // 地域分類の型定義
@@ -51,8 +49,10 @@ interface RegionCategory {
 }
 
 const FlowerLessonMap: React.FC = () => {
-  const navigate = useNavigate();
-  const { user } = useSimpleAuth();
+  // const { user } = useSimpleAuth();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   
   // レッスンスクール一覧
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
@@ -97,16 +97,12 @@ const FlowerLessonMap: React.FC = () => {
     return colors[index];
   };
 
-  // ページの最上部にスクロール
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   // レッスンスクールを読み込み
   useEffect(() => {
     const loadLessonSchools = async () => {
       try {
         setLoading(true);
+        // 顧客向け：全スクール情報を表示（マップ検索用）
         const { data, error } = await supabase
           .from('lesson_schools')
           .select('*')
@@ -199,14 +195,14 @@ const FlowerLessonMap: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-6 mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/customer-menu')}
+                onClick={() => window.history.back()}
                 className="p-2 text-white hover:text-pink-100 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
@@ -304,19 +300,19 @@ const FlowerLessonMap: React.FC = () => {
                           <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
                             {region.name} ({schoolsInRegion.length}校)
                           </h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2">
-                            {schoolsInRegion.map(school => (
-                              <div
-                                key={school.id}
-                                className={`p-2 rounded-lg transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
-                                onClick={() => setSelectedSchool(school)}
-                                title={`${school.name} (${school.prefecture} ${school.city})`}
-                              >
-                                <div className="text-sm font-semibold text-white drop-shadow-sm leading-tight">
-                                  {school.name}
-                                </div>
-                              </div>
-                            ))}
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-1">
+                {schoolsInRegion.map(school => (
+                  <div
+                    key={school.id}
+                    className={`p-0.5 rounded-sm transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
+                    onClick={() => setSelectedSchool(school)}
+                    title={`${school.name} (${school.prefecture} ${school.city})`}
+                  >
+                    <div className="text-[10px] font-medium text-white drop-shadow-sm leading-tight min-h-[2.5rem] flex items-center justify-center">
+                      {school.name.length > 10 ? school.name.substring(0, 10) + '...' : school.name}
+                    </div>
+                  </div>
+                ))}
                           </div>
                         </div>
                       );
@@ -364,37 +360,6 @@ const FlowerLessonMap: React.FC = () => {
                       <span>{selectedSchool.instructor_name}</span>
                     </div>
                   </div>
-                  
-                  {/* URLボタン */}
-                  {(selectedSchool.website_url || selectedSchool.instagram_url) && (
-                    <div className="mt-4">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">公式リンク</h5>
-                      <div className="flex space-x-3">
-                        {selectedSchool.website_url && (
-                          <a
-                            href={selectedSchool.website_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                          >
-                            <Globe className="w-4 h-4" />
-                            <span>ウェブサイト</span>
-                          </a>
-                        )}
-                        {selectedSchool.instagram_url && (
-                          <a
-                            href={selectedSchool.instagram_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors text-sm"
-                          >
-                            <Instagram className="w-4 h-4" />
-                            <span>Instagram</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div>
@@ -429,6 +394,33 @@ const FlowerLessonMap: React.FC = () => {
                   <p className="text-sm text-gray-700">{selectedSchool.lesson_content}</p>
                 </div>
               </div>
+
+              {/* URLボタン */}
+              {(selectedSchool.website_url || selectedSchool.instagram_url) && (
+                <div className="mt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">リンク</h4>
+                  <div className="flex space-x-3">
+                    {selectedSchool.website_url && (
+                      <button
+                        onClick={() => window.open(selectedSchool.website_url, '_blank')}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Globe className="w-4 h-4" />
+                        <span>URL</span>
+                      </button>
+                    )}
+                    {selectedSchool.instagram_url && (
+                      <button
+                        onClick={() => window.open(selectedSchool.instagram_url, '_blank')}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
+                      >
+                        <span>📸</span>
+                        <span>Instagram</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 flex space-x-3">
                 <button

@@ -31,6 +31,34 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 初期セッション確認
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('セッション取得エラー:', error);
+          setLoading(false);
+          return;
+        }
+        
+        if (session?.user) {
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0]
+          };
+          setUser(userData);
+          localStorage.setItem('simpleAuthUser', JSON.stringify(userData));
+        }
+      } catch (error) {
+        console.error('認証初期化エラー:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
     // Supabaseのセッション状態を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -129,6 +157,8 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
+      console.log('Starting Google OAuth sign in...');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -137,13 +167,15 @@ export const SimpleAuthProvider: React.FC<{ children: ReactNode }> = ({ children
       });
 
       if (error) {
-        return { error: error.message };
+        console.error('Google OAuth error:', error);
+        return { error: `Google認証エラー: ${error.message}` };
       }
 
+      console.log('Google OAuth initiated successfully');
       return { error: undefined };
     } catch (error) {
       console.error('Googleログインエラー:', error);
-      return { error: 'Googleログインに失敗しました' };
+      return { error: `Googleログインに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}` };
     }
   };
 

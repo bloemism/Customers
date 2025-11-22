@@ -1,206 +1,284 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { X, Camera, AlertCircle, CheckCircle } from 'lucide-react';
-import jsQR from 'jsqr';
+import { QrCode, X, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface QRCodeScannerProps {
+  onScan: (data: string) => void;
   onClose: () => void;
+  isOpen: boolean;
 }
 
-const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onClose }) => {
-  const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface CustomerData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  points: number;
+}
+
+const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose, isOpen }) => {
+  const [scanning, setScanning] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [parsedCustomer, setParsedCustomer] = useState<CustomerData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'prompt' | 'checking'>('checking');
+  const scannerRef = useRef<any | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    startCamera();
+    if (isOpen) {
+      checkCameraPermission();
+    }
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (scannerRef.current) {
+        scannerRef.current.clear();
       }
     };
-  }, []);
+  }, [isOpen]);
 
-  const startCamera = async () => {
+  const checkCameraPermission = async () => {
     try {
+      setCameraPermission('checking');
       setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      setStream(mediaStream);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-        setIsScanning(true);
-        scanQRCode();
+      // カメラ権限をチェック
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop());
+      setCameraPermission('granted');
+      
+      if (!scanning) {
+        startScanner();
       }
-    } catch (err) {
-      console.error('カメラアクセスエラー:', err);
-      setError('カメラにアクセスできません。カメラの許可を確認してください。');
+    } catch (err: unknown) {
+      console.error('カメラ権限エラー:', err);
+      setCameraPermission('denied');
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        setError('カメラへのアクセスが拒否されました。ブラウザの設定でカメラ権限を許可してください。');
+      } else if (err instanceof Error && err.name === 'NotFoundError') {
+        setError('カメラが見つかりません。カメラが接続されているか確認してください。');
+      } else {
+        setError('カメラの初期化に失敗しました。');
+      }
     }
   };
 
-  const scanQRCode = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+  const startScanner = async () => {
+    if (!containerRef.current || cameraPermission !== 'granted') return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+    setScanning(true);
+    setError(null);
+    
+    try {
+      // html5-qrcodeを動的インポート
+      const { Html5QrcodeScanner } = await import('html5-qrcode');
+      
+      scannerRef.current = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true,
+          showZoomSliderIfSupported: true,
+          defaultZoomValueIfSupported: 2,
+          useBarCodeDetectorIfSupported: true
+        },
+        false
+      );
 
-    if (!context) return;
-
-    const scan = () => {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-        if (code) {
-          setScannedData(code.data);
-          setIsScanning(false);
-          handleQRCodeData(code.data);
-        } else if (isScanning) {
-          requestAnimationFrame(scan);
+      scannerRef.current.render(
+        (decodedText: string) => {
+          handleScan(decodedText);
+        },
+        (error: unknown) => {
+          // エラーは無視（継続スキャン）
+          console.log('QRスキャン継続中...', error);
         }
-      } else if (isScanning) {
-        requestAnimationFrame(scan);
-      }
-    };
-
-    scan();
+      );
+    } catch (err: unknown) {
+      console.error('スキャナー初期化エラー:', err);
+      setError('QRコードスキャナーの初期化に失敗しました。');
+      setScanning(false);
+    }
   };
 
-  const handleQRCodeData = (data: string) => {
+  const handleScan = (data: string) => {
+    setScannedData(data);
     try {
       // QRコードのデータを解析
-      const qrData = JSON.parse(data);
-      
-      // 決済情報が含まれているかチェック
-      if (qrData.type === 'payment' && qrData.storeId && qrData.amount) {
-        // Stripe決済ページに遷移
-        navigate('/store-payment', {
-          state: {
-            storeId: qrData.storeId,
-            amount: qrData.amount,
-            description: qrData.description || '店舗決済',
-            customerId: qrData.customerId
-          }
-        });
-      } else {
-        setError('有効な決済QRコードではありません。');
-      }
-    } catch (err) {
-      // JSONでない場合は、シンプルな決済URLとして処理
-      if (data.includes('payment') || data.includes('store')) {
-        navigate('/store-payment', {
-          state: {
-            qrData: data
-          }
-        });
-      } else {
-        setError('決済用のQRコードではありません。');
-      }
+      const customerData = parseCustomerData(data);
+      setParsedCustomer(customerData);
+    } catch (error) {
+      console.error('QRデータ解析エラー:', error);
     }
   };
 
-  const stopScanning = () => {
-    setIsScanning(false);
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+  const parseCustomerData = (data: string): CustomerData => {
+    try {
+      // JSONデータとして解析を試行
+      const parsed = JSON.parse(data);
+      return {
+        id: parsed.id || parsed.customer_id || '',
+        name: parsed.name || parsed.customer_name || '',
+        email: parsed.email || '',
+        phone: parsed.phone || parsed.phone_number || '',
+        address: parsed.address || '',
+        points: parsed.points || parsed.total_points || 0
+      };
+    } catch {
+      // プレーンテキストの場合の処理
+      const lines = data.split('\n');
+      return {
+        id: lines[0] || '',
+        name: lines[1] || '',
+        email: lines[2] || '',
+        phone: lines[3] || '',
+        address: lines[4] || '',
+        points: parseInt(lines[5]) || 0
+      };
     }
-    onClose();
   };
+
+  const confirmScan = () => {
+    if (scannedData) {
+      onScan(scannedData);
+      onClose();
+    }
+  };
+
+  const resetScanner = () => {
+    setScannedData(null);
+    setParsedCustomer(null);
+    setError(null);
+    if (scannerRef.current) {
+      scannerRef.current.clear();
+    }
+    setScanning(false);
+    startScanner();
+  };
+
+  const retryCamera = () => {
+    setError(null);
+    checkCameraPermission();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Camera className="h-5 w-5 mr-2 text-blue-500" />
-            QRコードスキャン
+          <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+            <QrCode className="w-5 h-5 mr-2 text-blue-600" />
+            QRコード読み取り
           </h3>
           <button
-            onClick={stopScanning}
-            className="text-gray-400 hover:text-gray-600"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* カメラビュー */}
-          <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-            <video
-              ref={videoRef}
-              className="w-full h-64 object-cover"
-              playsInline
-              muted
-            />
-            <canvas
-              ref={canvasRef}
-              className="hidden"
+        {cameraPermission === 'checking' ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">カメラの初期化中...</p>
+          </div>
+        ) : cameraPermission === 'denied' || error ? (
+          <div className="text-center py-8">
+            <AlertTriangle className="w-16 h-16 mx-auto text-red-500 mb-4" />
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+              カメラアクセスエラー
+            </h4>
+            <p className="text-gray-600 mb-4 text-sm">
+              {error || 'カメラへのアクセスが拒否されました。'}
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={retryCamera}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                再試行
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        ) : !scannedData ? (
+          <div>
+            <div className="mb-4">
+              <p className="text-gray-600 mb-2">
+                顧客のQRコードをカメラに向けてください
+              </p>
+              <p className="text-sm text-gray-500">
+                カメラが自動的に起動します
+              </p>
+            </div>
+            
+            {/* QRコード読み取りエリア */}
+            <div 
+              id="qr-reader" 
+              ref={containerRef}
+              className="w-full max-w-md mx-auto"
             />
             
-            {/* スキャン枠 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-48 h-48 border-2 border-blue-500 rounded-lg relative">
-                <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-blue-500 rounded-tl-lg"></div>
-                <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-blue-500 rounded-tr-lg"></div>
-                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-blue-500 rounded-bl-lg"></div>
-                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-blue-500 rounded-br-lg"></div>
+            {scanning && (
+              <div className="mt-4 text-center">
+                <div className="inline-flex items-center text-sm text-gray-600">
+                  <div className="animate-pulse w-2 h-2 bg-blue-600 rounded-full mr-2"></div>
+                  スキャン中...
+                </div>
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="mb-4">
+              <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-2" />
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                QRコード読み取り完了
+              </h4>
+            </div>
+
+            {parsedCustomer && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
+                <h5 className="font-medium text-gray-900 mb-2">読み取られた顧客データ</h5>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">名前:</span> {parsedCustomer.name}</div>
+                  <div><span className="font-medium">メール:</span> {parsedCustomer.email}</div>
+                  <div><span className="font-medium">電話:</span> {parsedCustomer.phone}</div>
+                  <div><span className="font-medium">住所:</span> {parsedCustomer.address}</div>
+                  <div><span className="font-medium">ポイント:</span> {parsedCustomer.points}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-3 justify-center">
+              <button
+                onClick={confirmScan}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                このデータを登録
+              </button>
+              <button
+                onClick={resetScanner}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                再スキャン
+              </button>
             </div>
           </div>
-
-          {/* ステータス表示 */}
-          {error && (
-            <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
-              <AlertCircle className="h-5 w-5" />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
-
-          {scannedData && (
-            <div className="flex items-center space-x-2 text-green-600 bg-green-50 p-3 rounded-lg">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm">QRコードを読み取りました</span>
-            </div>
-          )}
-
-          {/* 説明テキスト */}
-          <div className="text-center text-sm text-gray-600">
-            <p>決済用のQRコードをカメラで読み取ってください</p>
-            <p className="mt-1">QRコードを枠内に合わせてください</p>
-          </div>
-
-          {/* アクションボタン */}
-          <div className="flex space-x-3">
-            <button
-              onClick={stopScanning}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              キャンセル
-            </button>
-            <button
-              onClick={startCamera}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              再スキャン
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default QRCodeScanner;
-export { QRCodeScanner };
+

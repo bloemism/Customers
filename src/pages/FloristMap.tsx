@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { StoreService } from '../services/storeService';
 import { supabase } from '../lib/supabase';
+import { useScrollToTopOnMount } from '../hooks/useScrollToTop';
 
 // Google Maps JavaScript APIの型定義
 declare global {
@@ -94,6 +95,9 @@ interface StoreDetails {
 
 export const FloristMap: React.FC = () => {
   const navigate = useNavigate();
+  
+  // ページマウント時にスクロール位置をトップにリセット
+  useScrollToTopOnMount();
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -743,6 +747,20 @@ export const FloristMap: React.FC = () => {
 
       console.log('=== 店舗データ読み込み完了 ===');
       console.log('Loaded enriched stores from Supabase:', enrichedStores);
+      
+      // 位置情報のデバッグログ
+      enrichedStores.forEach((store, index) => {
+        console.log(`店舗${index + 1}の位置情報:`, {
+          id: store.id,
+          store_name: store.store_name,
+          address: store.address,
+          latitude: store.latitude,
+          longitude: store.longitude,
+          latitude_type: typeof store.latitude,
+          longitude_type: typeof store.longitude
+        });
+      });
+      
       setStores(enrichedStores);
       
     } catch (err: any) {

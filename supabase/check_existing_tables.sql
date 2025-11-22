@@ -1,45 +1,38 @@
--- 既存のテーブル構造を確認
--- 顧客関連のテーブルとカラムを特定
+-- 実際に存在するテーブルを確認
 
 -- 1. 全てのテーブル一覧
 SELECT 
-  table_name, 
-  table_type
+    table_schema,
+    table_name,
+    table_type
 FROM information_schema.tables 
 WHERE table_schema = 'public'
 ORDER BY table_name;
 
--- 2. 顧客関連のテーブルを検索
+-- 2. ビュー一覧
 SELECT 
-  table_name, 
-  column_name, 
-  data_type, 
-  is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-  AND (table_name LIKE '%customer%' OR table_name LIKE '%user%')
-ORDER BY table_name, ordinal_position;
+    schemaname,
+    viewname,
+    viewowner
+FROM pg_views 
+WHERE schemaname = 'public'
+ORDER BY viewname;
 
--- 3. 認証関連のテーブル
+-- 3. テーブルの列情報（主要テーブル）
 SELECT 
-  table_name, 
-  column_name, 
-  data_type, 
-  is_nullable
+    table_name,
+    column_name,
+    data_type,
+    is_nullable
 FROM information_schema.columns 
-WHERE table_schema = 'public' 
-  AND (table_name LIKE '%auth%' OR table_name LIKE '%profile%')
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'orders',
+    'payments', 
+    'customer_purchases',
+    'lesson_schools',
+    'stores',
+    'customers'
+  )
 ORDER BY table_name, ordinal_position;
-
--- 4. 店舗関連のテーブル
-SELECT 
-  table_name, 
-  column_name, 
-  data_type, 
-  is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-  AND (table_name LIKE '%store%' OR table_name LIKE '%lesson%')
-ORDER BY table_name, ordinal_position;
-
 

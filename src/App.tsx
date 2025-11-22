@@ -1,11 +1,10 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
-import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import { CustomerProvider } from './contexts/CustomerContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
-import { CustomerAuthGuard } from './components/CustomerAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { ScrollToTop } from './components/ScrollToTop';
 import './App.css';
 
 // コード分割: ページコンポーネントを遅延読み込み
@@ -18,30 +17,15 @@ const FloristMap = React.lazy(() => import('./pages/FloristMap').then(module => 
 const FlowerLessonMap = React.lazy(() => import('./pages/FlowerLessonMap'));
 const LessonSchoolManagement = React.lazy(() => import('./pages/LessonSchoolManagement'));
 const LessonScheduleManagement = React.lazy(() => import('./pages/LessonScheduleManagement'));
-const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
+// const PopularityRankings = React.lazy(() => import('./pages/PopularityRankings'));
+const PublicRankings = React.lazy(() => import('./pages/PublicRankings'));
+const StoreAnalytics = React.lazy(() => import('./pages/StoreAnalytics'));
 const SubscriptionManagement = React.lazy(() => import('./pages/SubscriptionManagement'));
 const ReadmePage = React.lazy(() => import('./pages/ReadmePage').then(module => ({ default: module.ReadmePage })));
+const PrivacyAndPaymentPage = React.lazy(() => import('./pages/PrivacyAndPaymentPage').then(module => ({ default: module.PrivacyAndPaymentPage })));
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
-
-// 顧客向けページ
-const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin').then(module => ({ default: module.CustomerLogin })));
-const CustomerSignUp = React.lazy(() => import('./pages/CustomerSignUp').then(module => ({ default: module.CustomerSignUp })));
-const CustomerDataRegistration = React.lazy(() => import('./pages/CustomerDataRegistration'));
-const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen').then(module => ({ default: module.CustomerMenuScreen })));
-const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode').then(module => ({ default: module.CustomerQRCode })));
-const StorePayment = React.lazy(() => import('./pages/StorePayment').then(module => ({ default: module.StorePayment })));
-const PaymentConfirmation = React.lazy(() => import('./pages/PaymentConfirmation').then(module => ({ default: module.PaymentConfirmation })));
-const StripeCheckout = React.lazy(() => import('./pages/StripeCheckout').then(module => ({ default: module.StripeCheckout })));
-const DynamicStripeCheckout = React.lazy(() => import('./pages/DynamicStripeCheckout').then(module => ({ default: module.DynamicStripeCheckout })));
-const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
-const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
-const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
-
-// Stripe Connect関連ページ
-const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
-const StripeConnectReturn = React.lazy(() => import('./pages/StripeConnectReturn').then(module => ({ default: module.StripeConnectReturn })));
-const StripeConnectRefresh = React.lazy(() => import('./pages/StripeConnectRefresh').then(module => ({ default: module.StripeConnectRefresh })));
-const StoreDashboard = React.lazy(() => import('./pages/StoreDashboard').then(module => ({ default: module.StoreDashboard })));
+const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
+const CashPaymentPage = React.lazy(() => import('./pages/CashPaymentPage'));
 
 
 // 認証ページ
@@ -52,6 +36,7 @@ const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(
 // その他のページ
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
 const Menu = React.lazy(() => import('./pages/Menu').then(module => ({ default: module.Menu })));
+const MenuPage = React.lazy(() => import('./pages/MenuPage').then(module => ({ default: module.default })));
 const MenuScreen = React.lazy(() => import('./pages/MenuScreen').then(module => ({ default: module.MenuScreen })));
 const StoreOwnerRegistration = React.lazy(() => import('./pages/StoreOwnerRegistration').then(module => ({ default: module.StoreOwnerRegistration })));
 const CustomerRegistration = React.lazy(() => import('./pages/CustomerRegistration').then(module => ({ default: module.CustomerRegistration })));
@@ -70,21 +55,17 @@ const PageLoader: React.FC = () => (
 
 function App() {
   return (
-      <Router>
-      <SimpleAuthProvider>
-        <CustomerAuthProvider>
-          <CustomerProvider>
+    <Router>
+    <SimpleAuthProvider>
         <div className="App">
-            <Suspense fallback={<PageLoader />}>
+          <ScrollToTop />
+          <Suspense fallback={<PageLoader />}>
           <Routes>
               {/* 公開ルート */}
-            <Route path="/" element={<Home />} />
-              <Route path="/simple-login" element={<SimpleLoginForm />} />
+              <Route path="/" element={<Home />} />
+                          <Route path="/simple-login" element={<SimpleLoginForm />} />
               <Route path="/simple-signup" element={<SimpleSignUpForm />} />
               <Route path="/signup" element={<SignUpForm />} />
-              <Route path="/customer-login" element={<CustomerLogin />} />
-              <Route path="/customer-signup" element={<CustomerSignUp />} />
-              <Route path="/customer-data-registration" element={<CustomerDataRegistration />} />
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
               <Route path="/stripe-test" element={<StripeTest />} />
@@ -96,9 +77,9 @@ function App() {
               </SimpleAuthGuard>
             } />
             <Route path="/simple-menu" element={
-              <CustomerAuthGuard>
-                <CustomerMenuScreen />
-              </CustomerAuthGuard>
+              <SimpleAuthGuard>
+                <SimpleMenuScreen />
+              </SimpleAuthGuard>
             } />
             <Route path="/checkout" element={
               <SimpleAuthGuard>
@@ -121,14 +102,14 @@ function App() {
               </SimpleAuthGuard>
             } />
               <Route path="/florist-map" element={
-                <CustomerAuthGuard>
+                <SimpleAuthGuard>
                   <FloristMap />
-                </CustomerAuthGuard>
+                </SimpleAuthGuard>
               } />
               <Route path="/flower-lesson-map" element={
-                <CustomerAuthGuard>
+                <SimpleAuthGuard>
                   <FlowerLessonMap />
-                </CustomerAuthGuard>
+                </SimpleAuthGuard>
               } />
               <Route path="/lesson-school-management" element={
                 <SimpleAuthGuard>
@@ -142,7 +123,12 @@ function App() {
               } />
               <Route path="/popularity-rankings" element={
                 <SimpleAuthGuard>
-                  <PopularityRankings />
+                  <PublicRankings />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/store-analytics" element={
+                <SimpleAuthGuard>
+                  <StoreAnalytics />
                 </SimpleAuthGuard>
               } />
               <Route path="/subscription-management" element={
@@ -150,68 +136,47 @@ function App() {
                   <SubscriptionManagement />
                 </SimpleAuthGuard>
               } />
+              <Route path="/privacy-and-payment" element={
+                <SimpleAuthGuard>
+                  <PrivacyAndPaymentPage />
+                </SimpleAuthGuard>
+              } />
+              <Route path="/policy" element={
+                <SimpleAuthGuard>
+                  <PrivacyAndPaymentPage />
+                </SimpleAuthGuard>
+              } />
               <Route path="/readme" element={
                 <SimpleAuthGuard>
                   <ReadmePage />
                 </SimpleAuthGuard>
               } />
-
-              {/* 顧客向けルート */}
-              <Route path="/customer-login" element={<CustomerLogin />} />
-              <Route path="/customer-signup" element={<CustomerSignUp />} />
               <Route path="/customer-menu" element={
-                <CustomerAuthGuard>
-                  <CustomerMenuScreen />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/customer-qr" element={
-                <CustomerAuthGuard>
-                  <CustomerQRCode />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/payment-confirmation" element={
-                <CustomerAuthGuard>
-                  <PaymentConfirmation />
-                </CustomerAuthGuard>
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <MenuPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
               } />
               <Route path="/store-payment" element={
-                <CustomerAuthGuard>
-                  <StorePayment />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/stripe-checkout" element={
-                <CustomerAuthGuard>
-                  <StripeCheckout />
-                </CustomerAuthGuard>
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <PaymentPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
               } />
               <Route path="/dynamic-stripe-checkout" element={
-                <CustomerAuthGuard>
-                  <DynamicStripeCheckout />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/customer-readme" element={
-                <CustomerAuthGuard>
-                  <CustomerReadmePage />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/payment-history" element={
-                <CustomerAuthGuard>
-                  <PaymentHistoryPage />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/point-history" element={
-                <CustomerAuthGuard>
-                  <PointHistoryPage />
-                </CustomerAuthGuard>
-              } />
-
-              {/* Stripe Connect関連ルート */}
-              <Route path="/stripe-connect-onboarding" element={<StripeConnectOnboarding />} />
-              <Route path="/stripe-connect-return" element={<StripeConnectReturn />} />
-              <Route path="/stripe-connect-refresh" element={<StripeConnectRefresh />} />
-              <Route path="/store-dashboard" element={
                 <SimpleAuthGuard>
-                  <StoreDashboard />
+                  <CustomerProvider>
+                    <PaymentPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
+              } />
+              <Route path="/cash-payment" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <CashPaymentPage />
+                  </CustomerProvider>
                 </SimpleAuthGuard>
               } />
 
@@ -241,10 +206,8 @@ function App() {
               {/* デフォルトルート */}
               <Route path="*" element={<Home />} />
           </Routes>
-            </Suspense>
+          </Suspense>
         </div>
-          </CustomerProvider>
-        </CustomerAuthProvider>
       </SimpleAuthProvider>
       </Router>
   );

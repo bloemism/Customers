@@ -1,251 +1,232 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus,
-  Calendar as CalendarIcon,
-  Clock,
-  Users
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
-// レッスンスケジュールの型定義
-interface LessonSchedule {
+interface CalendarLessonSchedule {
   id: string;
+  lesson_school_id: string;
+  lesson_school_name?: string;
   title: string;
+  description: string;
   date: string;
   start_time: string;
   end_time: string;
   max_participants: number;
   current_participants: number;
-  color: string;
+  price: number;
+  is_active: boolean;
+  store_email: string;
+  color?: string;
 }
 
 interface LessonCalendarProps {
-  schedules: LessonSchedule[];
+  schedules: CalendarLessonSchedule[];
   onDateClick: (date: string) => void;
-  onScheduleClick: (schedule: LessonSchedule) => void;
+  onScheduleClick: (schedule: CalendarLessonSchedule) => void;
+  selectedDate?: string;
 }
 
 const LessonCalendar: React.FC<LessonCalendarProps> = ({ 
   schedules, 
   onDateClick, 
-  onScheduleClick 
+  onScheduleClick,
+  selectedDate
 }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // 3ヶ月分のカレンダーを生成
-  const generateCalendarMonths = () => {
-    const months = [];
-    const startDate = new Date(currentMonth);
-    startDate.setMonth(startDate.getMonth() - 1); // 1ヶ月前から
-
-    for (let i = 0; i < 3; i++) {
-      const monthDate = new Date(startDate);
-      monthDate.setMonth(startDate.getMonth() + i);
-      months.push(monthDate);
-    }
-    return months;
+  // 月の移動
+  const goToPreviousMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
-  // 指定された月のカレンダーグリッドを生成
-  const generateMonthGrid = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  const goToNextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  // カレンダーの日付を生成（日本時間）
+  const generateCalendarDays = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
     
-    // 月の最初の日と最後の日
+    // 月の最初の日（日本時間）
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+    // 月の最初の週の開始日（日曜日）
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
     
-    // 月の最初の日の曜日（0=日曜日）
-    const firstDayOfWeek = firstDay.getDay();
+    const days = [];
+    const current = new Date(startDate);
     
-    // 前月の日付を取得
-    const prevMonthLastDay = new Date(year, month, 0);
-    const prevMonthDays = [];
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      prevMonthDays.push(new Date(year, month - 1, prevMonthLastDay.getDate() - i));
+    // 6週間分の日付を生成
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
     }
     
-    // 当月の日付を取得
-    const currentMonthDays = [];
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      currentMonthDays.push(new Date(year, month, i));
-    }
-    
-    // 次月の日付を取得（6週分のグリッドを作るため）
-    const nextMonthDays = [];
-    const totalDays = prevMonthDays.length + currentMonthDays.length;
-    const remainingDays = 42 - totalDays; // 6週 × 7日 = 42
-    for (let i = 1; i <= remainingDays; i++) {
-      nextMonthDays.push(new Date(year, month + 1, i));
-    }
-    
-    return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
+    return days;
   };
 
-  // 指定された日付のレッスンを取得（日本時間）
+  // 指定された日付のスケジュールを取得
   const getSchedulesForDate = (date: Date) => {
-    // 日本時間で日付文字列を生成
+    // 日付をYYYY-MM-DD形式の文字列に変換
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateString = `${year}-${month}-${day}`;
-    
     return schedules.filter(schedule => schedule.date === dateString);
   };
 
-  // 日付をクリック（日本時間）
-  const handleDateClick = (date: Date) => {
-    // 日本時間で日付文字列を生成
+  // 日付が今日かどうか
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // 日付が選択された日かどうか
+  const isSelected = (date: Date) => {
+    if (!selectedDate) return false;
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateString = `${year}-${month}-${day}`;
-    
-    setSelectedDate(dateString);
-    onDateClick(dateString);
+    return dateString === selectedDate;
   };
 
-  // 月を変更
-  const changeMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth(prev => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(newDate.getMonth() - 1);
-      } else {
-        newDate.setMonth(newDate.getMonth() + 1);
-      }
-      return newDate;
-    });
+  // 日付が現在の月かどうか
+  const isCurrentMonth = (date: Date) => {
+    return date.getMonth() === currentDate.getMonth();
   };
 
-  // 曜日のヘッダー
-  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
 
-  // 月名を日本語で取得
-  const getMonthName = (date: Date) => {
-    return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
-  };
+  const days = generateCalendarDays();
+  const monthNames = [
+    '1月', '2月', '3月', '4月', '5月', '6月',
+    '7月', '8月', '9月', '10月', '11月', '12月'
+  ];
+  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
   return (
-    <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-      {/* カレンダーコントロール */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-gray-100 rounded-lg shadow-lg border border-gray-300 p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center">
+          <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-gray-600" />
+          レッスンカレンダー
+        </h3>
+        <div className="flex items-center space-x-2 sm:space-x-4">
         <button
-          onClick={() => changeMonth('prev')}
-          className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+            onClick={goToPreviousMonth}
+            className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
         >
-          <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
-        <h2 className="text-lg font-semibold text-gray-900">
-          レッスンスケジュールカレンダー
-        </h2>
+          <span className="text-sm sm:text-lg font-medium text-gray-800 min-w-[80px] sm:min-w-[120px] text-center">
+            {currentDate.getFullYear()}年{monthNames[currentDate.getMonth()]}
+          </span>
         <button
-          onClick={() => changeMonth('next')}
-          className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+            onClick={goToNextMonth}
+            className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
         >
-          <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
-      </div>
-
-      {/* 3ヶ月分のカレンダー */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {generateCalendarMonths().map((monthDate, monthIndex) => (
-          <div key={monthIndex} className="border border-gray-300 rounded-lg p-4 bg-white shadow-md">
-            {/* 月のヘッダー */}
-            <div className="text-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                {getMonthName(monthDate)}
-              </h3>
+        </div>
             </div>
 
             {/* 曜日ヘッダー */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {weekDays.map(day => (
-                <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+        {dayNames.map((day) => (
+          <div
+            key={day}
+            className="text-center text-xs sm:text-sm font-medium text-gray-700 py-1 sm:py-2 bg-gray-200 rounded"
+          >
                   {day}
                 </div>
               ))}
             </div>
 
             {/* カレンダーグリッド */}
-            <div className="grid grid-cols-7 gap-1">
-              {generateMonthGrid(monthDate).map((date, dayIndex) => {
-                const isCurrentMonth = date.getMonth() === monthDate.getMonth();
-                const isToday = date.toDateString() === new Date().toDateString();
-                const isSelected = date.toISOString().split('T')[0] === selectedDate;
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+        {days.map((date, index) => {
                 const daySchedules = getSchedulesForDate(date);
+          const isCurrentMonthDay = isCurrentMonth(date);
+          const isTodayDate = isToday(date);
+          const isSelectedDate = isSelected(date);
                 
                 return (
                   <div
-                    key={dayIndex}
+              key={index}
                     className={`
-                      min-h-[60px] p-1 border border-gray-100 cursor-pointer transition-colors
-                      ${isCurrentMonth ? 'bg-white' : 'bg-gray-50'}
-                      ${isToday ? 'border-blue-300 bg-blue-50' : ''}
-                      ${isSelected ? 'border-blue-500 bg-blue-100' : ''}
-                      hover:bg-gray-50
-                    `}
-                    onClick={() => handleDateClick(date)}
-                  >
-                    {/* 日付 */}
+                min-h-[60px] sm:min-h-[80px] border border-gray-300 p-1 sm:p-2 cursor-pointer transition-all duration-200 rounded-lg
+                ${isCurrentMonthDay ? 'bg-white hover:bg-gray-50 hover:shadow-md' : 'bg-gray-50 hover:bg-gray-100'}
+                ${isTodayDate ? 'bg-gray-300 border-gray-500 shadow-lg ring-2 ring-gray-400' : ''}
+                ${isSelectedDate ? 'bg-gray-400 border-gray-600 shadow-lg ring-2 ring-gray-500' : ''}
+                ${daySchedules.length > 0 ? 'bg-gray-200 border-gray-400 shadow-md' : ''}
+              `}
+              onClick={() => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${day}`;
+                onDateClick(dateString);
+              }}
+            >
+              <div className="flex flex-col h-full">
                     <div className={`
-                      text-xs font-medium mb-1 text-center
-                      ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                      ${isToday ? 'text-blue-600 font-bold' : ''}
+                  text-xs sm:text-sm font-medium mb-0.5 sm:mb-1
+                  ${isCurrentMonthDay ? 'text-gray-800' : 'text-gray-400'}
+                  ${isTodayDate ? 'text-gray-900 font-bold' : ''}
+                  ${isSelectedDate ? 'text-gray-900 font-bold' : ''}
                     `}>
                       {date.getDate()}
                     </div>
 
-                    {/* レッスン表示 */}
-                    {daySchedules.slice(0, 2).map((schedule, scheduleIndex) => (
+                {/* スケジュール表示 */}
+                <div className="flex-1 space-y-0.5 sm:space-y-1">
+                  {daySchedules.slice(0, 1).map((schedule) => (
                       <div
                         key={schedule.id}
                         className={`
-                          text-xs p-1 mb-1 rounded cursor-pointer
-                          ${schedule.color || 'bg-blue-500'}
-                          text-white font-medium truncate
+                        text-xs p-0.5 sm:p-1 rounded-lg truncate cursor-pointer shadow-sm
+                        bg-gray-600 text-white font-medium
+                        hover:bg-gray-700 hover:shadow-md transition-all duration-200
                         `}
                         onClick={(e) => {
                           e.stopPropagation();
                           onScheduleClick(schedule);
                         }}
-                        title={`${schedule.title} (${schedule.start_time})`}
+                      title={`${schedule.title} (${schedule.start_time}-${schedule.end_time})`}
                       >
-                        {schedule.title}
+                      <div className="truncate text-xs">{schedule.title}</div>
+                      <div className="text-xs opacity-90 hidden sm:block">
+                        {schedule.start_time}-{schedule.end_time}
+                      </div>
                       </div>
                     ))}
-
-                    {/* レッスンが3つ以上ある場合 */}
-                    {daySchedules.length > 2 && (
-                      <div className="text-xs text-gray-500 text-center">
-                        +{daySchedules.length - 2}件
+                  {daySchedules.length > 1 && (
+                    <div className="text-xs text-gray-700 text-center font-medium bg-gray-300 rounded px-1">
+                      +{daySchedules.length - 1}件
                       </div>
                     )}
                   </div>
-                );
-              })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 凡例 */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-900 mb-3">凡例</h4>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-gray-600">レッスンあり</span>
+      <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-gray-300">
+        <div className="text-xs sm:text-sm text-gray-700 mb-1 sm:mb-2 font-medium">凡例:</div>
+        <div className="flex flex-wrap gap-1 sm:gap-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-300 border border-gray-500 rounded shadow-sm"></div>
+            <span className="text-xs text-gray-700 font-medium">今日</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-300 rounded border border-blue-500"></div>
-            <span className="text-gray-600">今日</span>
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 border border-gray-600 rounded shadow-sm"></div>
+            <span className="text-xs text-gray-700 font-medium">選択日</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-100 rounded border-2 border-blue-500"></div>
-            <span className="text-gray-600">選択中</span>
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-200 border border-gray-400 rounded shadow-sm"></div>
+            <span className="text-xs text-gray-700 font-medium">レッスン日</span>
           </div>
         </div>
       </div>

@@ -5,17 +5,12 @@ import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft,
   Plus,
-  Trash2,
-  Calculator,
   QrCode,
-  CreditCard,
-  DollarSign,
   ShoppingCart,
   Mail,
   Copy,
   Download,
-  X,
-  Percent
+  X
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -96,7 +91,18 @@ const CheckoutScreen: React.FC = () => {
   const [pointsEarned, setPointsEarned] = useState(0);
   
   // 支払い方法
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
+  // const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
+  
+  // 決済コード情報（5桁: 基本決済・5分間有効）
+  const [paymentCode5Digit, setPaymentCode5Digit] = useState<string | null>(null);
+  const [paymentCode5DigitLoading, setPaymentCode5DigitLoading] = useState(false);
+  
+  // 決済コード情報（6桁: 遠距離決済・1ヶ月有効）
+  const [paymentCode6Digit, setPaymentCode6Digit] = useState<string | null>(null);
+  const [paymentCode6DigitLoading, setPaymentCode6DigitLoading] = useState(false);
+  
+  // 動的決済用の金額入力（5桁コード用）
+  const [dynamicPaymentAmount, setDynamicPaymentAmount] = useState<number>(0);
   
   // QRコード・URL情報
   const [itemQRInfo, setItemQRInfo] = useState<{
@@ -104,7 +110,7 @@ const CheckoutScreen: React.FC = () => {
     title: string;
     qrCodeUrl: string;
     emailUrl: string;
-    data: any;
+    data: unknown;
   } | null>(null);
   
   // モーダル表示
@@ -272,10 +278,188 @@ const CheckoutScreen: React.FC = () => {
     }
   };
 
+  // 5桁決済コード生成（基本決済、5分間有効・動的決済対応）
+  const generatePaymentCode5Digit = async () => {
+    if (!store) {
+      alert('店舗情報が不足しています');
+      return;
+    }
+
+    // 動的決済の場合、金額が入力されているか確認
+    const finalAmount = dynamicPaymentAmount > 0 ? dynamicPaymentAmount : total;
+    if (finalAmount <= 0) {
+      alert('決済金額を入力してください');
+      return;
+    }
+
+    try {
+      setPaymentCode5DigitLoading(true);
+      console.log('5桁決済コード生成開始（基本決済・動的決済）');
+
+      // 決済データの準備
+      const paymentData = {
+        type: 'payment',
+        code_type: '5digit', // 5桁コードであることを示す
+        is_dynamic: dynamicPaymentAmount > 0, // 動的決済かどうか
+        storeId: store.id,
+        storeName: store.name,
+        storeAddress: store.address,
+        storePhone: store.phone,
+        storeEmail: store.email,
+        items: checkoutItems.length > 0 ? checkoutItems.map(item => {
+          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
+          const color = colorCategories.find(cat => cat.id === item.color_category_id);
+          return {
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
+            quantity: item.quantity,
+            total: item.total_price
+          };
+        }) : [],
+        subtotal: dynamicPaymentAmount > 0 ? dynamicPaymentAmount : subtotal,
+        tax: dynamicPaymentAmount > 0 ? Math.round(dynamicPaymentAmount * 0.1) : tax,
+        totalAmount: finalAmount,
+        pointsUsed: pointsToUse,
+        pointsEarned: dynamicPaymentAmount > 0 ? Math.round(finalAmount * 0.05) : pointsEarned,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('決済データ:', paymentData);
+
+      // 5桁の決済コードを生成（10000-99999）
+      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
+      console.log('生成された5桁決済コード:', generatedCode);
+
+      // 決済コード生成（5分間有効）
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .insert({
+          code: generatedCode,
+          store_id: store.id,
+          payment_data: paymentData,
+          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
+        })
+        .select('code')
+        .single();
+
+      // エラーハンドリング
+      if (error) {
+        console.error('5桁決済コード生成エラー:', error);
+        alert(`決済コード生成エラー: ${error.message}`);
+        return;
+      }
+
+      if (data && data.code) {
+        setPaymentCode5Digit(data.code);
+        console.log('5桁決済コード生成成功:', data.code);
+        
+        // クリップボードにコピー
+        await copyToClipboard(data.code);
+      }
+
+    } catch (error) {
+      console.error('5桁決済コード生成エラー:', error);
+      alert(`決済コード生成エラー: ${error}`);
+    } finally {
+      setPaymentCode5DigitLoading(false);
+    }
+  };
+
+  // 6桁決済コード生成（遠距離決済、1ヶ月有効）
+  const generatePaymentCode6Digit = async () => {
+    if (!store || checkoutItems.length === 0) {
+      alert('店舗情報または商品が不足しています');
+      return;
+    }
+
+    try {
+      setPaymentCode5DigitLoading(true);
+      console.log('5桁決済コード生成開始（遠距離決済）');
+
+      // 決済データの準備
+      const paymentData = {
+        type: 'payment',
+        code_type: '5digit', // 5桁コードであることを示す
+        storeId: store.id,
+        storeName: store.name,
+        storeAddress: store.address,
+        storePhone: store.phone,
+        storeEmail: store.email,
+        items: checkoutItems.map(item => {
+          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
+          const color = colorCategories.find(cat => cat.id === item.color_category_id);
+          return {
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
+            quantity: item.quantity,
+            total: item.total_price
+          };
+        }),
+        subtotal: subtotal,
+        tax: tax,
+        totalAmount: total,
+        pointsUsed: pointsToUse,
+        pointsEarned: pointsEarned,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('決済データ:', paymentData);
+
+      // 5桁の決済コードを生成（10000-99999）
+      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
+      console.log('生成された5桁決済コード:', generatedCode);
+
+      // 決済コード生成（1ヶ月有効）
+      const oneMonthFromNow = new Date();
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+      
+      const { data, error } = await supabase
+        .from('payment_codes')
+        .insert({
+          code: generatedCode,
+          store_id: store.id,
+          payment_data: paymentData,
+          expires_at: oneMonthFromNow.toISOString() // 1ヶ月後
+        })
+        .select('code')
+        .single();
+
+      // エラーハンドリング
+      if (error) {
+        console.error('5桁決済コード生成エラー:', error);
+        alert(`決済コード生成エラー: ${error.message}`);
+        return;
+      }
+
+      if (data && data.code) {
+        setPaymentCode5Digit(data.code);
+        console.log('5桁決済コード生成成功:', data.code);
+        
+        // クリップボードにコピー
+        await copyToClipboard(data.code);
+      }
+
+    } catch (error) {
+      console.error('5桁決済コード生成エラー:', error);
+      alert(`決済コード生成エラー: ${error}`);
+    } finally {
+      setPaymentCode5DigitLoading(false);
+    }
+  };
+
   // 現金支払いQRコード生成
   const generateCashQRCode = async () => {
     try {
       console.log('現金支払いQRコード生成開始');
+      console.log('QRCodeライブラリ:', QRCode);
+      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
+      
+      // QRCodeライブラリの存在確認
+      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
+        throw new Error('QRCodeライブラリが正しく読み込まれていません');
+      }
       
       const checkoutData = {
         store_name: store?.name || '不明',
@@ -307,8 +491,9 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
+      // QRコード生成（シンプルなオプション）
       const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL:', qrCodeUrl);
+      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
       const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
@@ -328,7 +513,13 @@ const CheckoutScreen: React.FC = () => {
       
     } catch (error) {
       console.error('現金支払いQRコード生成エラー:', error);
-      alert(`QRコード生成エラー: ${error}`);
+      console.error('エラーの詳細:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        QRCode: typeof QRCode,
+        toDataURL: typeof QRCode?.toDataURL
+      });
+      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -336,6 +527,14 @@ const CheckoutScreen: React.FC = () => {
   const generateCreditCardQRCode = async () => {
     try {
       console.log('クレジットカード支払いQRコード生成開始');
+      
+      console.log('QRCodeライブラリ:', QRCode);
+      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
+      
+      // QRCodeライブラリの存在確認
+      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
+        throw new Error('QRCodeライブラリが正しく読み込まれていません');
+      }
 
     const checkoutData = {
         store_name: store?.name || '不明',
@@ -368,8 +567,9 @@ const CheckoutScreen: React.FC = () => {
       const qrData = JSON.stringify(checkoutData);
       console.log('QRデータ:', qrData);
 
+      // QRコード生成（シンプルなオプション）
       const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL:', qrCodeUrl);
+      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
 
       // encodeURIComponentを使用して日本語文字を安全にエンコード
       const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
@@ -389,7 +589,13 @@ const CheckoutScreen: React.FC = () => {
       
     } catch (error) {
       console.error('クレジットカード支払いQRコード生成エラー:', error);
-      alert(`QRコード生成エラー: ${error}`);
+      console.error('エラーの詳細:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        QRCode: typeof QRCode,
+        toDataURL: typeof QRCode?.toDataURL
+      });
+      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -403,6 +609,7 @@ const CheckoutScreen: React.FC = () => {
         store_address: store?.address || '不明',
         store_phone: store?.phone || '不明',
         store_email: store?.email || '不明',
+        store_connect_account_id: store?.stripe_connect_account_id || '', // Stripe Connect Account ID
         items: checkoutItems.map(item => {
           const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
           const color = colorCategories.find(cat => cat.id === item.color_category_id);
@@ -454,27 +661,30 @@ const CheckoutScreen: React.FC = () => {
     try {
       console.log('伝票全体QRコード生成開始');
       
+      // 決済用QRコードデータ（顧客側アプリで認識される形式）
       const receiptData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
+        type: 'payment', // 決済用QRコードであることを明示
+        storeId: store?.id || 'unknown',
+        storeName: store?.name || '不明',
+        storeAddress: store?.address || '不明',
+        storePhone: store?.phone || '不明',
+        storeEmail: store?.email || '不明',
         items: checkoutItems.map(item => {
           const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
           const color = colorCategories.find(cat => cat.id === item.color_category_id);
           return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
+            id: `${item.flower_item_category_id}_${item.color_category_id}`,
+            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
+            price: item.unit_price,
             quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
+            total: item.total_price
           };
         }),
         subtotal: subtotal,
         tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
+        totalAmount: total, // 顧客側が期待するフィールド名
+        pointsUsed: pointsToUse, // 顧客側が期待するフィールド名
+        pointsEarned: pointsEarned,
         timestamp: new Date().toISOString()
       };
 
@@ -795,6 +1005,29 @@ const CheckoutScreen: React.FC = () => {
               <Plus className="w-5 h-5 mr-2 inline" />
               品目を追加
             </button>
+
+            {/* テストデータ追加ボタン */}
+            <button
+              onClick={() => {
+                // テスト用の品目を追加
+                if (flowerItemCategories.length > 0 && colorCategories.length > 0) {
+                  const testItem: CheckoutItem = {
+                    id: `test-${Date.now()}`,
+                    flower_item_category_id: flowerItemCategories[0].id,
+                    color_category_id: colorCategories[0].id,
+                    quantity: 2,
+                    unit_price: 500,
+                    total_price: 1000
+                  };
+                  setCheckoutItems([...checkoutItems, testItem]);
+                  console.log('テスト品目を追加しました:', testItem);
+                }
+              }}
+              className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mt-2"
+            >
+              <Plus className="w-5 h-5 mr-2 inline" />
+              テスト品目追加（QRテスト用）
+            </button>
           </div>
 
           {/* 右側：品目一覧・計算結果 */}
@@ -926,6 +1159,97 @@ const CheckoutScreen: React.FC = () => {
 
             {/* 支払い方法選択 */}
             <div className="mt-6 space-y-3">
+              {/* 5桁決済コード生成（基本決済・動的決済対応） */}
+              <div className="space-y-2">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
+                  <label className="block text-sm font-medium text-purple-700 mb-2">
+                    動的決済: 金額を入力してください（¥）
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={dynamicPaymentAmount || ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      setDynamicPaymentAmount(value);
+                    }}
+                    placeholder="金額を入力（例: 5000）"
+                    className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:outline-none text-lg"
+                  />
+                  <p className="text-xs text-purple-600 mt-1">
+                    {dynamicPaymentAmount > 0 ? `入力金額: ¥${dynamicPaymentAmount.toLocaleString()}` : '金額を入力すると動的決済になります'}
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={generatePaymentCode5Digit}
+                  disabled={paymentCode5DigitLoading}
+                  className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                >
+                  {paymentCode5DigitLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl mr-2">🔢</span>
+                      決済コード生成（5桁・基本決済）
+                    </>
+                  )}
+                </button>
+
+                {/* 生成された5桁決済コード表示 */}
+                {paymentCode5Digit && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <p className="text-sm text-purple-700 mb-2">決済コード（5桁）</p>
+                      <p className="text-3xl font-bold text-purple-900 mb-2">{paymentCode5Digit}</p>
+                      <p className="text-xs text-purple-600">お客様にこのコードをお伝えください</p>
+                      <p className="text-xs text-purple-500 mt-1">（5分間有効）</p>
+                      {dynamicPaymentAmount > 0 && (
+                        <p className="text-xs text-purple-600 mt-1 font-semibold">
+                          動的決済: ¥{dynamicPaymentAmount.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 6桁決済コード生成（遠距離決済） */}
+              <div className="space-y-2 mt-4">
+                <button 
+                  onClick={generatePaymentCode6Digit}
+                  disabled={paymentCode6DigitLoading}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                >
+                  {paymentCode6DigitLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl mr-2">🌐</span>
+                      決済コード生成（6桁・遠距離決済）
+                    </>
+                  )}
+                </button>
+
+                {/* 生成された6桁決済コード表示 */}
+                {paymentCode6Digit && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <p className="text-sm text-indigo-700 mb-2">決済コード（6桁）</p>
+                      <p className="text-3xl font-bold text-indigo-900 mb-2">{paymentCode6Digit}</p>
+                      <p className="text-xs text-indigo-600">お客様にこのコードをお伝えください</p>
+                      <p className="text-xs text-indigo-500 mt-1">（1ヶ月間有効）</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button 
                 onClick={() => generateCashQRCode()}
                 className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
@@ -967,12 +1291,28 @@ const CheckoutScreen: React.FC = () => {
               </h3>
               
               {/* QRコード - 伝票全体の場合のみ表示 */}
-              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl && (
+              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl ? (
                 <div className="text-center mb-4">
-                  <img src={itemQRInfo.qrCodeUrl} alt="QR Code" className="mx-auto w-48 h-48" />
+                  <img 
+                    src={itemQRInfo.qrCodeUrl} 
+                    alt="QR Code" 
+                    className="mx-auto w-48 h-48"
+                    onError={(e) => {
+                      console.error('QRコード画像の読み込みに失敗しました');
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('QRコード画像の読み込みに成功しました');
+                    }}
+                  />
                   <p className="text-sm text-gray-600 mt-2">QRコードをスキャンして支払い</p>
                 </div>
-              )}
+              ) : itemQRInfo.type === 'receipt' ? (
+                <div className="text-center mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">QRコードの生成に失敗しました</p>
+                  <p className="text-red-500 text-xs mt-1">ブラウザのコンソールでエラーを確認してください</p>
+                </div>
+              ) : null}
 
               {/* メール請求用URL */}
               <div className="mb-4">

@@ -1,0 +1,18 @@
+# Vercel環境変数設定例
+# Vercelダッシュボードの「Settings」→「Environment Variables」で設定してください
+
+# Supabase設定
+VITE_SUPABASE_URL=https://aoqmdyapjsmmvjrwfdup.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Google Maps設定
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# Stripe設定
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+
+# アプリケーション設定
+VITE_APP_NAME=87アプリ
+VITE_APP_VERSION=1.0.0
+VITE_DEV_MODE=false
+VITE_DEBUG_MODE=false
