@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, Flower } from 'lucide-react';
 
-
 const levelConfig = {
   BASIC: {
     name: 'ベーシック',
@@ -39,239 +38,177 @@ const levelConfig = {
   }
 };
 
-export const CustomerQRCode: React.FC = () => {
+const CustomerQRCode: React.FC = () => {
   const navigate = useNavigate();
   const { customer } = useCustomerAuth();
-  const [copied, setCopied] = useState(false);
+  const [copiedTarget, setCopiedTarget] = useState<'code' | 'id' | null>(null);
 
-  const getLevelInfo = (level: string) => {
-    return levelConfig[level as keyof typeof levelConfig] || levelConfig.BASIC;
-  };
+  const getLevelInfo = (level: string) => levelConfig[level as keyof typeof levelConfig] || levelConfig.BASIC;
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, target: 'code' | 'id') => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedTarget(target);
+      setTimeout(() => setCopiedTarget(null), 1800);
     } catch (error) {
       console.error('コピーに失敗しました:', error);
     }
   };
 
-  // 顧客データが存在しない場合は、デフォルト値を設定
-  const defaultCustomer = customer ? {
-    ...customer,
-    customer_code: (customer as any)?.customer_code || undefined
-  } : {
-    id: 'guest-12345',
-    user_id: '',
-    name: 'ゲストユーザー',
-    email: 'guest@example.com',
-    phone: '',
-    customer_code: undefined,
-    points: 0,
-    level: 'BASIC' as const,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const defaultCustomer = customer
+    ? { ...customer, customer_code: (customer as any)?.customer_code || undefined }
+    : {
+        id: 'guest-12345',
+        user_id: '',
+        name: 'ゲストユーザー',
+        email: 'guest@example.com',
+        phone: '',
+        customer_code: undefined,
+        points: 0,
+        level: 'BASIC' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-  // customer_codeを取得
   const customerCode = defaultCustomer.customer_code || (customer as any)?.customer_code;
-  
-  console.log('CustomerQRCode - customer:', customer);
-  console.log('CustomerQRCode - customerCode:', customerCode);
-  console.log('CustomerQRCode - defaultCustomer.customer_code:', defaultCustomer.customer_code);
-
   const levelInfo = getLevelInfo(defaultCustomer.level);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* ヘッダー */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <button
-              onClick={() => navigate('/customer-menu')}
-              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              戻る
-            </button>
-            <div className="flex items-center space-x-2">
-              <Flower className="h-6 w-6 text-blue-600" />
-              <h1 className="text-lg font-semibold text-gray-900">87app</h1>
-            </div>
-            <div className="w-8"></div>
+    <div className="min-h-screen bg-[#f8f5f0] px-4 py-10">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <button
+            onClick={() => navigate('/customer-menu')}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-gray-600 shadow-sm transition hover:bg-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            メニューに戻る
+          </button>
+          <div className="flex items-center gap-2 text-gray-500">
+            <Flower className="h-5 w-5 text-[#0fbab9]" />
+            <span className="text-sm font-semibold text-gray-700">87app Customers</span>
           </div>
         </div>
-      </div>
 
-      {/* メインコンテンツ */}
-      <div className="max-w-md mx-auto px-4 py-8">
-        {/* 顧客コードカード - 青い縦バー */}
-        <div className="bg-gradient-to-b from-blue-600 to-blue-700 rounded-3xl shadow-2xl p-8 mb-6">
-          <div className="text-center">
-            {/* ヘッダー */}
-            <div className="mb-8">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <QrCode className="h-8 w-8 text-white" />
+        <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+          <section className="rounded-[32px] bg-[#5c3c2f] p-6 text-white shadow-[0_20px_50px_rgba(42,27,17,0.35)]">
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs uppercase tracking-[0.5em] text-white/60">Customer Code</p>
+                <h2 className="mt-3 text-3xl font-semibold">マイ顧客コード</h2>
+                <p className="text-sm text-white/75">店舗でスキャンすると、ポイントや決済がスムーズに進みます。</p>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">マイ顧客コード</h2>
-              <p className="text-sm text-white/80">店舗でコードを伝えて決済</p>
-            </div>
 
-            {/* 顧客コード表示 */}
-            {customerCode ? (
-              <div className="mb-8">
-                <div className="bg-white rounded-2xl p-8 shadow-xl">
-                  <div className="text-6xl font-mono font-bold text-purple-600 tracking-wider mb-4 break-all">
-                    {String(customerCode)}
+              {customerCode ? (
+                <div className="rounded-2xl bg-white/95 p-6 text-gray-900 shadow-lg">
+                  <div className="text-center">
+                    <div className="text-4xl font-mono font-semibold tracking-widest text-[#4a30b5] break-all">
+                      {String(customerCode)}
+                    </div>
+                    <p className="mt-2 text-xs uppercase tracking-[0.4em] text-gray-400">Your personal code</p>
                   </div>
                   <button
-                    onClick={() => copyToClipboard(String(customerCode))}
-                    className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-purple-700 font-medium transition-colors"
+                    onClick={() => copyToClipboard(String(customerCode), 'code')}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#fbe2fe] to-[#e3f0ff] px-4 py-3 text-sm font-semibold text-[#6a40f3] shadow-inner transition hover:from-[#f9d0ff] hover:to-[#d3e8ff]"
                   >
-                    {copied ? (
+                    {copiedTarget === 'code' ? (
                       <>
-                        <Check className="h-5 w-5" />
-                        <span>コピーしました</span>
+                        <Check className="h-4 w-4" />
+                        コピーしました
                       </>
                     ) : (
                       <>
-                        <Copy className="h-5 w-5" />
-                        <span>コードをコピー</span>
+                        <Copy className="h-4 w-4" />
+                        コードをコピー
                       </>
                     )}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="mb-8">
-                <div className="bg-white/20 rounded-2xl p-8 shadow-xl">
-                  <p className="text-white text-lg">顧客コードが設定されていません</p>
-                  <p className="text-white/70 text-sm mt-2">マイプロフィールで登録してください</p>
+              ) : (
+                <div className="rounded-2xl bg-white/15 p-6 text-sm text-white shadow-inner">
+                  顧客コードが未設定です。マイプロフィールの登録を完了すると表示されます。
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ポイント表示 */}
-            <div className="bg-white/20 rounded-2xl p-6 mb-6 text-white">
-              <div className="flex items-center justify-center space-x-3">
-                <Star className="h-6 w-6 text-yellow-300" />
-                <div>
-                  <div className="text-3xl font-bold">{defaultCustomer.points}</div>
-                  <div className="text-sm opacity-90">ポイント</div>
-                </div>
-              </div>
-            </div>
-
-            {/* レベル表示 */}
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <div className={`w-12 h-12 rounded-full shadow-lg ${
-                levelInfo.name === 'ベーシック' ? 'bg-gradient-to-br from-gray-400 to-gray-600' :
-                levelInfo.name === 'レギュラー' ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
-                levelInfo.name === 'プロ' ? 'bg-gradient-to-br from-purple-400 to-purple-600' :
-                'bg-gradient-to-br from-yellow-400 to-yellow-600'
-              }`}></div>
-              <div className="text-left">
-                <div className="text-lg font-semibold text-white">
-                  {levelInfo.name}
-                </div>
-                <div className="text-xs text-white/70">
-                  {levelInfo.minPoints}-{levelInfo.maxPoints}pt
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 顧客情報カード */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-            <User className="h-5 w-5 mr-2 text-gray-600" />
-            顧客情報
-          </h3>
-          
-          <div className="space-y-5">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <User className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">お名前</p>
-                <p className="font-medium text-gray-800 text-lg">{defaultCustomer.name}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <Mail className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">メールアドレス</p>
-                <p className="font-medium text-gray-800">{defaultCustomer.email}</p>
-              </div>
-            </div>
-
-            {/* 顧客コード表示 */}
-            {customerCode && (
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
-                  <QrCode className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500">顧客コード</p>
-                  <div className="flex items-center space-x-2">
-                    <code className="font-mono text-lg font-bold bg-gradient-to-r from-purple-100 to-blue-100 px-4 py-2 rounded-lg text-purple-700 border border-purple-300 tracking-wider">
-                      {String(customerCode)}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(String(customerCode))}
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300"
-                    >
-                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </button>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-inner">
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/70">Points</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <Star className="h-6 w-6 text-yellow-300" />
+                    <div className="text-3xl font-semibold">{defaultCustomer.points}</div>
                   </div>
                 </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-inner">
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/70">Level</p>
+                  <div className="mt-2 text-lg font-semibold">{levelInfo.name}</div>
+                  <p className="text-xs text-white/70">
+                    {levelInfo.minPoints}-{levelInfo.maxPoints} pt
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
+          </section>
 
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <div className="text-blue-600 font-bold text-sm">ID</div>
+          <section className="space-y-4">
+            <div className="rounded-[28px] bg-white p-5 shadow-[0_18px_35px_rgba(46,31,22,0.14)]">
+              <h3 className="text-sm font-semibold text-gray-900">プロフィールサマリー</h3>
+              <p className="text-xs uppercase tracking-[0.4em] text-gray-350">identity</p>
+              <div className="mt-4 space-y-4 text-sm text-gray-600">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">NAME</p>
+                  <p className="mt-1 text-lg font-medium text-gray-900">{defaultCustomer.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">EMAIL</p>
+                  <p className="mt-1 break-words text-sm">{defaultCustomer.email}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-500">顧客ID</p>
-                <div className="flex items-center space-x-2">
-                  <code className="font-mono text-sm bg-gray-100 px-3 py-2 rounded-lg text-gray-700 border border-gray-200 break-all">
-                    {defaultCustomer.id}
-                  </code>
+            </div>
+
+            <div className="rounded-[28px] bg-white p-5 shadow-[0_18px_35px_rgba(46,31,22,0.14)]">
+              <h3 className="text-sm font-semibold text-gray-900">顧客 ID / コード</h3>
+              <div className="mt-4 space-y-4 text-sm">
+                {customerCode && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50 px-3 py-2 text-purple-700 shadow-inner">
+                    <QrCode className="h-4 w-4 text-purple-500" />
+                    <code className="flex-1 font-mono text-sm break-all">{String(customerCode)}</code>
+                    <button
+                      onClick={() => copyToClipboard(String(customerCode), 'code')}
+                      className="rounded-full p-2 text-purple-500 transition hover:bg-white/70"
+                    >
+                      {copiedTarget === 'code' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-700 shadow-inner">
+                  <span className="text-xs font-semibold tracking-[0.3em] text-gray-400">ID</span>
+                  <code className="flex-1 font-mono text-xs break-all">{defaultCustomer.id}</code>
                   <button
-                    onClick={() => copyToClipboard(defaultCustomer.id)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300"
+                    onClick={() => copyToClipboard(defaultCustomer.id, 'id')}
+                    className="rounded-full p-2 text-gray-500 transition hover:bg-white"
                   >
-                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {copiedTarget === 'id' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
             </div>
 
             {!customer && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-6">
-                <p className="text-sm text-amber-700 mb-2">
-                  ※ 顧客データを登録すると、より多くの機能をご利用いただけます
-                </p>
+              <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-800 shadow-inner">
+                <p className="font-medium">顧客データを登録すると、より多くの機能をご利用いただけます。</p>
                 <button
                   onClick={() => navigate('/customer-data-registration')}
-                  className="text-sm text-amber-600 hover:text-amber-800 underline font-medium"
+                  className="mt-3 text-amber-700 underline-offset-4 transition hover:text-amber-900 hover:underline"
                 >
                   顧客データを登録する →
                 </button>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
     </div>
   );
 };
+
+export default CustomerQRCode;

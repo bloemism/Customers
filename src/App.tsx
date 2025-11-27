@@ -2,7 +2,9 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import { CustomerProvider } from './contexts/CustomerContext';
+import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import { SimpleAuthGuard } from './components/SimpleAuthGuard';
+import { CustomerAuthGuard } from './components/CustomerAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ScrollToTop } from './components/ScrollToTop';
 import './App.css';
@@ -26,6 +28,16 @@ const PrivacyAndPaymentPage = React.lazy(() => import('./pages/PrivacyAndPayment
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
 const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
 const CashPaymentPage = React.lazy(() => import('./pages/CashPaymentPage'));
+const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen').then(module => ({ default: module.CustomerMenuScreen })));
+const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin').then(module => ({ default: module.CustomerLogin })));
+const CustomerSignUp = React.lazy(() => import('./pages/CustomerSignUp').then(module => ({ default: module.CustomerSignUp })));
+const CustomerDataRegistration = React.lazy(() => import('./pages/CustomerDataRegistration'));
+const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode'));
+const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
+const CustomerCodePage = React.lazy(() => import('./pages/CustomerCodePage'));
+const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
+const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
+const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
 
 
 // 認証ページ
@@ -57,6 +69,7 @@ function App() {
   return (
     <Router>
     <SimpleAuthProvider>
+    <CustomerAuthProvider>
         <div className="App">
           <ScrollToTop />
           <Suspense fallback={<PageLoader />}>
@@ -66,6 +79,8 @@ function App() {
                           <Route path="/simple-login" element={<SimpleLoginForm />} />
               <Route path="/simple-signup" element={<SimpleSignUpForm />} />
               <Route path="/signup" element={<SignUpForm />} />
+              <Route path="/customer-login" element={<CustomerLogin />} />
+              <Route path="/customer-signup" element={<CustomerSignUp />} />
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
               <Route path="/stripe-test" element={<StripeTest />} />
@@ -146,17 +161,52 @@ function App() {
                   <PrivacyAndPaymentPage />
                 </SimpleAuthGuard>
               } />
-              <Route path="/readme" element={
-                <SimpleAuthGuard>
-                  <ReadmePage />
-                </SimpleAuthGuard>
-              } />
+              <Route path="/readme" element={<ReadmePage />} />
               <Route path="/customer-menu" element={
-                <SimpleAuthGuard>
-                  <CustomerProvider>
-                    <MenuPage />
-                  </CustomerProvider>
-                </SimpleAuthGuard>
+              <CustomerAuthGuard>
+                  <CustomerMenuScreen />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-profile" element={
+              <CustomerAuthGuard>
+                <CustomerProvider>
+                  <CustomerProfilePage />
+                </CustomerProvider>
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-data-registration" element={
+              <CustomerAuthGuard>
+                  <CustomerDataRegistration />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-qr" element={
+              <CustomerAuthGuard>
+                  <CustomerQRCode />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-readme" element={
+              <CustomerAuthGuard>
+                  <CustomerReadmePage />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-code" element={
+              <CustomerAuthGuard>
+                  <CustomerCodePage />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-payments" element={
+              <CustomerAuthGuard>
+                <CustomerProvider>
+                  <PaymentHistoryPage />
+                </CustomerProvider>
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-points" element={
+              <CustomerAuthGuard>
+                <CustomerProvider>
+                  <PointHistoryPage />
+                </CustomerProvider>
+                </CustomerAuthGuard>
               } />
               <Route path="/store-payment" element={
                 <SimpleAuthGuard>
@@ -208,6 +258,7 @@ function App() {
           </Routes>
           </Suspense>
         </div>
+      </CustomerAuthProvider>
       </SimpleAuthProvider>
       </Router>
   );

@@ -2,31 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
-import { 
-  QrCode, 
-  MapPin, 
-  Map, 
-  Calendar, 
-  TrendingUp, 
-  BookOpen, 
-  LogOut, 
-  Flower,
+import {
+  QrCode,
+  MapPin,
+  Map,
+  Calendar,
+  TrendingUp,
+  BookOpen,
+  LogOut,
   User,
   UserPlus,
-  CreditCard,
   Scan,
   Receipt,
-  History,
-  Shield
+  History
 } from 'lucide-react';
-import TechnicalPointsDisplay from '../components/TechnicalPointsDisplay';
 
 // メニュー項目の型定義
 interface MenuItem {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon?: React.ComponentType<any>;
   color: string;
   route: string;
 }
@@ -74,7 +70,7 @@ const levelConfig = {
 export const CustomerMenuScreen: React.FC = () => {
   const navigate = useNavigate();
   const { customer, signOut, refreshCustomer } = useCustomerAuth();
-  const [touchedButton, setTouchedButton] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState<string | null>(null);
 
   useEffect(() => {
     // 顧客データを取得
@@ -92,12 +88,12 @@ export const CustomerMenuScreen: React.FC = () => {
   // 顧客向けメニュー項目の定義
   const menuItems: MenuItem[] = [
     {
-      id: 'customer-data-registration',
+      id: 'customer-profile',
       title: 'マイプロフィール',
       description: 'プロフィール情報の登録・更新',
       icon: UserPlus,
       color: 'from-indigo-500 to-purple-600',
-      route: '/customer-data-registration'
+      route: '/customer-profile'
     },
     {
       id: 'customer-qr',
@@ -116,20 +112,20 @@ export const CustomerMenuScreen: React.FC = () => {
       route: '/store-payment'
     },
     {
-      id: 'payment-history',
+      id: 'customer-payments',
       title: '決済履歴',
       description: '過去の決済履歴と総決済金額を確認',
       icon: Receipt,
       color: 'from-violet-500 to-purple-600',
-      route: '/payment-history'
+      route: '/customer-payments'
     },
     {
-      id: 'point-history',
+      id: 'customer-points',
       title: 'ポイント履歴',
       description: 'ポイントの獲得・使用履歴を確認',
       icon: History,
       color: 'from-amber-500 to-orange-600',
-      route: '/point-history'
+      route: '/customer-points'
     },
     {
       id: 'florist-map',
@@ -242,209 +238,135 @@ export const CustomerMenuScreen: React.FC = () => {
   const levelProgress = getLevelProgress(defaultCustomer.points, defaultCustomer.level);
 
   return (
-    <div 
-      className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed"
-      style={{ backgroundImage: 'url(/background.jpg)' }}
-    >
-      {/* ヘッダー */}
-      <div className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-teal-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Flower className="h-8 w-8 text-teal-500" />
-              <h1 className="text-xl font-bold text-gray-900">87app</h1>
-            </div>
-            
-            {/* デスクトップ表示 */}
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className={`px-3 py-1 rounded-full text-xs font-medium ${levelInfo.bgColor} ${levelInfo.textColor}`}>
-                  {levelInfo.name}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {defaultCustomer.points}pt
-                </div>
-              </div>
-              <div className="text-sm text-gray-600">
-                {defaultCustomer.email}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>ログアウト</span>
-              </button>
-            </div>
+    <div className="relative min-h-screen bg-[#f1ede7] overflow-hidden">
+      {/* Wood + Brick inspired background */}
+      <div
+        className="absolute inset-0 opacity-60"
+        style={{
+          backgroundImage:
+            "linear-gradient(120deg, rgba(255,255,255,0.2) 0%, rgba(241,237,231,0.9) 100%), url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-35 mix-blend-multiply"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80'), url('https://images.unsplash.com/photo-1501045661006-fcebe0257c3f?auto=format&fit=crop&w=1200&q=80')",
+          backgroundSize: 'cover, 800px',
+          backgroundRepeat: 'no-repeat, repeat',
+          backgroundPosition: 'center, top left'
+        }}
+      />
 
-            {/* モバイル表示 */}
-            <div className="md:hidden flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${levelInfo.bgColor} ${levelInfo.textColor}`}>
-                  {levelInfo.name}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {defaultCustomer.points}pt
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm">ログアウト</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Accent lines */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center gap-6 px-4 pt-6">
+        <span className="h-1 w-32 rounded-full bg-gradient-to-r from-[#0fbab9] to-[#01a7a5]" />
+        <span className="h-1 w-32 rounded-full bg-gradient-to-r from-[#ff9f66] to-[#f77f3f]" />
       </div>
 
-      {/* メインコンテンツ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 顧客情報カード */}
-        <div className="mb-8">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-teal-200/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center shadow-lg">
-                  <User className="h-8 w-8 text-teal-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{defaultCustomer.name}</h2>
-                  {defaultCustomer.alphabet && (
-                    <p className="text-lg text-gray-500 font-medium">{defaultCustomer.alphabet}</p>
-                  )}
-                  <p className="text-gray-600">{defaultCustomer.email}</p>
-                  {defaultCustomer.address && (
-                    <p className="text-sm text-gray-500 mt-1">📍 {defaultCustomer.address}</p>
-                  )}
-                  {defaultCustomer.birth_date && (
-                    <p className="text-sm text-gray-500">🎂 {convertISODateToJapanese(defaultCustomer.birth_date) || defaultCustomer.birth_date}</p>
-                  )}
-                  {!customer && (
-                    <p className="text-sm text-orange-600 mt-1">
-                      ※ マイプロフィールを登録してください
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className={`inline-flex items-center px-4 py-2 rounded-full ${levelInfo.bgColor} ${levelInfo.textColor}`}>
-                  <span className="font-medium">{levelInfo.name}</span>
-                </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  {defaultCustomer.points}pt
-                </div>
-              </div>
-            </div>
-            
-            {/* レベル進捗バー */}
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">レベル進捗</span>
-                <span className="text-sm text-gray-500">
-                  {levelProgress.currentPoints}/{levelProgress.levelRange}pt
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full bg-gradient-to-r ${levelInfo.color} transition-all duration-500`}
-                  style={{ width: `${levelProgress.progress}%` }}
-                ></div>
-              </div>
-              {levelInfo.nextLevel && (
-                <div className="mt-2 text-xs text-gray-500 text-center">
-                  次のレベルまで {levelProgress.nextLevelPoints}pt
-                </div>
-              )}
-            </div>
+      <header className="relative z-10 border-b border-white/60 bg-white/70 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-gray-400">87app</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Customer Lounge</h1>
+            <p className="text-sm text-gray-500">日々の花時間をアップデートするメニュー</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${levelInfo.bgColor} ${levelInfo.textColor}`}>
+              {levelInfo.name}
+            </span>
+            <span>{defaultCustomer.points} pt</span>
+            <span>{defaultCustomer.email}</span>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 transition hover:bg-gray-50"
+            >
+              <LogOut className="h-4 w-4" />
+              ログアウト
+            </button>
           </div>
         </div>
+      </header>
 
-        {/* メニューグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {menuItems.map((item) => {
-            return (
+      <main className="relative z-10 mx-auto max-w-6xl space-y-8 px-4 py-10">
+        <section className="grid gap-3 rounded-3xl bg-white/85 p-6 shadow-xl backdrop-blur-sm md:grid-cols-2">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Profile</p>
+            <h2 className="text-3xl font-semibold text-gray-900">{defaultCustomer.name}</h2>
+            <p className="text-sm text-gray-500">{defaultCustomer.address || '居住地未登録'}</p>
+            <p className="text-sm text-gray-500">
+              {defaultCustomer.birth_date ? convertISODateToJapanese(defaultCustomer.birth_date) : '生年月日未登録'}
+            </p>
+            {!customer && <p className="text-sm text-teal-600">プロフィールを仕上げると、より豊かな体験になります。</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+            <div className="rounded-2xl bg-gray-50 px-4 py-3">
+              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-350">Points</p>
+              <p className="mt-1 text-xl font-semibold text-gray-900">{defaultCustomer.points}</p>
+              <p className="text-[11px] text-gray-400">累積ポイント</p>
+            </div>
+            <div className="rounded-2xl bg-gray-50 px-4 py-3">
+              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-350">Progress</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {levelInfo.nextLevel ? `次のレベルまで ${levelProgress.nextLevelPoints} pt` : '最高レベルです'}
+              </p>
+              <div className="mt-2 h-1.5 rounded-full bg-gray-200">
+                <div
+                  className={`h-1.5 rounded-full bg-gradient-to-r ${levelInfo.color}`}
+                  style={{ width: `${levelProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
-                className="group relative backdrop-blur-md rounded-xl shadow-lg hover:shadow-xl active:shadow-2xl transition-all duration-300 overflow-hidden touch-manipulation transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget;
-                  if (target) {
-                    target.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.4) 0%, rgba(234, 88, 12, 0.5) 100%)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget;
-                  if (target) {
-                    target.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
-                  }
-                }}
-                onTouchStart={(e) => {
-                  setTouchedButton(item.id);
-                  const target = e.currentTarget;
-                  if (target) {
-                    target.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.7) 0%, rgba(234, 88, 12, 0.8) 100%)';
-                    target.style.transform = 'scale(0.95)';
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  const target = e.currentTarget;
-                  setTimeout(() => {
-                    setTouchedButton(null);
-                    if (target) {
-                      target.style.background = 'linear-gradient(135deg, rgba(20, 184, 166, 0.4) 0%, rgba(13, 148, 136, 0.5) 100%)';
-                      target.style.transform = 'scale(1)';
-                    }
-                  }, 150);
-                }}
+                onTouchStart={() => setActiveCard(item.id)}
+                onTouchEnd={() => setTimeout(() => setActiveCard(null), 200)}
+                className={`group rounded-2xl border border-gray-200/80 bg-white px-4 py-3 text-left shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-transparent hover:bg-[#ffe8d9] hover:shadow-2xl ${
+                  activeCard === item.id ? 'border-transparent bg-[#ffe8d9] -translate-y-1.5 shadow-2xl' : ''
+                }`}
               >
-                {/* グラデーションオーバーレイ */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/5 opacity-50" />
-                
-                {/* 光沢効果 */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* モバイル用の光沢効果 */}
-                {touchedButton === item.id && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-100 transition-opacity duration-200" />
-                )}
-                
-                {/* コンテンツ */}
-                <div className="relative p-4 text-left">
-                  {/* タイトル */}
-                  <h3 className="text-sm font-bold text-white mb-2 group-hover:text-white group-active:text-white transition-colors duration-200 drop-shadow-lg shadow-black/50">
-                    {item.title}
-                  </h3>
-                  
-                  {/* 説明 */}
-                  <p className="text-white text-xs leading-relaxed group-hover:text-white group-active:text-white transition-colors duration-200 drop-shadow-lg shadow-black/50">
-                    {item.description}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-[0.4em] text-gray-350 block">
+                      {item.id}
+                    </span>
+                    <h3 className="mt-2 text-base font-semibold text-gray-900">{item.title}</h3>
+                  </div>
+                  {item.icon ? (
+                    <span
+                      className={`h-8 w-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center transition duration-300 group-hover:border-transparent group-hover:bg-gradient-to-br group-hover:from-[#0fbab9]/40 group-hover:to-[#ff9f66]/55 group-hover:text-white group-hover:translate-x-1.5 group-hover:-translate-y-1.5 ${
+                        activeCard === item.id
+                          ? 'border-transparent bg-gradient-to-br from-[#0fbab9]/40 to-[#ff9f66]/55 text-white translate-x-1.5 -translate-y-1.5'
+                          : ''
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                    </span>
+                  ) : (
+                    <span
+                      className={`text-gray-300 text-sm transition group-hover:text-gray-600 group-hover:translate-x-1 group-hover:-translate-y-1 ${
+                        activeCard === item.id ? 'text-gray-600 translate-x-1 -translate-y-1' : ''
+                      }`}
+                    >
+                      →
+                    </span>
+                  )}
                 </div>
-                
-                {/* ボタン下部のアクセントライン */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-white/40 via-white/60 to-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* 上部のハイライト */}
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <p className="mt-1 text-xs text-gray-500 leading-relaxed">{item.description}</p>
               </button>
-            );
-          })}
-        </div>
-
-        {/* 技術ポイント表示 */}
-        <div className="mt-8">
-          <TechnicalPointsDisplay />
-        </div>
-
-      </div>
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

@@ -23,7 +23,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { EditCustomerModal } from '../components/EditCustomerModal';
-import { QRCodeScanner } from '../components/QRCodeScanner';
+import QRCodeScanner from '../components/QRCodeScanner';
 
 interface Customer {
   id: string;
