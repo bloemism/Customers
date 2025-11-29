@@ -105,25 +105,58 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
   const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
   return (
-    <div className="bg-gray-100 rounded-lg shadow-lg border border-gray-300 p-3 sm:p-4">
+    <div 
+      className="rounded-sm shadow-lg p-3 sm:p-4"
+      style={{ 
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        border: '2px solid #B8941F'
+      }}
+    >
       <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center">
-          <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-gray-600" />
+        <h3 
+          className="text-base sm:text-lg flex items-center"
+          style={{ 
+            fontFamily: "'Noto Serif JP', serif",
+            color: '#2D2A26',
+            fontWeight: 600
+          }}
+        >
+          <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" style={{ color: '#B8941F' }} />
           レッスンカレンダー
         </h3>
         <div className="flex items-center space-x-2 sm:space-x-4">
         <button
             onClick={goToPreviousMonth}
-            className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
+            className="p-1 sm:p-2 transition-colors rounded-full"
+            style={{ color: '#2D2A26' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(184, 148, 31, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
         >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
-          <span className="text-sm sm:text-lg font-medium text-gray-800 min-w-[80px] sm:min-w-[120px] text-center">
+          <span 
+            className="text-sm sm:text-lg font-medium min-w-[80px] sm:min-w-[120px] text-center"
+            style={{ 
+              color: '#2D2A26',
+              fontWeight: 600
+            }}
+          >
             {currentDate.getFullYear()}年{monthNames[currentDate.getMonth()]}
           </span>
         <button
             onClick={goToNextMonth}
-            className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors rounded-full hover:bg-gray-200"
+            className="p-1 sm:p-2 transition-colors rounded-full"
+            style={{ color: '#2D2A26' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(184, 148, 31, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
         >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
@@ -132,14 +165,23 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
 
             {/* 曜日ヘッダー */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
-        {dayNames.map((day) => (
+        {dayNames.map((day, dayIndex) => {
+          const isSunday = dayIndex === 0; // 日曜日は最初の要素
+          return (
           <div
             key={day}
-            className="text-center text-xs sm:text-sm font-medium text-gray-700 py-1 sm:py-2 bg-gray-200 rounded"
+            className="text-center text-xs sm:text-sm font-medium py-1 sm:py-2 rounded-sm"
+            style={{ 
+              backgroundColor: isSunday ? '#FFE0E0' : '#F4D03F',
+              color: isSunday ? '#C62828' : '#2D2A26',
+              fontWeight: 600,
+              border: isSunday ? '1px solid #E57373' : '1px solid #B8941F'
+            }}
           >
                   {day}
                 </div>
-              ))}
+              );
+        })}
             </div>
 
             {/* カレンダーグリッド */}
@@ -149,17 +191,45 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
           const isCurrentMonthDay = isCurrentMonth(date);
           const isTodayDate = isToday(date);
           const isSelectedDate = isSelected(date);
+          const isSunday = date.getDay() === 0; // 日曜日判定
                 
                 return (
                   <div
               key={index}
-                    className={`
-                min-h-[60px] sm:min-h-[80px] border border-gray-300 p-1 sm:p-2 cursor-pointer transition-all duration-200 rounded-lg
-                ${isCurrentMonthDay ? 'bg-white hover:bg-gray-50 hover:shadow-md' : 'bg-gray-50 hover:bg-gray-100'}
-                ${isTodayDate ? 'bg-gray-300 border-gray-500 shadow-lg ring-2 ring-gray-400' : ''}
-                ${isSelectedDate ? 'bg-gray-400 border-gray-600 shadow-lg ring-2 ring-gray-500' : ''}
-                ${daySchedules.length > 0 ? 'bg-gray-200 border-gray-400 shadow-md' : ''}
-              `}
+                    className="min-h-[60px] sm:min-h-[80px] p-1 sm:p-2 cursor-pointer transition-all duration-200 rounded-sm"
+                    style={{
+                      backgroundColor: isSunday 
+                        ? (isCurrentMonthDay ? '#FFE0E0' : '#FFEBEE') 
+                        : (isCurrentMonthDay ? '#FDFCFA' : '#F5F0E8'),
+                      border: isTodayDate 
+                        ? (isSunday ? '2px solid #E57373' : '2px solid #B8941F')
+                        : isSelectedDate 
+                        ? (isSunday ? '2px solid #EF5350' : '2px solid #D4AF37')
+                        : daySchedules.length > 0 
+                        ? (isSunday ? '2px solid #E57373' : '2px solid #F4D03F')
+                        : (isSunday ? '1px solid #E57373' : '1px solid #E0D6C8'),
+                      boxShadow: isTodayDate || isSelectedDate 
+                        ? (isSunday ? '0 2px 8px rgba(229, 115, 115, 0.3)' : '0 2px 8px rgba(212, 175, 55, 0.3)')
+                        : daySchedules.length > 0 
+                        ? (isSunday ? '0 1px 4px rgba(229, 115, 115, 0.2)' : '0 1px 4px rgba(212, 175, 55, 0.2)')
+                        : 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isCurrentMonthDay) {
+                        e.currentTarget.style.backgroundColor = isSunday ? '#FFCDD2' : '#F5F0E8';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isCurrentMonthDay) {
+                        e.currentTarget.style.backgroundColor = isSunday ? '#FFE0E0' : '#FDFCFA';
+                        e.currentTarget.style.boxShadow = isTodayDate || isSelectedDate 
+                          ? (isSunday ? '0 2px 8px rgba(229, 115, 115, 0.3)' : '0 2px 8px rgba(212, 175, 55, 0.3)')
+                          : daySchedules.length > 0 
+                          ? (isSunday ? '0 1px 4px rgba(229, 115, 115, 0.2)' : '0 1px 4px rgba(212, 175, 55, 0.2)')
+                          : 'none';
+                      }
+                    }}
               onClick={() => {
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -169,12 +239,15 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
               }}
             >
               <div className="flex flex-col h-full">
-                    <div className={`
-                  text-xs sm:text-sm font-medium mb-0.5 sm:mb-1
-                  ${isCurrentMonthDay ? 'text-gray-800' : 'text-gray-400'}
-                  ${isTodayDate ? 'text-gray-900 font-bold' : ''}
-                  ${isSelectedDate ? 'text-gray-900 font-bold' : ''}
-                    `}>
+                    <div 
+                      className="text-xs sm:text-sm font-medium mb-0.5 sm:mb-1"
+                      style={{ 
+                        color: isSunday 
+                          ? (isCurrentMonthDay ? '#C62828' : '#E57373')
+                          : (isCurrentMonthDay ? '#2D2A26' : '#8A857E'),
+                        fontWeight: isTodayDate || isSelectedDate ? 700 : 500
+                      }}
+                    >
                       {date.getDate()}
                     </div>
 
@@ -183,11 +256,20 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
                   {daySchedules.slice(0, 1).map((schedule) => (
                       <div
                         key={schedule.id}
-                        className={`
-                        text-xs p-0.5 sm:p-1 rounded-lg truncate cursor-pointer shadow-sm
-                        bg-gray-600 text-white font-medium
-                        hover:bg-gray-700 hover:shadow-md transition-all duration-200
-                        `}
+                        className="text-xs p-0.5 sm:p-1 rounded-sm truncate cursor-pointer shadow-sm transition-all duration-200"
+                        style={{ 
+                          backgroundColor: '#5C6B4A',
+                          color: '#FAF8F5',
+                          fontWeight: 500
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#4A5D4A';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#5C6B4A';
+                          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onScheduleClick(schedule);
@@ -201,7 +283,15 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
                       </div>
                     ))}
                   {daySchedules.length > 1 && (
-                    <div className="text-xs text-gray-700 text-center font-medium bg-gray-300 rounded px-1">
+                    <div 
+                      className="text-xs text-center font-medium rounded-sm px-1"
+                      style={{ 
+                        backgroundColor: '#F4D03F',
+                        color: '#2D2A26',
+                        fontWeight: 600,
+                        border: '1px solid #B8941F'
+                      }}
+                    >
                       +{daySchedules.length - 1}件
                       </div>
                     )}
@@ -213,20 +303,43 @@ const LessonCalendar: React.FC<LessonCalendarProps> = ({
       </div>
 
       {/* 凡例 */}
-      <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-gray-300">
-        <div className="text-xs sm:text-sm text-gray-700 mb-1 sm:mb-2 font-medium">凡例:</div>
+      <div className="mt-2 sm:mt-4 pt-2 sm:pt-4" style={{ borderTop: '1px solid #B8941F' }}>
+        <div 
+          className="text-xs sm:text-sm mb-1 sm:mb-2 font-medium"
+          style={{ color: '#2D2A26', fontWeight: 600 }}
+        >
+          凡例:
+        </div>
         <div className="flex flex-wrap gap-1 sm:gap-2">
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-300 border border-gray-500 rounded shadow-sm"></div>
-            <span className="text-xs text-gray-700 font-medium">今日</span>
+            <div 
+              className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm shadow-sm"
+              style={{ 
+                backgroundColor: '#FDFCFA',
+                border: '2px solid #B8941F'
+              }}
+            ></div>
+            <span className="text-xs font-medium" style={{ color: '#2D2A26' }}>今日</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-400 border border-gray-600 rounded shadow-sm"></div>
-            <span className="text-xs text-gray-700 font-medium">選択日</span>
+            <div 
+              className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm shadow-sm"
+              style={{ 
+                backgroundColor: '#FDFCFA',
+                border: '2px solid #D4AF37'
+              }}
+            ></div>
+            <span className="text-xs font-medium" style={{ color: '#2D2A26' }}>選択日</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gray-200 border border-gray-400 rounded shadow-sm"></div>
-            <span className="text-xs text-gray-700 font-medium">レッスン日</span>
+            <div 
+              className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm shadow-sm"
+              style={{ 
+                backgroundColor: '#FDFCFA',
+                border: '2px solid #F4D03F'
+              }}
+            ></div>
+            <span className="text-xs font-medium" style={{ color: '#2D2A26' }}>レッスン日</span>
           </div>
         </div>
       </div>

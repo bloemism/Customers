@@ -248,6 +248,18 @@ export const FloristMap: React.FC = () => {
     }
   }, [stores.length, map]);
 
+  // userLocationが取得された後に地図を再中心化
+  useEffect(() => {
+    if (map && userLocation) {
+      console.log('User location updated, centering map:', userLocation);
+      map.setCenter(userLocation);
+      map.setZoom(isMobile ? 15 : 13);
+      
+      // 現在地マーカーを追加/更新
+      addUserLocationMarker(map, userLocation);
+    }
+  }, [userLocation, map, isMobile]);
+
   // 地図の初期化
   const initializeMap = () => {
     console.log('=== 地図初期化開始 ===');
@@ -270,19 +282,22 @@ export const FloristMap: React.FC = () => {
     try {
       console.log('Creating Google Maps instance...');
       
-      let center = mapCenter;
-      if (stores.length > 0) {
+      // userLocationを優先的に使用
+      let center = userLocation || mapCenter;
+      if (!userLocation && stores.length > 0) {
         const centerLat = stores.reduce((sum, store) => sum + store.latitude, 0) / stores.length;
         const centerLng = stores.reduce((sum, store) => sum + store.longitude, 0) / stores.length;
         center = { lat: centerLat, lng: centerLng };
         console.log('Calculated center from stores:', center);
+      } else if (userLocation) {
+        console.log('Using user location as center:', center);
       } else {
         console.log('Using default center:', center);
       }
       
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: center,
-        zoom: isMobile ? 15 : 13, // モバイルではより詳細に
+        zoom: userLocation ? (isMobile ? 15 : 13) : (isMobile ? 13 : 11), // 現在地がある場合は拡大
         mapTypeId: window.google.maps.MapTypeId.ROADMAP,
         mapTypeControl: !isMobile, // モバイルでは非表示
         streetViewControl: !isMobile, // モバイルでは非表示
@@ -921,11 +936,39 @@ export const FloristMap: React.FC = () => {
   const centerOnUserLocation = () => {
     if (map && userLocation) {
       map.setCenter(userLocation);
-      map.setZoom(15);
+      map.setZoom(isMobile ? 15 : 13);
       
       // 現在地マーカーが表示されていない場合は追加
       if (!userLocationMarker) {
         addUserLocationMarker(map, userLocation);
+      }
+    } else if (map && !userLocation) {
+      // 位置情報が取得されていない場合は再取得を試みる
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setUserLocation(location);
+            setMapCenter(location);
+            map.setCenter(location);
+            map.setZoom(isMobile ? 15 : 13);
+            addUserLocationMarker(map, location);
+          },
+          (error) => {
+            console.log('位置情報の取得に失敗:', error);
+            alert('位置情報の取得に失敗しました。ブラウザの設定で位置情報の許可を確認してください。');
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        alert('お使いのブラウザは位置情報をサポートしていません。');
       }
     }
   };
@@ -1222,15 +1265,13 @@ export const FloristMap: React.FC = () => {
                           </button>
                         </>
                       )}
-                      {userLocation && (
-                        <button
-                          onClick={centerOnUserLocation}
-                          className={`${isMobile ? 'w-12 h-12' : 'w-10 h-10'} bg-blue-600 rounded-lg shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors duration-200`}
-                          title="現在地に移動"
-                        >
-                          <Navigation className={`${isMobile ? 'h-6 w-6' : 'h-5 w-5'} text-white`} />
-                        </button>
-                      )}
+                      <button
+                        onClick={centerOnUserLocation}
+                        className={`${isMobile ? 'w-12 h-12' : 'w-10 h-10'} ${userLocation ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'} rounded-lg shadow-lg flex items-center justify-center transition-colors duration-200`}
+                        title={userLocation ? "現在地に移動" : "現在地を取得"}
+                      >
+                        <Navigation className={`${isMobile ? 'h-6 w-6' : 'h-5 w-5'} text-white`} />
+                      </button>
                     </div>
                     
                     {/* 読み込み中表示 */}

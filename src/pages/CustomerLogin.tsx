@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { Mail, Lock, LogIn, ArrowLeft, User } from 'lucide-react';
-import customerLoginBg from '../assets/customer-login-bg.jpg';
+import { Mail, Lock, ArrowLeft } from 'lucide-react';
+
+// 背景画像
+const LOGIN_BG = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 export const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +27,6 @@ export const CustomerLogin: React.FC = () => {
         return;
       }
 
-      // ログイン成功 - 顧客メニューにリダイレクト
       navigate('/customer-menu');
     } catch (error: any) {
       console.error('ログインエラー:', error);
@@ -36,125 +37,230 @@ export const CustomerLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4">
-      {/* 背景画像 */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(${customerLoginBg})`
-        }}
-      >
-      </div>
+    <div className="min-h-screen relative flex items-center justify-center p-4" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 無地背景 */}
       
-      <div className="relative z-10 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 max-w-md w-full">
-        {/* ヘッダー */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            トップページに戻る
-          </button>
-          
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="h-8 w-8 text-blue-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">顧客ログイン</h1>
-          <p className="text-gray-600">87appでお花を楽しもう！</p>
-        </div>
+      <div 
+        className="relative z-10 w-full max-w-md"
+      >
+        {/* 戻るボタン */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 mb-8 text-sm transition-all duration-300"
+          style={{ color: '#2D2A26', fontWeight: 500 }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#3D4A35';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#2D2A26';
+          }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          トップページに戻る
+        </button>
 
-        {/* エラーメッセージ */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* フォーム */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* メールアドレス */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              メールアドレス
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="example@email.com"
-                required
-              />
+        {/* ログインカード */}
+        <div 
+          className="rounded-sm p-8 md:p-10"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          {/* ヘッダー */}
+          <div className="text-center mb-8">
+            <div 
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
+              style={{ backgroundColor: '#F5F0E8' }}
+            >
+              🌸
             </div>
+            <h1 
+              className="text-2xl mb-2"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26'
+              }}
+            >
+              ログイン
+            </h1>
+            <p 
+              className="text-sm"
+              style={{ color: '#3D3A36', fontWeight: 500 }}
+            >
+              87appで花のある生活を楽しもう
+            </p>
           </div>
 
-          {/* パスワード */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              パスワード
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="パスワード"
-                required
-              />
+          {/* エラーメッセージ */}
+          {error && (
+            <div 
+              className="rounded-sm p-4 mb-6"
+              style={{ 
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FECACA'
+              }}
+            >
+              <p className="text-sm" style={{ color: '#DC2626' }}>{error}</p>
             </div>
+          )}
+
+          {/* フォーム */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* メールアドレス */}
+            <div>
+              <label 
+                htmlFor="email" 
+                className="block text-xs tracking-[0.1em] mb-2"
+                style={{ color: '#2D2A26', fontWeight: 500 }}
+              >
+                メールアドレス
+              </label>
+              <div className="relative">
+                <Mail 
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                  style={{ color: '#3D3A36', fontWeight: 500 }}
+                />
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-sm transition-all duration-200"
+                  style={{ 
+                    backgroundColor: '#FDFCFA',
+                    border: '1px solid #E0D6C8',
+                    color: '#2D2A26'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  placeholder="example@email.com"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* パスワード */}
+            <div>
+              <label 
+                htmlFor="password" 
+                className="block text-xs tracking-[0.1em] mb-2"
+                style={{ color: '#2D2A26', fontWeight: 500 }}
+              >
+                パスワード
+              </label>
+              <div className="relative">
+                <Lock 
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                  style={{ color: '#3D3A36', fontWeight: 500 }}
+                />
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-sm transition-all duration-200"
+                  style={{ 
+                    backgroundColor: '#FDFCFA',
+                    border: '1px solid #E0D6C8',
+                    color: '#2D2A26'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  placeholder="パスワード"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* ログインボタン */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-sm text-sm tracking-[0.15em] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ 
+                backgroundColor: '#5C6B4A',
+                color: '#FAF8F5'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) e.currentTarget.style.backgroundColor = '#4A5D4A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#5C6B4A';
+              }}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div 
+                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                  />
+                  ログイン中...
+                </div>
+              ) : (
+                'ログイン'
+              )}
+            </button>
+          </form>
+
+          {/* 区切り線 */}
+          <div className="flex items-center gap-4 my-8">
+            <div className="flex-1 h-px" style={{ backgroundColor: '#E0D6C8' }} />
+            <span className="text-xs" style={{ color: '#8A857E' }}>または</span>
+            <div className="flex-1 h-px" style={{ backgroundColor: '#E0D6C8' }} />
           </div>
 
-          {/* ログインボタン */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                ログイン中...
-              </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                <LogIn className="h-5 w-5 mr-2" />
-                ログイン
-              </div>
-            )}
-          </button>
-        </form>
-
-        {/* 登録リンク */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">
-            アカウントをお持ちでない方は{' '}
+          {/* 登録リンク */}
+          <div className="text-center space-y-4">
+            <p className="text-sm" style={{ color: '#5A5651' }}>
+              アカウントをお持ちでない方は
+            </p>
             <button
               onClick={() => navigate('/customer-signup')}
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              className="w-full py-3 rounded-sm text-sm tracking-[0.1em] transition-all duration-300 border"
+              style={{ 
+                borderColor: '#5C6B4A',
+                color: '#5C6B4A',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#5C6B4A';
+                e.currentTarget.style.color = '#FAF8F5';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#5C6B4A';
+              }}
             >
-              顧客登録
+              新規登録
             </button>
-          </p>
-        </div>
+          </div>
 
-        {/* 店舗向けリンク */}
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">
-            店舗・スクールの方は{' '}
-            <button
-              onClick={() => navigate('/simple-login')}
-              className="text-gray-600 hover:text-gray-700 font-medium transition-colors"
-            >
-              こちら
-            </button>
-          </p>
+          {/* 店舗向けリンク */}
+          <div className="mt-8 pt-6 border-t text-center" style={{ borderColor: '#E0D6C8' }}>
+            <p className="text-xs" style={{ color: '#8A857E' }}>
+              店舗・スクールの方は{' '}
+              <button
+                onClick={() => navigate('/simple-login')}
+                className="underline transition-colors"
+                style={{ color: '#5C6B4A' }}
+              >
+                こちら
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>

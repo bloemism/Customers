@@ -1,155 +1,416 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flower, MapPin, QrCode, Star, ArrowRight, Sparkles } from 'lucide-react';
-import greenhouseImage from '../assets/greenhouse-pathway.jpg';
+import { MapPin, Calendar, CreditCard, ChevronRight, Smartphone, Search, Star } from 'lucide-react';
+
+// ヒーロー画像（文字無し）
+const HERO_BG = '/hero-bg.png';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* 背景画像 */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(${greenhouseImage})`
-        }}
-      >
-      </div>
-
-      {/* メインコンテンツ */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* ヘッダー */}
-        <header className="bg-white/95 backdrop-blur-sm shadow-lg border-b border-white/30 relative z-50 w-full">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-3 sm:py-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
-                  <Flower className="h-6 w-6 text-white" />
-                </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                  87app
-                </h1>
-              </div>
-              
-              <div className="flex items-center space-x-2 sm:space-x-4">
-                <button
-                  onClick={() => {
-                    console.log('新規登録ボタンがクリックされました');
-                    navigate('/customer-signup');
-                  }}
-                  className="bg-white text-pink-600 hover:text-pink-700 text-xs sm:text-sm font-medium transition-colors border-2 border-pink-300 px-2 sm:px-4 py-1 sm:py-2 rounded-lg hover:bg-pink-50 hover:border-pink-400 shadow-md hover:shadow-lg cursor-pointer block"
-                  style={{ minWidth: '60px', minHeight: '32px' }}
-                >
-                  <span className="hidden sm:inline">新規登録</span>
-                  <span className="sm:hidden">登録</span>
-                </button>
-                <button
-                  onClick={() => {
-                    console.log('ログインボタンがクリックされました');
-                    navigate('/customer-login');
-                  }}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 sm:px-6 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer block"
-                  style={{ minWidth: '60px', minHeight: '32px' }}
-                >
-                  ログイン
-                </button>
-              </div>
+    <div className="min-h-screen" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* ヘッダー */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-sm border-b border-[#E0D6C8]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xl sm:text-2xl" style={{ color: '#5C6B4A' }}>✿</span>
+              <span 
+                className="text-lg sm:text-xl tracking-[0.15em]"
+                style={{ 
+                  fontFamily: "'Cormorant Garamond', serif",
+                  color: '#3D4A35',
+                  fontWeight: 500
+                }}
+              >
+                87app
+              </span>
             </div>
-          </div>
-        </header>
-
-        {/* ヒーローセクション */}
-        <main className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-          {/* 背景オーバーレイ */}
-          <div className="absolute inset-0 bg-black/20"></div>
-          <div className="max-w-4xl mx-auto text-center relative z-10">
-            {/* メインタイトル */}
-            <div className="mb-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full mb-6 shadow-2xl">
-                <Flower className="h-10 w-10 text-white" />
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-2xl shadow-black/50">
-                <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  87app
-                </span>
-              </h1>
-              <p className="text-2xl md:text-3xl text-white mb-6 font-bold drop-shadow-2xl shadow-black/50">
-                お花が好きな人のためのアプリ
-              </p>
-              <div className="max-w-3xl mx-auto">
-                <p className="text-lg md:text-xl text-white mb-4 leading-relaxed drop-shadow-2xl shadow-black/50 font-medium">
-                  美しいお花と出会い、特別な体験を楽しもう
-                </p>
-                <p className="text-base md:text-lg text-white leading-relaxed drop-shadow-2xl shadow-black/50">
-                  全国の花屋やフラワーレッスンを見つけて、<br />
-                  あなたの花のある生活を始めましょう
-                </p>
-              </div>
-            </div>
-
-            {/* 機能紹介 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
-                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MapPin className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">花屋を探す</h3>
-                <p className="text-gray-600 text-sm">全国の花屋を地図で検索して、お気に入りのお店を見つけよう</p>
-              </div>
-
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <QrCode className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">ポイント獲得</h3>
-                <p className="text-gray-600 text-sm">購入時にQRコードをスキャンして、ポイントを貯めよう</p>
-              </div>
-
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Star className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">レッスン体験</h3>
-                <p className="text-gray-600 text-sm">フラワーレッスンに参加して、新しいスキルを身につけよう</p>
-              </div>
-            </div>
-
-            {/* CTAボタン */}
-            <div className="space-y-4">
+            
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={() => navigate('/customer-signup')}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                className="px-3 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm tracking-[0.1em] transition-all duration-300 border rounded-sm"
+                style={{ 
+                  borderColor: '#5C6B4A',
+                  color: '#5C6B4A'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#5C6B4A';
+                  e.currentTarget.style.color = '#FAF8F5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#5C6B4A';
+                }}
               >
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="h-5 w-5" />
-                  <span>無料で始める</span>
-                  <ArrowRight className="h-5 w-5" />
-                </div>
+                新規登録
               </button>
-              
-              <div className="text-sm text-gray-500">
-                既にアカウントをお持ちの方は{' '}
-                <button
-                  onClick={() => navigate('/customer-login')}
-                  className="text-pink-600 hover:text-pink-700 font-medium underline"
-                >
-                  こちらからログイン
-                </button>
+              <button
+                onClick={() => navigate('/customer-login')}
+                className="px-3 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm tracking-[0.1em] transition-all duration-300 rounded-sm"
+                style={{ 
+                  backgroundColor: '#5C6B4A',
+                  color: '#FAF8F5'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4A5D4A';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#5C6B4A';
+                }}
+              >
+                ログイン
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ヒーローセクション */}
+      <section className="relative min-h-screen pt-20 flex items-center justify-center">
+        {/* 背景画像 */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${HERO_BG})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F5]/50 via-[#FAF8F5]/20 to-[#FAF8F5]/40" />
+
+        {/* コンテンツ */}
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <div className="mb-8 sm:mb-12">
+            <h1 
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-4 sm:mb-6"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26',
+                fontWeight: 600,
+                lineHeight: 1.6,
+                textShadow: '0 2px 8px rgba(250,248,245,0.8), 0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              お花が好きな人の<br />ためのアプリ
+            </h1>
+            <p 
+              className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8"
+              style={{ 
+                color: '#2D2A26',
+                fontWeight: 600,
+                lineHeight: 1.8,
+                textShadow: '0 1px 4px rgba(250,248,245,0.8)'
+              }}
+            >
+              花のある生活を、もっとスマートに。<br className="hidden sm:block" />
+              あなただけの「行きつけ」を見つける旅へ。
+            </p>
+          </div>
+        </div>
+
+        {/* ボタンを画像のDownload Now位置に配置（絶対位置で下部中央） */}
+        <div 
+          className="absolute left-1/2 transform -translate-x-1/2 z-10 text-center px-4 w-full max-w-xs sm:max-w-none"
+          style={{ bottom: '8%' }}
+        >
+          <button
+            onClick={() => navigate('/customer-signup')}
+            className="group inline-flex items-center justify-center gap-2 sm:gap-3 px-6 sm:px-10 py-3 sm:py-4 text-sm sm:text-base tracking-[0.1em] transition-all duration-300 rounded-sm shadow-lg w-full sm:w-auto"
+            style={{ 
+              backgroundColor: '#5C6B4A',
+              color: '#FAF8F5'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#4A5D4A';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#5C6B4A';
+            }}
+          >
+            <span>無料で始める</span>
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </section>
+
+      {/* 機能セクション1: フローリストマップ */}
+      <section className="py-12 sm:py-16 md:py-24" style={{ backgroundColor: '#FAF8F5' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
+            <div className="order-2 md:order-1">
+              <div 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
+                style={{ backgroundColor: '#F0EDE8' }}
+              >
+                <MapPin className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-xs tracking-[0.2em]" style={{ color: '#5C6B4A' }}>FLORIST MAP</span>
+              </div>
+              <h2 
+                className="text-2xl md:text-3xl mb-6"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26',
+                  fontWeight: 500,
+                  lineHeight: 1.8
+                }}
+              >
+                あなただけの「行きつけ」を<br />
+                見つける旅へ
+              </h2>
+              <p 
+                className="text-sm leading-loose mb-8"
+                style={{ color: '#2D2A26', lineHeight: 2, fontWeight: 500 }}
+              >
+                GPS位置情報を使って、現在地周辺の花屋を瞬時に検索。
+                隠れ家のようなアトリエから、洗練されたブティックまで、
+                店舗の雰囲気や得意なスタイルを美しい写真で比較しながら、
+                運命の一軒を探せます。
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Search className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>住所・エリアから検索</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>GPS現在地から最寄りを表示</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Star className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>お気に入り店舗を保存</span>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 md:order-2">
+              <div className="rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src="/map.png" 
+                  alt="フローリストマップ" 
+                  className="w-full h-auto"
+                />
               </div>
             </div>
           </div>
-        </main>
+        </div>
+      </section>
 
-        {/* フッター */}
-        <footer className="bg-white/50 backdrop-blur-sm border-t border-white/20 py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-white/80 text-sm drop-shadow-md">
-              © 2024 87app. お花のある生活を、もっと楽しく。
+      {/* 機能セクション2: レッスン予約 */}
+      <section className="py-12 sm:py-16 md:py-24" style={{ backgroundColor: '#F5F0E8' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
+            <div>
+              <div className="rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src="/lesson.png" 
+                  alt="フラワーレッスン" 
+                  className="w-full h-auto"
+                />
+              </div>
+            </div>
+            <div>
+              <div 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
+                style={{ backgroundColor: '#FAF8F5' }}
+              >
+                <Calendar className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-xs tracking-[0.2em]" style={{ color: '#5C6B4A' }}>FLOWER LESSON</span>
+              </div>
+              <h2 
+                className="text-2xl md:text-3xl mb-6"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26',
+                  fontWeight: 500,
+                  lineHeight: 1.8
+                }}
+              >
+                感性を磨く、<br />
+                特別な時間を予約する
+              </h2>
+              <p 
+                className="text-sm leading-loose mb-8"
+                style={{ color: '#2D2A26', lineHeight: 2, fontWeight: 500 }}
+              >
+                週末のご褒美に、季節の花に触れるレッスンはいかがですか？
+                本格的なブーケ作り、季節のリース、初心者向けのアレンジメントなど、
+                全国で開催される多彩なレッスンを、日時やエリアから
+                リアルタイムで検索・予約できます。
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>カレンダーから日程を選択</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Smartphone className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>スマホで簡単予約</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Star className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>参加でポイント獲得</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 機能セクション3: スマート決済 */}
+      <section className="py-12 sm:py-16 md:py-24" style={{ backgroundColor: '#FAF8F5' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
+            <div className="order-2 md:order-1">
+              <div 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
+                style={{ backgroundColor: '#F0EDE8' }}
+              >
+                <CreditCard className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-xs tracking-[0.2em]" style={{ color: '#5C6B4A' }}>SMART PAYMENT</span>
+              </div>
+              <h2 
+                className="text-2xl md:text-3xl mb-6"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26',
+                  fontWeight: 500,
+                  lineHeight: 1.8
+                }}
+              >
+                花のある生活を、<br />
+                もっとスマートに
+              </h2>
+              <p 
+                className="text-sm leading-loose mb-8"
+                style={{ color: '#2D2A26', lineHeight: 2, fontWeight: 500 }}
+              >
+                会員コードを見せるだけで、スムーズな会員認証とポイント付与を実現。
+                アプリで決済すれば、レッスンも店頭でのお買い物も
+                キャッシュレスでスマートに。クレジットカードで安全・簡単に
+                お支払いいただけます。
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>クレジットカード決済対応</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Smartphone className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>決済コードでスピード決済</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Star className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                  <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>お買い物でポイント還元</span>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 md:order-2">
+              <div className="rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src="/credit.png" 
+                  alt="スマート決済" 
+                  className="w-full h-auto"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTAセクション */}
+      <section 
+        className="py-12 sm:py-16 md:py-24"
+        style={{ backgroundColor: '#5C6B4A' }}
+      >
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <h2 
+            className="text-xl sm:text-2xl md:text-3xl mb-4 sm:mb-6"
+            style={{ 
+              fontFamily: "'Noto Serif JP', serif",
+              color: '#FAF8F5',
+              fontWeight: 400,
+              lineHeight: 1.8
+            }}
+          >
+            花と過ごす、丁寧な暮らしを<br />
+            今日から始めてみませんか。
+          </h2>
+          <p 
+            className="text-xs sm:text-sm mb-6 sm:mb-10"
+            style={{ color: '#E0D6C8' }}
+          >
+            87appは無料でご利用いただけます
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+            <button
+              onClick={() => navigate('/customer-signup')}
+              className="px-6 sm:px-10 py-3 sm:py-4 text-xs sm:text-sm tracking-[0.15em] transition-all duration-300 rounded-sm"
+              style={{ 
+                backgroundColor: '#FAF8F5',
+                color: '#3D4A35'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F5F0E8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FAF8F5';
+              }}
+            >
+              無料で始める
+            </button>
+            <button
+              onClick={() => navigate('/customer-login')}
+              className="px-6 sm:px-10 py-3 sm:py-4 text-xs sm:text-sm tracking-[0.15em] transition-all duration-300 rounded-sm border"
+              style={{ 
+                borderColor: '#FAF8F5',
+                color: '#FAF8F5',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(250,248,245,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              ログイン
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* フッター */}
+      <footer className="py-12" style={{ backgroundColor: '#F5F0E8' }}>
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <span className="text-xl" style={{ color: '#5C6B4A' }}>✿</span>
+              <span 
+                className="text-lg tracking-[0.15em]"
+                style={{ 
+                  fontFamily: "'Cormorant Garamond', serif",
+                  color: '#3D4A35'
+                }}
+              >
+                87app
+              </span>
+            </div>
+            <div className="flex gap-8 text-xs" style={{ color: '#5A5651' }}>
+              <button onClick={() => navigate('/readme')} className="hover:underline">利用規約</button>
+              <button onClick={() => navigate('/privacy-and-payment')} className="hover:underline">プライバシーポリシー</button>
+              <span>お問い合わせ</span>
+            </div>
+            <p 
+              className="text-xs"
+              style={{ color: '#2D2A26', fontWeight: 500 }}
+            >
+              © 2024 87app
             </p>
           </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 };

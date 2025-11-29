@@ -1,38 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { QrCode, User, Mail, Star, ArrowLeft, Copy, Check, Flower } from 'lucide-react';
+import { QrCode, ArrowLeft, Copy, Check, Star } from 'lucide-react';
+
+// 背景画像
+const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 const levelConfig = {
   BASIC: {
     name: 'ベーシック',
-    color: 'from-gray-400 to-gray-600',
-    bgColor: 'bg-gray-100',
-    textColor: 'text-gray-800',
+    color: '#8A857E',
+    bgColor: '#F5F0E8',
     minPoints: 0,
     maxPoints: 99
   },
   REGULAR: {
     name: 'レギュラー',
-    color: 'from-blue-400 to-blue-600',
-    bgColor: 'bg-blue-100',
-    textColor: 'text-blue-800',
+    color: '#5C6B4A',
+    bgColor: '#E8EDE4',
     minPoints: 100,
     maxPoints: 499
   },
   PRO: {
     name: 'プロ',
-    color: 'from-purple-400 to-purple-600',
-    bgColor: 'bg-purple-100',
-    textColor: 'text-purple-800',
+    color: '#C4856C',
+    bgColor: '#F5EBE6',
     minPoints: 500,
     maxPoints: 999
   },
   EXPERT: {
     name: 'エキスパート',
-    color: 'from-yellow-400 to-yellow-600',
-    bgColor: 'bg-yellow-100',
-    textColor: 'text-yellow-800',
+    color: '#3D4A35',
+    bgColor: '#E0D6C8',
     minPoints: 1000,
     maxPoints: 9999
   }
@@ -74,74 +73,172 @@ const CustomerQRCode: React.FC = () => {
   const levelInfo = getLevelInfo(defaultCustomer.level);
 
   return (
-    <div className="min-h-screen bg-[#f8f5f0] px-4 py-10">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <div className="flex items-center justify-between text-sm text-gray-600">
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 無地背景 */}
+
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-8">
           <button
             onClick={() => navigate('/customer-menu')}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-gray-600 shadow-sm transition hover:bg-white"
+            className="flex items-center gap-2 text-sm transition-all duration-300"
+            style={{ color: '#5A5651' }}
           >
-            <ArrowLeft className="h-4 w-4" />
-            メニューに戻る
+            <ArrowLeft className="w-4 h-4" />
+            メニューへ戻る
           </button>
-          <div className="flex items-center gap-2 text-gray-500">
-            <Flower className="h-5 w-5 text-[#0fbab9]" />
-            <span className="text-sm font-semibold text-gray-700">87app Customers</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg" style={{ color: '#5C6B4A' }}>✿</span>
+            <span 
+              className="text-sm tracking-wide"
+              style={{ color: '#3D4A35' }}
+            >
+              87app
+            </span>
           </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-          <section className="rounded-[32px] bg-[#5c3c2f] p-6 text-white shadow-[0_20px_50px_rgba(42,27,17,0.35)]">
+          {/* 顧客コードカード */}
+          <section 
+            className="rounded-sm p-6 md:p-8"
+            style={{ 
+              backgroundColor: 'rgba(92,107,74,0.95)',
+              color: '#FAF8F5'
+            }}
+          >
             <div className="space-y-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.5em] text-white/60">Customer Code</p>
-                <h2 className="mt-3 text-3xl font-semibold">マイ顧客コード</h2>
-                <p className="text-sm text-white/75">店舗でスキャンすると、ポイントや決済がスムーズに進みます。</p>
+                <p 
+                  className="text-xs tracking-[0.3em] mb-3"
+                  style={{ color: 'rgba(250,248,245,0.6)' }}
+                >
+                  CUSTOMER CODE
+                </p>
+                <h2 
+                  className="text-2xl mb-2"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif"
+                  }}
+                >
+                  マイ会員コード
+                </h2>
+                <p 
+                  className="text-sm"
+                  style={{ color: 'rgba(250,248,245,0.75)' }}
+                >
+                  店舗でスキャンすると、ポイントや決済がスムーズに進みます。
+                </p>
               </div>
 
               {customerCode ? (
-                <div className="rounded-2xl bg-white/95 p-6 text-gray-900 shadow-lg">
+                <div 
+                  className="rounded-sm p-6"
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.95)'
+                  }}
+                >
                   <div className="text-center">
-                    <div className="text-4xl font-mono font-semibold tracking-widest text-[#4a30b5] break-all">
+                    <div 
+                      className="text-3xl md:text-4xl font-mono tracking-widest break-all mb-2"
+                      style={{ 
+                        fontFamily: "'Cormorant Garamond', serif",
+                        color: '#3D4A35',
+                        fontWeight: 600
+                      }}
+                    >
                       {String(customerCode)}
                     </div>
-                    <p className="mt-2 text-xs uppercase tracking-[0.4em] text-gray-400">Your personal code</p>
+                    <p 
+                      className="text-xs tracking-[0.2em]"
+                      style={{ color: '#8A857E' }}
+                    >
+                      YOUR PERSONAL CODE
+                    </p>
                   </div>
                   <button
                     onClick={() => copyToClipboard(String(customerCode), 'code')}
-                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#fbe2fe] to-[#e3f0ff] px-4 py-3 text-sm font-semibold text-[#6a40f3] shadow-inner transition hover:from-[#f9d0ff] hover:to-[#d3e8ff]"
+                    className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-sm text-sm transition-all duration-300"
+                    style={{ 
+                      backgroundColor: '#F5F0E8',
+                      color: '#5C6B4A'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#E0D6C8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#F5F0E8';
+                    }}
                   >
                     {copiedTarget === 'code' ? (
                       <>
-                        <Check className="h-4 w-4" />
+                        <Check className="w-4 h-4" />
                         コピーしました
                       </>
                     ) : (
                       <>
-                        <Copy className="h-4 w-4" />
+                        <Copy className="w-4 h-4" />
                         コードをコピー
                       </>
                     )}
                   </button>
                 </div>
               ) : (
-                <div className="rounded-2xl bg-white/15 p-6 text-sm text-white shadow-inner">
+                <div 
+                  className="rounded-sm p-6 text-sm"
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.15)'
+                  }}
+                >
                   顧客コードが未設定です。マイプロフィールの登録を完了すると表示されます。
                 </div>
               )}
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-inner">
-                  <p className="text-xs uppercase tracking-[0.4em] text-white/70">Points</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Star className="h-6 w-6 text-yellow-300" />
-                    <div className="text-3xl font-semibold">{defaultCustomer.points}</div>
+                <div 
+                  className="rounded-sm p-4"
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.15)'
+                  }}
+                >
+                  <p 
+                    className="text-xs tracking-[0.2em] mb-2"
+                    style={{ color: 'rgba(250,248,245,0.6)' }}
+                  >
+                    POINTS
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Star className="w-5 h-5" style={{ color: '#C4856C' }} />
+                    <span 
+                      className="text-3xl"
+                      style={{ 
+                        fontFamily: "'Cormorant Garamond', serif",
+                        fontWeight: 600
+                      }}
+                    >
+                      {defaultCustomer.points}
+                    </span>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-inner">
-                  <p className="text-xs uppercase tracking-[0.4em] text-white/70">Level</p>
-                  <div className="mt-2 text-lg font-semibold">{levelInfo.name}</div>
-                  <p className="text-xs text-white/70">
+                <div 
+                  className="rounded-sm p-4"
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.15)'
+                  }}
+                >
+                  <p 
+                    className="text-xs tracking-[0.2em] mb-2"
+                    style={{ color: 'rgba(250,248,245,0.6)' }}
+                  >
+                    LEVEL
+                  </p>
+                  <p className="text-lg font-medium">{levelInfo.name}</p>
+                  <p 
+                    className="text-xs"
+                    style={{ color: 'rgba(250,248,245,0.6)' }}
+                  >
                     {levelInfo.minPoints}-{levelInfo.maxPoints} pt
                   </p>
                 </div>
@@ -149,56 +246,138 @@ const CustomerQRCode: React.FC = () => {
             </div>
           </section>
 
+          {/* サイドパネル */}
           <section className="space-y-4">
-            <div className="rounded-[28px] bg-white p-5 shadow-[0_18px_35px_rgba(46,31,22,0.14)]">
-              <h3 className="text-sm font-semibold text-gray-900">プロフィールサマリー</h3>
-              <p className="text-xs uppercase tracking-[0.4em] text-gray-350">identity</p>
-              <div className="mt-4 space-y-4 text-sm text-gray-600">
+            <div 
+              className="rounded-sm p-5"
+              style={{ 
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                border: '1px solid #E0D6C8'
+              }}
+            >
+              <p 
+                className="text-xs tracking-[0.2em] mb-4"
+                style={{ color: '#8A857E' }}
+              >
+                PROFILE SUMMARY
+              </p>
+              <div className="space-y-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">NAME</p>
-                  <p className="mt-1 text-lg font-medium text-gray-900">{defaultCustomer.name}</p>
+                  <p 
+                    className="text-xs tracking-[0.15em] mb-1"
+                    style={{ color: '#8A857E' }}
+                  >
+                    NAME
+                  </p>
+                  <p 
+                    className="text-lg"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26'
+                    }}
+                  >
+                    {defaultCustomer.name}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-gray-400">EMAIL</p>
-                  <p className="mt-1 break-words text-sm">{defaultCustomer.email}</p>
+                  <p 
+                    className="text-xs tracking-[0.15em] mb-1"
+                    style={{ color: '#8A857E' }}
+                  >
+                    EMAIL
+                  </p>
+                  <p 
+                    className="text-sm break-words"
+                    style={{ color: '#5A5651' }}
+                  >
+                    {defaultCustomer.email}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[28px] bg-white p-5 shadow-[0_18px_35px_rgba(46,31,22,0.14)]">
-              <h3 className="text-sm font-semibold text-gray-900">顧客 ID / コード</h3>
-              <div className="mt-4 space-y-4 text-sm">
+            <div 
+              className="rounded-sm p-5"
+              style={{ 
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                border: '1px solid #E0D6C8'
+              }}
+            >
+              <p 
+                className="text-xs tracking-[0.2em] mb-4"
+                style={{ color: '#8A857E' }}
+              >
+                ID / CODE
+              </p>
+              <div className="space-y-3">
                 {customerCode && (
-                  <div className="flex items-center gap-2 rounded-2xl border border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50 px-3 py-2 text-purple-700 shadow-inner">
-                    <QrCode className="h-4 w-4 text-purple-500" />
-                    <code className="flex-1 font-mono text-sm break-all">{String(customerCode)}</code>
+                  <div 
+                    className="flex items-center gap-2 rounded-sm px-3 py-2"
+                    style={{ 
+                      backgroundColor: '#F5F0E8',
+                      border: '1px solid #E0D6C8'
+                    }}
+                  >
+                    <QrCode className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                    <code 
+                      className="flex-1 font-mono text-sm break-all"
+                      style={{ color: '#3D4A35' }}
+                    >
+                      {String(customerCode)}
+                    </code>
                     <button
                       onClick={() => copyToClipboard(String(customerCode), 'code')}
-                      className="rounded-full p-2 text-purple-500 transition hover:bg-white/70"
+                      className="p-2 rounded-sm transition-colors"
+                      style={{ color: '#5C6B4A' }}
                     >
-                      {copiedTarget === 'code' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedTarget === 'code' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
                 )}
-                <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-700 shadow-inner">
-                  <span className="text-xs font-semibold tracking-[0.3em] text-gray-400">ID</span>
-                  <code className="flex-1 font-mono text-xs break-all">{defaultCustomer.id}</code>
+                <div 
+                  className="flex items-center gap-2 rounded-sm px-3 py-2"
+                  style={{ 
+                    backgroundColor: '#FDFCFA',
+                    border: '1px solid #E0D6C8'
+                  }}
+                >
+                  <span 
+                    className="text-xs tracking-[0.15em]"
+                    style={{ color: '#8A857E' }}
+                  >
+                    ID
+                  </span>
+                  <code 
+                    className="flex-1 font-mono text-xs break-all"
+                    style={{ color: '#5A5651' }}
+                  >
+                    {defaultCustomer.id}
+                  </code>
                   <button
                     onClick={() => copyToClipboard(defaultCustomer.id, 'id')}
-                    className="rounded-full p-2 text-gray-500 transition hover:bg-white"
+                    className="p-2 rounded-sm transition-colors"
+                    style={{ color: '#8A857E' }}
                   >
-                    {copiedTarget === 'id' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {copiedTarget === 'id' ? <Check className="w-4 h-4" style={{ color: '#5C6B4A' }} /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
             </div>
 
             {!customer && (
-              <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-800 shadow-inner">
-                <p className="font-medium">顧客データを登録すると、より多くの機能をご利用いただけます。</p>
+              <div 
+                className="rounded-sm p-5 text-sm"
+                style={{ 
+                  backgroundColor: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  color: '#92400E'
+                }}
+              >
+                <p className="font-medium mb-2">顧客データを登録すると、より多くの機能をご利用いただけます。</p>
                 <button
                   onClick={() => navigate('/customer-data-registration')}
-                  className="mt-3 text-amber-700 underline-offset-4 transition hover:text-amber-900 hover:underline"
+                  className="underline transition-colors hover:no-underline"
+                  style={{ color: '#78350F' }}
                 >
                   顧客データを登録する →
                 </button>

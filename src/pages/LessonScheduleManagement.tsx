@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { 
   Calendar,
@@ -35,13 +36,15 @@ import type {
   CalendarLessonSchedule
 } from '../types/lesson';
 
-// メッセージタイプ
+// 背景画像
+const BG_IMAGE = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80';
+
 type MessageType = 'success' | 'error';
 
 const LessonScheduleManagement: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useSimpleAuth();
   
-  // 状態管理
   const [lessonSchedules, setLessonSchedules] = useState<LessonSchedule[]>([]);
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
   const [customerParticipations, setCustomerParticipations] = useState<CustomerParticipation[]>([]);
@@ -62,7 +65,6 @@ const LessonScheduleManagement: React.FC = () => {
     notes: ''
   });
   
-  // フォームデータ
   const [formData, setFormData] = useState<ScheduleFormData>({
     lesson_school_id: '',
     title: '',
@@ -70,41 +72,38 @@ const LessonScheduleManagement: React.FC = () => {
     date: '',
     start_time: '',
     end_time: '',
-    max_participants: 0, // 空白で開始
-    price: 0 // 空白で開始
+    max_participants: 0,
+    price: 0
   });
-  
-  // レッスンスクール読み込み
+
+  // データ読み込み関数
   const loadLessonSchoolsData = async () => {
     try {
       const data = await loadLessonSchools(user?.email || '');
-          setLessonSchools(data);
-      } catch (error) {
-        console.error('レッスンスクール読み込みエラー:', error);
-      }
-    };
+      setLessonSchools(data);
+    } catch (error) {
+      console.error('レッスンスクール読み込みエラー:', error);
+    }
+  };
 
-  // レッスンスケジュール読み込み
   const loadLessonSchedulesData = async () => {
     try {
       const data = await loadLessonSchedules(user?.email || '');
       setLessonSchedules(data);
-      } catch (error) {
-        console.error('レッスンスケジュール読み込みエラー:', error);
+    } catch (error) {
+      console.error('レッスンスケジュール読み込みエラー:', error);
     }
   };
 
-  // 顧客参加情報読み込み
   const loadCustomerParticipationsData = async () => {
     try {
       const data = await loadCustomerParticipations(user?.email || '');
       setCustomerParticipations(data);
-      } catch (error) {
+    } catch (error) {
       console.error('顧客参加情報読み込みエラー:', error);
     }
   };
 
-  // レッスン完了記録読み込み
   const loadLessonCompletionsData = async () => {
     try {
       const data = await loadLessonCompletions(user?.email || '');
@@ -114,7 +113,6 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // 初期データ読み込み
   useEffect(() => {
     if (user) {
       Promise.all([
@@ -128,13 +126,10 @@ const LessonScheduleManagement: React.FC = () => {
     }
   }, [user]);
 
-
-  // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    // バリデーション
     if (formData.max_participants <= 0) {
       setMessage('最大参加者数を入力してください');
       setMessageType('error');
@@ -163,7 +158,6 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // フォームリセット
   const resetForm = () => {
     setFormData({
       lesson_school_id: '',
@@ -172,30 +166,23 @@ const LessonScheduleManagement: React.FC = () => {
       date: '',
       start_time: '',
       end_time: '',
-      max_participants: 0, // 空白で開始
-      price: 0 // 空白で開始
+      max_participants: 0,
+      price: 0
     });
   };
 
-  // 新規作成開始
   const startCreate = () => {
     setIsEditing(true);
     setEditingSchedule(null);
     resetForm();
-    
-    // 新規作成フォーム表示時に自動スクロール
     setTimeout(() => {
       const editForm = document.getElementById('edit-form');
       if (editForm) {
-        editForm.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
+        editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
   };
 
-  // 編集開始
   const startEdit = (schedule: LessonSchedule) => {
     setEditingSchedule(schedule);
     setFormData({
@@ -209,20 +196,14 @@ const LessonScheduleManagement: React.FC = () => {
       price: schedule.price
     });
     setIsEditing(true);
-    
-    // 編集フォーム表示時に自動スクロール
     setTimeout(() => {
       const editForm = document.getElementById('edit-form');
       if (editForm) {
-        editForm.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
+        editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
   };
 
-  // 削除
   const handleDeleteSchedule = async (scheduleId: string) => {
     if (!confirm('このスケジュールを削除しますか？')) return;
 
@@ -242,53 +223,44 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // スケジュール選択
   const handleScheduleClick = (schedule: LessonSchedule) => {
     setSelectedSchedule(schedule);
     setSelectedDate(schedule.date);
   };
 
-  // 日付クリック
   const handleDateClick = (date: string) => {
     setSelectedDate(date);
     setSelectedSchedule(null);
   };
 
-  // ランダムな色を生成
   const getRandomColor = (id: string) => {
     const colors = [
       'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
-      'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
-      'bg-orange-500', 'bg-red-500', 'bg-yellow-500'
+      'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
     ];
     const index = id.charCodeAt(0) % colors.length;
     return colors[index];
   };
 
-  // カレンダー用のスケジュールデータを準備
   const calendarSchedules: CalendarLessonSchedule[] = lessonSchedules.map(schedule => ({
     ...schedule,
     color: getRandomColor(schedule.id)
   }));
 
-  // 顧客参加状況更新
   const handleCustomerParticipation = async (participationId: string, newStatus: 'confirmed' | 'cancelled') => {
     try {
       await updateCustomerParticipation(participationId, newStatus);
 
-      // 参加者数の更新
       if (selectedSchedule) {
         const participation = customerParticipations.find(p => p.id === participationId);
         if (participation) {
           const increment = newStatus === 'confirmed' ? 1 : -1;
-          const { error: updateError } = await supabase
+          await supabase
             .from('new_lesson_schedules')
             .update({
               current_participants: selectedSchedule.current_participants + increment
             })
             .eq('id', selectedSchedule.id);
-
-          if (updateError) throw updateError;
         }
       }
 
@@ -303,13 +275,6 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // QRコードスキャン（テスト用）
-  const handleQRScan = () => {
-    setMessage('QRコードスキャン機能は開発中です');
-    setMessageType('success');
-  };
-
-  // レッスン参加用QRコード生成
   const generateLessonQRCode = async (schedule: LessonSchedule) => {
     try {
       const baseUrl = window.location.origin;
@@ -332,76 +297,69 @@ const LessonScheduleManagement: React.FC = () => {
       const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
         width: 300,
         margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
+        color: { dark: '#3D4A35', light: '#FAF8F5' }
       });
 
-      // QRコードを新しいウィンドウで表示
-      const newWindow = window.open('', '_blank', 'width=400,height=500');
+      const newWindow = window.open('', '_blank', 'width=400,height=550');
       if (newWindow) {
         newWindow.document.write(`
+          <!DOCTYPE html>
           <html>
             <head>
-              <title>レッスン参加QRコード - ${schedule.title}</title>
+              <title>レッスン参加QRコード</title>
+              <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
               <style>
                 body { 
-                  font-family: Arial, sans-serif; 
+                  font-family: 'Noto Serif JP', serif; 
                   text-align: center; 
-                  padding: 20px;
-                  background: #f5f5f5;
+                  padding: 30px;
+                  background: #FAF8F5;
+                  color: #2D2A26;
+                  margin: 0;
                 }
-                .qr-container {
+                .container {
                   background: white;
-                  padding: 20px;
-                  border-radius: 10px;
-                  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                  margin: 20px auto;
-                  max-width: 350px;
+                  padding: 30px;
+                  border-radius: 4px;
+                  border: 1px solid #E0D6C8;
+                  max-width: 320px;
+                  margin: 0 auto;
                 }
-                .lesson-info {
-                  margin: 20px 0;
-                  text-align: left;
+                .title { 
+                  font-size: 18px; 
+                  color: #5C6B4A; 
+                  margin-bottom: 20px;
+                  letter-spacing: 0.1em;
                 }
-                .lesson-info h3 {
-                  color: #333;
-                  margin-bottom: 10px;
+                .lesson-name { 
+                  font-size: 16px; 
+                  margin-bottom: 15px;
+                  color: #3D4A35;
                 }
-                .lesson-info p {
-                  margin: 5px 0;
-                  color: #666;
+                .info { 
+                  font-size: 13px; 
+                  color: #8A857E; 
+                  margin: 8px 0;
                 }
-                .qr-code {
-                  margin: 20px 0;
-                }
-                .instructions {
-                  background: #e3f2fd;
+                .qr { 
+                  margin: 25px 0;
                   padding: 15px;
-                  border-radius: 5px;
-                  margin: 20px 0;
-                  text-align: left;
+                  background: #F5F0E8;
+                  border-radius: 4px;
+                }
+                .qr img { 
+                  border-radius: 4px; 
                 }
               </style>
             </head>
             <body>
-              <div class="qr-container">
-                <h2>レッスン参加QRコード</h2>
-                <div class="lesson-info">
-                  <h3>${schedule.title}</h3>
-                  <p><strong>日時:</strong> ${new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')} ${schedule.start_time} - ${schedule.end_time}</p>
-                  <p><strong>料金:</strong> ¥${schedule.price.toLocaleString()}</p>
-                  <p><strong>定員:</strong> ${schedule.max_participants}名</p>
-                </div>
-                <div class="qr-code">
-                  <img src="${qrCodeUrl}" alt="レッスン参加QRコード" />
-                </div>
-                <div class="instructions">
-                  <h4>参加方法:</h4>
-                  <p>1. 顧客アプリでこのQRコードをスキャン</p>
-                  <p>2. 参加・不参加を選択</p>
-                  <p>3. 連絡先情報を入力（初回のみ）</p>
-                </div>
+              <div class="container">
+                <div class="title">LESSON QR CODE</div>
+                <div class="lesson-name">${schedule.title}</div>
+                <div class="info">${new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')}</div>
+                <div class="info">${schedule.start_time} - ${schedule.end_time}</div>
+                <div class="info">¥${schedule.price.toLocaleString()} / 定員${schedule.max_participants}名</div>
+                <div class="qr"><img src="${qrCodeUrl}" alt="QRコード" /></div>
               </div>
             </body>
           </html>
@@ -409,7 +367,7 @@ const LessonScheduleManagement: React.FC = () => {
         newWindow.document.close();
       }
 
-      setMessage('レッスン参加QRコードを生成しました');
+      setMessage('QRコードを生成しました');
       setMessageType('success');
     } catch (error) {
       console.error('QRコード生成エラー:', error);
@@ -418,7 +376,6 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // レッスン終了処理
   const handleCompleteLesson = async (scheduleId: string) => {
     if (!user || !confirm('レッスンを終了して、参加者にポイントを配布しますか？')) return;
 
@@ -427,10 +384,8 @@ const LessonScheduleManagement: React.FC = () => {
       const result = await completeLesson(scheduleId, user.email);
 
       if (result.success) {
-        setMessage(`レッスン終了！${result.total_participants}名の参加者に合計${result.total_points}ポイントを配布しました`);
+        setMessage(`レッスン終了！${result.total_participants}名に${result.total_points}ポイントを配布しました`);
         setMessageType('success');
-        
-        // データを再読み込み
         loadLessonCompletionsData();
         loadCustomerParticipationsData();
       } else {
@@ -446,12 +401,10 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
-  // レッスンが既に完了しているかチェック
   const isLessonCompleted = (scheduleId: string) => {
     return lessonCompletions.some(completion => completion.schedule_id === scheduleId);
   };
 
-  // 顧客参加を手動で追加
   const handleAddParticipation = async () => {
     if (!selectedSchedule || !newParticipation.customer_name.trim()) {
       setMessage('顧客名を入力してください');
@@ -475,12 +428,7 @@ const LessonScheduleManagement: React.FC = () => {
 
       setMessage('顧客の参加を追加しました');
       setMessageType('success');
-      setNewParticipation({
-        customer_name: '',
-        customer_email: '',
-        customer_phone: '',
-        notes: ''
-      });
+      setNewParticipation({ customer_name: '', customer_email: '', customer_phone: '', notes: '' });
       setIsAddingParticipation(false);
       loadCustomerParticipationsData();
       loadLessonSchedulesData();
@@ -491,94 +439,133 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
+  const inputStyle = {
+    backgroundColor: '#FDFCFA',
+    border: '1px solid #E0D6C8',
+    color: '#2D2A26'
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#FAF8F5' }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">レッスンスケジュール情報を読み込み中...</p>
+          <div 
+            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: '#E0D6C8', borderTopColor: '#5C6B4A' }}
+          />
+          <p className="mt-4 text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>読み込み中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-sky-200">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 無地背景 */}
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => window.history.back()}
-              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 transition-colors rounded-sm"
+              style={{ color: '#2D2A26', fontWeight: 500 }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 
+                className="text-2xl"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26'
+                }}
               >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <div>
-              <h1 className="text-2xl font-bold text-gray-900">レッスンスケジュール管理</h1>
-              <p className="text-gray-600">フラワーレッスンのスケジュールと生徒予約を管理</p>
-              </div>
+                レッスンスケジュール管理
+              </h1>
+              <p className="text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>
+                フラワーレッスンのスケジュールと生徒予約を管理
+              </p>
             </div>
-            
-            {!isEditing && (
-              <button
-                onClick={startCreate}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
+          </div>
+          
+          {!isEditing && (
+            <button
+              onClick={startCreate}
+              className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm tracking-wide transition-all duration-300"
+              style={{ 
+                backgroundColor: '#5C6B4A',
+                color: '#FAF8F5'
+              }}
+            >
+              <Plus className="w-4 h-4" />
               新規講座作成
-              </button>
-            )}
+            </button>
+          )}
         </div>
 
         {/* メッセージ表示 */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg shadow-sm flex items-center justify-between ${
-            messageType === 'success' 
-              ? 'bg-green-100 border border-green-300 text-green-800' 
-              : 'bg-red-100 border border-red-300 text-red-800'
-          }`}>
-            <span>{message}</span>
-            <button
-              onClick={() => setMessage('')}
-              className="text-current hover:text-gray-600"
-            >
+          <div 
+            className="mb-6 p-4 rounded-sm flex items-center justify-between"
+            style={{
+              backgroundColor: messageType === 'success' ? '#E8EDE4' : '#FEF2F2',
+              border: `1px solid ${messageType === 'success' ? '#D1DBC9' : '#FECACA'}`,
+              color: messageType === 'success' ? '#5C6B4A' : '#DC2626'
+            }}
+          >
+            <span className="text-sm">{message}</span>
+            <button onClick={() => setMessage('')}>
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* スケジュール作成・編集フォーム */}
+        {/* 編集フォーム */}
         {isEditing && (
-          <div className="bg-white rounded-lg shadow-lg border border-gray-300 p-4 sm:p-6 mb-6 sm:mb-8" id="edit-form">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {editingSchedule ? 'レッスンスケジュール編集' : '新規レッスンスケジュール作成'}
+          <div 
+            id="edit-form"
+            className="rounded-sm p-6 mb-8"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <h2 
+              className="text-lg mb-6"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26'
+              }}
+            >
+              {editingSchedule ? 'スケジュール編集' : '新規スケジュール作成'}
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 基本情報 */}
-              <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
                     レッスンスクール
                   </label>
                   <select
                     value={formData.lesson_school_id}
                     onChange={(e) => setFormData(prev => ({ ...prev, lesson_school_id: e.target.value }))}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
                   >
-                    <option value="">スクールを選択してください</option>
+                    <option value="">スクールを選択</option>
                     {lessonSchools.map((school) => (
-                      <option key={school.id} value={school.id}>
-                        {school.name}
-                      </option>
+                      <option key={school.id} value={school.id}>{school.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
                     レッスンタイトル
                   </label>
                   <input
@@ -586,29 +573,30 @@ const LessonScheduleManagement: React.FC = () => {
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="レッスンタイトルを入力"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    詳細説明
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="レッスンの詳細説明を入力"
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
+                    placeholder="レッスンタイトル"
                   />
                 </div>
               </div>
 
-              {/* スケジュール情報 */}
-              <div className="space-y-4">
+              <div>
+                <label className="block text-xs tracking-wide mb-2" style={{ color: '#8A857E' }}>
+                  詳細説明
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-3 rounded-sm"
+                  style={inputStyle}
+                  placeholder="レッスンの詳細説明"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
                     開催日
                   </label>
                   <input
@@ -616,126 +604,99 @@ const LessonScheduleManagement: React.FC = () => {
                     value={formData.date}
                     onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      開始時間
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.start_time}
-                      onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      終了時間
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.end_time}
-                      onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                    開始時間
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.start_time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                    required
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
+                  />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      最大参加者数
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.max_participants || ''}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '') {
-                          setFormData(prev => ({ ...prev, max_participants: 0 }));
-                        } else {
-                          const numValue = parseInt(value);
-                          if (!isNaN(numValue) && numValue > 0) {
-                            setFormData(prev => ({ ...prev, max_participants: numValue }));
-                          }
-                        }
-                      }}
-                      onFocus={(e) => {
-                        // フォーカス時に全選択して入力しやすくする
-                        e.target.select();
-                      }}
-                      required
-                      className="w-full px-3 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="1"
-                      max="999"
-                      placeholder="最大参加者数を入力"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      料金（円）
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.price || ''}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '') {
-                          setFormData(prev => ({ ...prev, price: 0 }));
-                        } else {
-                          const numValue = parseFloat(value);
-                          if (!isNaN(numValue) && numValue >= 0) {
-                            setFormData(prev => ({ ...prev, price: numValue }));
-                          }
-                        }
-                      }}
-                      onFocus={(e) => {
-                        // フォーカス時に全選択して入力しやすくする
-                        e.target.select();
-                      }}
-                      required
-                      className="w-full px-3 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="0"
-                      max="999999"
-                      step="1"
-                      placeholder="料金を入力（円）"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                    終了時間
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.end_time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                    required
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
+                  />
                 </div>
-            </div>
+                <div>
+                  <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                    定員
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.max_participants || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, max_participants: parseInt(e.target.value) || 0 }))}
+                    required
+                    min="1"
+                    className="w-full px-3 py-3 rounded-sm"
+                    style={inputStyle}
+                    placeholder="人数"
+                  />
+                </div>
+              </div>
 
-            {/* ボタン */}
-              <div className="flex justify-end space-x-3">
-              <button
+              <div className="w-48">
+                <label className="block text-xs tracking-wide mb-2" style={{ color: '#8A857E' }}>
+                  料金（円）
+                </label>
+                <input
+                  type="number"
+                  value={formData.price || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+                  required
+                  min="0"
+                  className="w-full px-3 py-3 rounded-sm"
+                  style={inputStyle}
+                  placeholder="料金"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
                   type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditingSchedule(null);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                キャンセル
-              </button>
-              <button
+                  onClick={() => { setIsEditing(false); setEditingSchedule(null); resetForm(); }}
+                  className="px-6 py-3 rounded-sm text-sm"
+                  style={{ backgroundColor: '#F5F0E8', color: '#2D2A26', fontWeight: 500 }}
+                >
+                  キャンセル
+                </button>
+                <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {editingSchedule ? '更新' : '作成'}
-              </button>
-            </div>
+                  className="px-6 py-3 rounded-sm text-sm"
+                  style={{ backgroundColor: '#5C6B4A', color: '#FAF8F5' }}
+                >
+                  {editingSchedule ? '更新' : '作成'}
+                </button>
+              </div>
             </form>
           </div>
         )}
 
-        {/* カレンダー表示 */}
-        <div className="mb-4 sm:mb-6">
+        {/* カレンダー */}
+        <div 
+          className="mb-4 sm:mb-6 rounded-sm p-3 sm:p-4 md:p-6"
+          style={{ 
+            background: 'linear-gradient(135deg, #D4AF37 0%, #F4D03F 50%, #D4AF37 100%)',
+            border: '2px solid #B8941F',
+            boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)'
+          }}
+        >
           <LessonCalendar
             schedules={calendarSchedules}
             onDateClick={handleDateClick}
@@ -744,24 +705,31 @@ const LessonScheduleManagement: React.FC = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-          {/* 左側：スケジュール一覧 */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-300 p-3 sm:p-4 lg:p-6">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+        {/* メインコンテンツ */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* スケジュール一覧 */}
+          <div 
+            className="rounded-sm p-6"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 
+                className="text-lg"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26'
+                }}
+              >
                 レッスンスケジュール
-              {selectedDate && (
-                  <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-normal text-gray-500">
-                  ({selectedDate})
-                </span>
-              )}
+                {selectedDate && (
+                  <span className="ml-2 text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>
+                    ({selectedDate})
+                  </span>
+                )}
               </h3>
-              <span className="text-xs sm:text-sm text-gray-500">
-                {selectedDate 
-                  ? lessonSchedules.filter(s => s.date === selectedDate).length 
-                  : lessonSchedules.length
-                }件
-              </span>
             </div>
 
             {(() => {
@@ -770,341 +738,263 @@ const LessonScheduleManagement: React.FC = () => {
                 : lessonSchedules;
               
               return filteredSchedules.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <p>
-                    {selectedDate 
-                      ? `${selectedDate}のレッスンスケジュールがありません`
-                      : '登録されたレッスンスケジュールがありません'
-                    }
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 mx-auto mb-4" style={{ color: '#E0D6C8' }} />
+                  <p style={{ color: '#3D3A36', fontWeight: 500 }}>
+                    {selectedDate ? `${selectedDate}のスケジュールはありません` : 'スケジュールがありません'}
                   </p>
-                <p className="text-sm mt-2">新規作成ボタンから追加してください</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
+                </div>
+              ) : (
+                <div className="space-y-3">
                   {filteredSchedules.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors ${
-                      selectedSchedule?.id === schedule.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => handleScheduleClick(schedule)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base truncate">{schedule.title}</h4>
-                        <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2 truncate">{schedule.lesson_school_name}</p>
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>{new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')}</span>
+                    <div
+                      key={schedule.id}
+                      onClick={() => handleScheduleClick(schedule)}
+                      className="p-4 rounded-sm cursor-pointer transition-all duration-300"
+                      style={{ 
+                        backgroundColor: selectedSchedule?.id === schedule.id ? '#F5F0E8' : '#FDFCFA',
+                        border: `1px solid ${selectedSchedule?.id === schedule.id ? '#5C6B4A' : '#E0D6C8'}`
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 
+                            className="text-sm mb-1"
+                            style={{ color: '#2D2A26', fontWeight: 500 }}
+                          >
+                            {schedule.title}
+                          </h4>
+                          <p className="text-xs mb-2" style={{ color: '#3D3A36', fontWeight: 500 }}>
+                            {schedule.lesson_school_name}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs" style={{ color: '#3D3A36', fontWeight: 500 }}>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {schedule.start_time} - {schedule.end_time}
+                            </span>
                           </div>
-                          <div className="flex items-center space-x-1 sm:space-x-2">
-                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>{schedule.start_time} - {schedule.end_time}</span>
+                          <div className="flex items-center gap-4 mt-2 text-xs">
+                            <span style={{ color: '#5C6B4A', fontWeight: 500 }}>
+                              ¥{schedule.price.toLocaleString()}
+                            </span>
+                            <span style={{ color: '#3D3A36', fontWeight: 500 }}>
+                              {schedule.current_participants}/{schedule.max_participants}名
+                            </span>
                           </div>
                         </div>
-                        <div className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-700 line-clamp-2">
-                          {schedule.description.length > 80
-                            ? schedule.description.substring(0, 80) + '...'
-                            : schedule.description
-                          }
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startEdit(schedule); }}
+                            className="p-2 rounded-sm transition-colors"
+                            style={{ color: '#8A857E' }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(schedule.id); }}
+                            className="p-2 rounded-sm transition-colors"
+                            style={{ color: '#C4856C' }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
-                          <span className="text-blue-600 font-medium">
-                            ¥{schedule.price.toLocaleString()}
-                          </span>
-                          <span className="text-gray-600">
-                            参加者: {schedule.current_participants}/{schedule.max_participants}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-2 sm:ml-4 flex space-x-1 sm:space-x-2 flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEdit(schedule);
-                          }}
-                          className="p-1 sm:p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSchedule(schedule.id);
-                          }}
-                          className="p-1 sm:p-2 text-gray-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
               );
             })()}
           </div>
 
-          {/* 右側：生徒予約一覧 */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-300 p-3 sm:p-4 lg:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+          {/* 予約管理 */}
+          <div 
+            className="rounded-sm p-6"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <h3 
+              className="text-lg mb-4"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26'
+              }}
+            >
               {selectedSchedule ? `${selectedSchedule.title} の予約状況` : '予約管理'}
             </h3>
             
             {!selectedSchedule ? (
-              <div className="text-center py-12 text-gray-500">
-                <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p>左側のスケジュールを選択してください</p>
-                <p className="text-sm mt-2">生徒の予約状況が表示されます</p>
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 mx-auto mb-4" style={{ color: '#E0D6C8' }} />
+                <p style={{ color: '#3D3A36', fontWeight: 500 }}>左側のスケジュールを選択してください</p>
               </div>
             ) : (
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-sm text-gray-600">
-                    参加者: {selectedSchedule.current_participants}/{selectedSchedule.max_participants}人
-                    <br />
-                    <span className="text-xs text-gray-500">
-                      レッスン完了状況: {isLessonCompleted(selectedSchedule.id) ? '完了済み' : '未完了'}
+              <div className="space-y-6">
+                {/* アクションボタン */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => generateLessonQRCode(selectedSchedule)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-sm text-xs transition-colors"
+                    style={{ backgroundColor: '#5C6B4A', color: '#FAF8F5' }}
+                  >
+                    <QrCode className="w-4 h-4" />
+                    QRコード生成
+                  </button>
+                  {!isLessonCompleted(selectedSchedule.id) && (
+                    <button
+                      onClick={() => handleCompleteLesson(selectedSchedule.id)}
+                      disabled={isCompletingLesson}
+                      className="px-3 py-2 rounded-sm text-xs transition-colors disabled:opacity-50"
+                      style={{ backgroundColor: '#C4856C', color: '#FAF8F5' }}
+                    >
+                      {isCompletingLesson ? '処理中...' : 'レッスン終了'}
+                    </button>
+                  )}
+                  {isLessonCompleted(selectedSchedule.id) && (
+                    <span 
+                      className="px-3 py-2 rounded-sm text-xs"
+                      style={{ backgroundColor: '#E8EDE4', color: '#5C6B4A' }}
+                    >
+                      完了済み
                     </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => generateLessonQRCode(selectedSchedule)}
-                      className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors flex items-center"
-                    >
-                      <QrCode className="w-3 h-3 mr-1" />
-                      QRコード生成
-                    </button>
-                    <button
-                      onClick={handleQRScan}
-                      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
-                    >
-                      QRコードスキャン（テスト）
-                    </button>
-                    {!isLessonCompleted(selectedSchedule.id) && (
-                      <button
-                        onClick={() => handleCompleteLesson(selectedSchedule.id)}
-                        disabled={isCompletingLesson}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      >
-                        {isCompletingLesson ? '処理中...' : 'レッスン終了'}
-                      </button>
-                    )}
-                    {isLessonCompleted(selectedSchedule.id) && (
-                      <span className="px-3 py-1 bg-gray-500 text-white rounded text-sm">
-                        完了済み
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
 
-                {/* 顧客参加情報 */}
-                <div className="mb-6">
+                {/* 参加者リスト */}
+                <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-md font-medium text-gray-900">顧客参加状況</h4>
+                    <p className="text-sm" style={{ color: '#5A5651' }}>
+                      参加者: {selectedSchedule.current_participants}/{selectedSchedule.max_participants}名
+                    </p>
                     <button
                       onClick={() => setIsAddingParticipation(!isAddingParticipation)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                      className="text-xs px-3 py-1 rounded-sm transition-colors"
+                      style={{ backgroundColor: '#F5F0E8', color: '#5C6B4A' }}
                     >
                       {isAddingParticipation ? 'キャンセル' : '参加者を追加'}
                     </button>
                   </div>
 
-                  {/* 参加者追加フォーム */}
                   {isAddingParticipation && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <h5 className="text-sm font-medium text-blue-900 mb-3">新しい参加者を追加</h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            顧客名 *
-                          </label>
-                          <input
-                            type="text"
-                            value={newParticipation.customer_name}
-                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_name: e.target.value }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="田中花子"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            メールアドレス
-                          </label>
-                          <input
-                            type="email"
-                            value={newParticipation.customer_email}
-                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_email: e.target.value }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="tanaka@example.com"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            電話番号
-                          </label>
-                          <input
-                            type="tel"
-                            value={newParticipation.customer_phone}
-                            onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_phone: e.target.value }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="090-1234-5678"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            備考
-                          </label>
-                          <input
-                            type="text"
-                            value={newParticipation.notes}
-                            onChange={(e) => setNewParticipation(prev => ({ ...prev, notes: e.target.value }))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="初回参加"
-                          />
-                        </div>
+                    <div 
+                      className="p-4 rounded-sm mb-4"
+                      style={{ backgroundColor: '#F5F0E8', border: '1px solid #E0D6C8' }}
+                    >
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <input
+                          type="text"
+                          value={newParticipation.customer_name}
+                          onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_name: e.target.value }))}
+                          className="px-3 py-2 rounded-sm text-sm"
+                          style={inputStyle}
+                          placeholder="顧客名 *"
+                        />
+                        <input
+                          type="email"
+                          value={newParticipation.customer_email}
+                          onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_email: e.target.value }))}
+                          className="px-3 py-2 rounded-sm text-sm"
+                          style={inputStyle}
+                          placeholder="メール"
+                        />
+                        <input
+                          type="tel"
+                          value={newParticipation.customer_phone}
+                          onChange={(e) => setNewParticipation(prev => ({ ...prev, customer_phone: e.target.value }))}
+                          className="px-3 py-2 rounded-sm text-sm"
+                          style={inputStyle}
+                          placeholder="電話番号"
+                        />
+                        <input
+                          type="text"
+                          value={newParticipation.notes}
+                          onChange={(e) => setNewParticipation(prev => ({ ...prev, notes: e.target.value }))}
+                          className="px-3 py-2 rounded-sm text-sm"
+                          style={inputStyle}
+                          placeholder="備考"
+                        />
                       </div>
-                      <div className="flex justify-end space-x-2 mt-3">
-                        <button
-                          onClick={() => {
-                            setIsAddingParticipation(false);
-                            setNewParticipation({
-                              customer_name: '',
-                              customer_email: '',
-                              customer_phone: '',
-                              notes: ''
-                            });
-                          }}
-                          className="px-3 py-1 text-gray-600 bg-gray-100 rounded text-sm hover:bg-gray-200 transition-colors"
-                        >
-                          キャンセル
-                        </button>
-                        <button
-                          onClick={handleAddParticipation}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-                        >
-                          追加
-                        </button>
-                      </div>
+                      <button
+                        onClick={handleAddParticipation}
+                        className="w-full py-2 rounded-sm text-sm"
+                        style={{ backgroundColor: '#5C6B4A', color: '#FAF8F5' }}
+                      >
+                        追加
+                      </button>
                     </div>
                   )}
 
                   {customerParticipations.filter(p => p.schedule_id === selectedSchedule.id).length === 0 ? (
-                    <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
-                      <p>参加している顧客がいません</p>
-                  </div>
-                ) : (
+                    <div 
+                      className="text-center py-8 rounded-sm"
+                      style={{ backgroundColor: '#FDFCFA' }}
+                    >
+                      <p className="text-sm" style={{ color: '#8A857E' }}>参加者がいません</p>
+                    </div>
+                  ) : (
                     <div className="space-y-2">
                       {customerParticipations
                         .filter(p => p.schedule_id === selectedSchedule.id)
                         .map((participation) => (
-                        <div
-                          key={participation.id}
-                          className="border border-gray-200 rounded-lg p-3 bg-gray-50"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-900 mb-1">
-                                {participation.customer_name}
-                              </h5>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <Mail className="w-4 h-4" />
-                                  <span>{participation.customer_email}</span>
+                          <div
+                            key={participation.id}
+                            className="p-3 rounded-sm"
+                            style={{ backgroundColor: '#FDFCFA', border: '1px solid #E0D6C8' }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm" style={{ color: '#2D2A26', fontWeight: 500 }}>
+                                  {participation.customer_name}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs mt-1" style={{ color: '#8A857E' }}>
+                                  {participation.customer_email && (
+                                    <span className="flex items-center gap-1">
+                                      <Mail className="w-3 h-3" />
+                                      {participation.customer_email}
+                                    </span>
+                                  )}
+                                  {participation.customer_phone && (
+                                    <span className="flex items-center gap-1">
+                                      <Phone className="w-3 h-3" />
+                                      {participation.customer_phone}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                                {participation.customer_phone && (
-                              <div className="flex items-center space-x-2">
-                                <Phone className="w-4 h-4" />
-                                    <span>{participation.customer_phone}</span>
-                              </div>
-                                )}
-                                {participation.notes && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                備考: {participation.notes}
-                              </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                participation.status === 'confirmed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {participation.status === 'confirmed' ? '参加中' : 'キャンセル'}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className="px-2 py-1 rounded-sm text-xs"
+                                  style={{ 
+                                    backgroundColor: participation.status === 'confirmed' ? '#E8EDE4' : '#FEE2E2',
+                                    color: participation.status === 'confirmed' ? '#5C6B4A' : '#DC2626'
+                                  }}
+                                >
+                                  {participation.status === 'confirmed' ? '参加' : 'キャンセル'}
+                                </span>
                                 <button
-                                onClick={() => handleCustomerParticipation(
-                                  participation.id,
-                                  participation.status === 'confirmed' ? 'cancelled' : 'confirmed'
-                                )}
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  participation.status === 'confirmed'
-                                    ? 'bg-red-600 text-white hover:bg-red-700'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
-                                } transition-colors`}
-                              >
-                                {participation.status === 'confirmed' ? 'キャンセル' : '参加'}
+                                  onClick={() => handleCustomerParticipation(
+                                    participation.id,
+                                    participation.status === 'confirmed' ? 'cancelled' : 'confirmed'
+                                  )}
+                                  className="px-2 py-1 rounded-sm text-xs transition-colors"
+                                  style={{ 
+                                    backgroundColor: participation.status === 'confirmed' ? '#FEE2E2' : '#E8EDE4',
+                                    color: participation.status === 'confirmed' ? '#DC2626' : '#5C6B4A'
+                                  }}
+                                >
+                                  {participation.status === 'confirmed' ? '取消' : '復帰'}
                                 </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                </div>
-
-                {/* レッスン完了記録 */}
-                <div className="mb-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">レッスン完了記録</h4>
-                  {lessonCompletions.filter(c => c.schedule_id === selectedSchedule.id).length === 0 ? (
-                    <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
-                      <p>まだレッスンは完了していません</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {lessonCompletions
-                        .filter(c => c.schedule_id === selectedSchedule.id)
-                        .map((completion) => (
-                        <div
-                          key={completion.id}
-                          className="border border-gray-200 rounded-lg p-3 bg-green-50"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-900 mb-1">
-                                レッスン完了
-                              </h5>
-                              <div className="text-sm text-gray-600 space-y-1">
-                                <div>完了日時: {new Date(completion.completed_at).toLocaleString('ja-JP')}</div>
-                                <div>参加者数: {completion.total_participants}名</div>
-                                <div>配布ポイント: {completion.points_given}ポイント</div>
                               </div>
                             </div>
-                            <div className="flex items-center">
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                完了済み
-                              </span>
-                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   )}
-                </div>
-
-                {/* 生徒予約情報 */}
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">生徒予約情報</h4>
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p>予約している生徒がいません</p>
-                    <p className="text-sm mt-2">QRコードをスキャンして生徒を追加してください</p>
-                  </div>
                 </div>
               </div>
             )}

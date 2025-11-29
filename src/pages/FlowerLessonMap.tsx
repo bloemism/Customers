@@ -81,17 +81,18 @@ const FlowerLessonMap: React.FC = () => {
   // ローディング状態
   const [loading, setLoading] = useState(true);
 
-  // ランダムな色を生成する関数
+  // 控えめなパステルで鮮やかな色を生成する関数
   const getRandomColor = (id: string) => {
+    // 控えめなパステルで鮮やかな色（濃く、控えめにパステルに鮮やかに）
     const colors = [
-      'bg-gradient-to-br from-blue-400 to-blue-600',
-      'bg-gradient-to-br from-green-400 to-green-600',
-      'bg-gradient-to-br from-purple-400 to-purple-600',
-      'bg-gradient-to-br from-pink-400 to-pink-600',
-      'bg-gradient-to-br from-indigo-400 to-indigo-600',
-      'bg-gradient-to-br from-teal-400 to-teal-600',
-      'bg-gradient-to-br from-orange-400 to-orange-600',
-      'bg-gradient-to-br from-red-400 to-red-600'
+      { bg: '#C8E6C9', border: '#A5D6A7', text: '#2E7D32' }, // パステルグリーン（濃い）
+      { bg: '#FFCCBC', border: '#FFAB91', text: '#D84315' }, // パステルオレンジ（濃い）
+      { bg: '#E1BEE7', border: '#CE93D8', text: '#7B1FA2' }, // パステルパープル（濃い）
+      { bg: '#BBDEFB', border: '#90CAF9', text: '#1565C0' }, // パステルブルー（濃い）
+      { bg: '#FFE0B2', border: '#FFCC80', text: '#E65100' }, // パステルアンバー（濃い）
+      { bg: '#F8BBD0', border: '#F48FB1', text: '#C2185B' }, // パステルピンク（濃い）
+      { bg: '#B2DFDB', border: '#80CBC4', text: '#00695C' }, // パステルティール（濃い）
+      { bg: '#D1C4E9', border: '#B39DDB', text: '#512DA8' }  // パステルインディゴ（濃い）
     ];
     const index = id.charCodeAt(0) % colors.length;
     return colors[index];
@@ -185,68 +186,157 @@ const FlowerLessonMap: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#FAF8F5' }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">レッスンスクール情報を読み込み中...</p>
+          <div 
+            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: '#E0D6C8', borderTopColor: '#5C6B4A' }}
+          />
+          <p className="mt-4 text-sm" style={{ color: '#2D2A26', fontWeight: 600 }}>
+            レッスンスクール情報を読み込み中...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen" style={{ backgroundColor: '#FAF8F5' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-lg p-6 mb-8">
+        <div 
+          className="rounded-sm p-4 sm:p-6 mb-6 sm:mb-8"
+          style={{ 
+            background: 'linear-gradient(135deg, #D4AF37 0%, #F4D03F 50%, #D4AF37 100%)',
+            border: '2px solid #B8941F',
+            boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)'
+          }}
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <button
                 onClick={() => window.history.back()}
-                className="p-2 text-white hover:text-pink-100 transition-colors"
+                className="p-1.5 sm:p-2 transition-colors"
+                style={{ color: '#2D2A26' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#1A1815';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#2D2A26';
+                }}
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-white">フラワーレッスンマップ</h1>
-                <p className="text-pink-100">全国のフラワーレッスンスクールを探す</p>
+                <h1 
+                  className="text-lg sm:text-xl md:text-2xl"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif",
+                    color: '#2D2A26',
+                    fontWeight: 700,
+                    textShadow: '0 1px 2px rgba(255,255,255,0.3)'
+                  }}
+                >
+                  フラワーレッスンマップ
+                </h1>
+                <p className="text-xs sm:text-sm" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                  全国のフラワーレッスンスクールを探す
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* 左側：フィルター・検索 */}
           <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">検索・フィルター</h2>
+            <div 
+              className="rounded-sm p-4 sm:p-6"
+              style={{ 
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                border: '1px solid #E0D6C8'
+              }}
+            >
+              <h2 
+                className="text-lg mb-4"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26',
+                  fontWeight: 600
+                }}
+              >
+                検索・フィルター
+              </h2>
               
               {/* 検索バー */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label 
+                  className="block text-sm mb-2"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                >
                   スクール名・地域で検索
                 </label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                    style={{ color: '#3D3A36', fontWeight: 500 }}
+                  />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="スクール名、県、市を入力..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
               </div>
 
               {/* 地域フィルター */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label 
+                  className="block text-sm mb-2"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                >
                   地域で絞り込み
                 </label>
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                  style={{
+                    backgroundColor: '#FDFCFA',
+                    border: '2px solid #E0D6C8',
+                    color: '#3D3A36',
+                    fontFamily: "'Noto Serif JP', serif",
+                    fontSize: '14px'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   <option value="">すべての地域</option>
                   {regionCategories.map(region => (
@@ -258,7 +348,7 @@ const FlowerLessonMap: React.FC = () => {
               </div>
 
               {/* 結果件数 */}
-              <div className="text-sm text-gray-600">
+              <div className="text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>
                 表示件数: {filteredSchools.length}件
               </div>
             </div>
@@ -266,13 +356,28 @@ const FlowerLessonMap: React.FC = () => {
 
           {/* 右側：スクール一覧 */}
           <div className="lg:col-span-2">
-            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">レッスンスクール一覧</h2>
+            <div 
+              className="rounded-sm p-4 sm:p-6"
+              style={{ 
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                border: '1px solid #E0D6C8'
+              }}
+            >
+              <h2 
+                className="text-lg mb-4"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26',
+                  fontWeight: 600
+                }}
+              >
+                レッスンスクール一覧
+              </h2>
               
                             {filteredSchools.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                  <p>条件に合うレッスンスクールが見つかりません</p>
+                <div className="text-center py-8">
+                  <MapPin className="w-16 h-16 mx-auto mb-4" style={{ color: '#E0D6C8' }} />
+                  <p style={{ color: '#2D2A26', fontWeight: 600 }}>条件に合うレッスンスクールが見つかりません</p>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -296,23 +401,60 @@ const FlowerLessonMap: React.FC = () => {
                       if (schoolsInRegion.length === 0) return null;
                       
                       return (
-                        <div key={region.id} className="border border-gray-200 rounded-lg p-4">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
+                        <div 
+                          key={region.id} 
+                          className="rounded-sm p-4"
+                          style={{ 
+                            border: '1px solid #E0D6C8',
+                            backgroundColor: '#FDFCFA'
+                          }}
+                        >
+                          <h3 
+                            className="text-lg mb-3 pb-2"
+                            style={{ 
+                              fontFamily: "'Noto Serif JP', serif",
+                              color: '#2D2A26',
+                              fontWeight: 600,
+                              borderBottom: '1px solid #E0D6C8'
+                            }}
+                          >
                             {region.name} ({schoolsInRegion.length}校)
                           </h3>
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-10 gap-1">
-                {schoolsInRegion.map(school => (
+                {schoolsInRegion.map(school => {
+                  const colors = getRandomColor(school.id);
+                  return (
                   <div
                     key={school.id}
-                    className={`p-0.5 rounded-sm transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105 ${getRandomColor(school.id)}`}
+                    className="rounded-sm transition-all cursor-pointer text-center shadow-sm hover:shadow-lg transform hover:scale-105"
+                    style={{
+                      backgroundColor: colors.bg,
+                      border: `1px solid ${colors.border}`,
+                      padding: '0.5rem 0.25rem'
+                    }}
                     onClick={() => setSelectedSchool(school)}
                     title={`${school.name} (${school.prefecture} ${school.city})`}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    }}
                   >
-                    <div className="text-[10px] font-medium text-white drop-shadow-sm leading-tight min-h-[2.5rem] flex items-center justify-center">
+                    <div 
+                      className="text-[10px] font-medium leading-tight min-h-[2.5rem] flex items-center justify-center"
+                      style={{ 
+                        color: colors.text,
+                        fontWeight: 600
+                      }}
+                    >
                       {school.name.length > 10 ? school.name.substring(0, 10) + '...' : school.name}
                     </div>
                   </div>
-                ))}
+                );
+                })}
                           </div>
                         </div>
                       );
@@ -325,15 +467,41 @@ const FlowerLessonMap: React.FC = () => {
 
         {/* スクール詳細モーダル */}
         {selectedSchool && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div 
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ backgroundColor: 'rgba(45, 42, 38, 0.5)' }}
+            onClick={() => setSelectedSchool(null)}
+          >
+            <div 
+              className="rounded-sm p-4 sm:p-6 max-w-2xl w-full mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto"
+              style={{ 
+                backgroundColor: '#FAF8F5',
+                border: '1px solid #E0D6C8',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 
+                  className="text-xl"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif",
+                    color: '#2D2A26',
+                    fontWeight: 600
+                  }}
+                >
                   {selectedSchool.name}
                 </h3>
                 <button
                   onClick={() => setSelectedSchool(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-2xl leading-none transition-colors"
+                  style={{ color: '#8A857E' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#3D3A36';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#8A857E';
+                  }}
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -341,100 +509,203 @@ const FlowerLessonMap: React.FC = () => {
               
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">基本情報</h4>
+                  <h4 
+                    className="mb-2"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26',
+                      fontWeight: 600
+                    }}
+                  >
+                    基本情報
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span>{selectedSchool.prefecture} {selectedSchool.city}</span>
+                      <MapPin className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>
+                        {selectedSchool.prefecture} {selectedSchool.city}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span>{selectedSchool.email}</span>
+                      <Mail className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>{selectedSchool.email}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span>{selectedSchool.phone}</span>
+                      <Phone className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>{selectedSchool.phone}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <span>{selectedSchool.instructor_name}</span>
+                      <User className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>{selectedSchool.instructor_name}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">レッスン情報</h4>
+                  <h4 
+                    className="mb-2"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26',
+                      fontWeight: 600
+                    }}
+                  >
+                    レッスン情報
+                  </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>開催曜日: {selectedSchool.main_days.join(', ')}</span>
+                      <Calendar className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>
+                        開催曜日: {selectedSchool.main_days.join(', ')}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span>時間: {selectedSchool.main_time}</span>
+                      <Clock className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>時間: {selectedSchool.main_time}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Star className="w-4 h-4 text-gray-400" />
-                      <span>体験料金: ¥{selectedSchool.trial_price.toLocaleString()}</span>
+                      <Star className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>
+                        体験料金: ¥{selectedSchool.trial_price.toLocaleString()}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Star className="w-4 h-4 text-gray-400" />
-                      <span>通常料金: ¥{selectedSchool.regular_price.toLocaleString()}</span>
+                      <Star className="w-4 h-4" style={{ color: '#8A857E' }} />
+                      <span style={{ color: '#2D2A26', fontWeight: 600 }}>
+                        通常料金: ¥{selectedSchool.regular_price.toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">先生の経歴</h4>
-                  <p className="text-sm text-gray-700">{selectedSchool.instructor_bio}</p>
+                  <h4 
+                    className="mb-2"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26',
+                      fontWeight: 600
+                    }}
+                  >
+                    先生の経歴
+                  </h4>
+                  <p className="text-sm" style={{ color: '#2D2A26', fontWeight: 500, lineHeight: '1.6' }}>
+                    {selectedSchool.instructor_bio}
+                  </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">レッスン内容</h4>
-                  <p className="text-sm text-gray-700">{selectedSchool.lesson_content}</p>
+                  <h4 
+                    className="mb-2"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26',
+                      fontWeight: 600
+                    }}
+                  >
+                    レッスン内容
+                  </h4>
+                  <p className="text-sm" style={{ color: '#2D2A26', fontWeight: 500, lineHeight: '1.6' }}>
+                    {selectedSchool.lesson_content}
+                  </p>
                 </div>
               </div>
 
               {/* URLボタン */}
               {(selectedSchool.website_url || selectedSchool.instagram_url) && (
                 <div className="mt-4">
-                  <h4 className="font-medium text-gray-900 mb-3">リンク</h4>
-                  <div className="flex space-x-3">
+                  <h4 
+                    className="mb-3"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26',
+                      fontWeight: 600
+                    }}
+                  >
+                    リンク
+                  </h4>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     {selectedSchool.website_url && (
                       <button
                         onClick={() => window.open(selectedSchool.website_url, '_blank')}
-                        className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 rounded-sm transition-colors"
+                        style={{ 
+                          backgroundColor: '#5C6B4A',
+                          color: '#FAF8F5',
+                          fontWeight: 500
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#4A5D4A';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#5C6B4A';
+                        }}
                       >
                         <Globe className="w-4 h-4" />
-                        <span>URL</span>
+                        <span className="text-sm">URL</span>
                       </button>
                     )}
                     {selectedSchool.instagram_url && (
                       <button
                         onClick={() => window.open(selectedSchool.instagram_url, '_blank')}
-                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors"
+                        className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 rounded-sm transition-colors"
+                        style={{ 
+                          backgroundColor: '#C4856C',
+                          color: '#FAF8F5',
+                          fontWeight: 500
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#B0755A';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#C4856C';
+                        }}
                       >
                         <span>📸</span>
-                        <span>Instagram</span>
+                        <span className="text-sm">Instagram</span>
                       </button>
                     )}
                   </div>
                 </div>
               )}
 
-              <div className="mt-6 flex space-x-3">
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setSelectedSchool(null)}
-                  className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="flex-1 py-3 px-4 rounded-sm transition-colors text-sm sm:text-base"
+                  style={{ 
+                    backgroundColor: '#F5F0E8',
+                    color: '#5A5651',
+                    border: '1px solid #E0D6C8',
+                    fontWeight: 500
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#E8E0D8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#F5F0E8';
+                  }}
                 >
                   閉じる
                 </button>
                 <button
                   onClick={() => setShowReservationForm(true)}
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                  className="flex-1 py-3 px-4 rounded-sm transition-colors flex items-center justify-center text-sm sm:text-base"
+                  style={{ 
+                    backgroundColor: '#5C6B4A',
+                    color: '#FAF8F5',
+                    fontWeight: 500
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#4A5D4A';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#5C6B4A';
+                  }}
                 >
                   <Mail className="w-4 h-4 mr-2" />
-                  体験予約メール送信
+                  <span className="hidden sm:inline">体験予約メール送信</span>
+                  <span className="sm:hidden">予約</span>
                 </button>
               </div>
             </div>
@@ -443,10 +714,38 @@ const FlowerLessonMap: React.FC = () => {
 
         {/* 体験予約フォームモーダル */}
         {showReservationForm && selectedSchool && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div 
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ backgroundColor: 'rgba(45, 42, 38, 0.5)' }}
+            onClick={() => {
+              setShowReservationForm(false);
+              setReservationForm({
+                name: '',
+                email: '',
+                phone: '',
+                preferredDate: '',
+                message: ''
+              });
+            }}
+          >
+            <div 
+              className="rounded-sm p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4"
+              style={{ 
+                backgroundColor: '#FAF8F5',
+                border: '1px solid #E0D6C8',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 
+                  className="text-lg"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif",
+                    color: '#2D2A26',
+                    fontWeight: 600
+                  }}
+                >
                   体験予約 - {selectedSchool.name}
                 </h3>
                 <button
@@ -460,7 +759,14 @@ const FlowerLessonMap: React.FC = () => {
                       message: ''
                     });
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-2xl leading-none transition-colors"
+                  style={{ color: '#8A857E' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#3D3A36';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#8A857E';
+                  }}
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -468,45 +774,105 @@ const FlowerLessonMap: React.FC = () => {
 
               <form className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
                     お名前 *
                   </label>
                   <input
                     type="text"
                     value={reservationForm.name}
                     onChange={(e) => setReservationForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
                     メールアドレス *
                   </label>
                   <input
                     type="email"
                     value={reservationForm.email}
                     onChange={(e) => setReservationForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
                     電話番号
                   </label>
                   <input
                     type="tel"
                     value={reservationForm.phone}
                     onChange={(e) => setReservationForm(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
                     ご希望の日程
                   </label>
                   <input
@@ -514,12 +880,31 @@ const FlowerLessonMap: React.FC = () => {
                     value={reservationForm.preferredDate}
                     onChange={(e) => setReservationForm(prev => ({ ...prev, preferredDate: e.target.value }))}
                     placeholder="例: 来週の水曜日、土曜日の午後など"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
                     ご質問・ご要望
                   </label>
                   <textarea
@@ -527,11 +912,27 @@ const FlowerLessonMap: React.FC = () => {
                     onChange={(e) => setReservationForm(prev => ({ ...prev, message: e.target.value }))}
                     rows={3}
                     placeholder="体験レッスンについてのご質問やご要望があればお聞かせください"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 rounded-sm transition-all duration-200"
+                    style={{
+                      backgroundColor: '#FDFCFA',
+                      border: '2px solid #E0D6C8',
+                      color: '#2D2A26',
+                      fontWeight: 500,
+                      fontFamily: "'Noto Serif JP', serif",
+                      fontSize: '14px'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -544,7 +945,19 @@ const FlowerLessonMap: React.FC = () => {
                         message: ''
                       });
                     }}
-                    className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="flex-1 py-3 px-4 rounded-sm transition-colors text-sm sm:text-base"
+                    style={{ 
+                      backgroundColor: '#F5F0E8',
+                      color: '#5A5651',
+                      border: '1px solid #E0D6C8',
+                      fontWeight: 500
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#E8E0D8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#F5F0E8';
+                    }}
                   >
                     キャンセル
                   </button>
@@ -586,10 +999,22 @@ ${selectedSchool.name}の体験レッスンについてお問い合わせいた�
                         message: ''
                       });
                     }}
-                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                    className="flex-1 py-3 px-4 rounded-sm transition-colors flex items-center justify-center text-sm sm:text-base"
+                    style={{ 
+                      backgroundColor: '#5C6B4A',
+                      color: '#FAF8F5',
+                      fontWeight: 500
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#4A5D4A';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#5C6B4A';
+                    }}
                   >
                     <Mail className="w-4 h-4 mr-2" />
-                    メール送信
+                    <span className="hidden sm:inline">メール送信</span>
+                    <span className="sm:hidden">送信</span>
                   </button>
                 </div>
               </form>

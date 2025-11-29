@@ -5,17 +5,14 @@ import {
   ArrowLeft,
   Calendar,
   Check,
-  Feather,
-  Flower,
-  Heart,
   MapPin,
   Phone,
   Save,
-  Sparkles,
-  Star,
-  User,
-  Wand2
+  User
 } from 'lucide-react';
+
+// 背景画像
+const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 const CustomerProfilePage: React.FC = () => {
   const { customer, loading, updateCustomerProfile } = useCustomer();
@@ -49,7 +46,7 @@ const CustomerProfilePage: React.FC = () => {
 
     try {
       await updateCustomerProfile(formData);
-      setMessage('プロフィールをアップデートしました ✨');
+      setMessage('プロフィールを更新しました');
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2500);
     } catch (error) {
@@ -69,10 +66,16 @@ const CustomerProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#FAF8F5' }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
+          <div 
+            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: '#E0D6C8', borderTopColor: '#5C6B4A' }}
+          />
+          <p className="mt-4 text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>読み込み中...</p>
         </div>
       </div>
     );
@@ -87,10 +90,7 @@ const CustomerProfilePage: React.FC = () => {
     birth_date: '',
     created_at: new Date().toISOString(),
     level: 'BASIC',
-    points: 120,
-    favoriteStyle: 'Organic Modern',
-    mood: 'Fresh Bloom',
-    motto: '毎日の暮らしに、草花の心地よさを。'
+    points: 0,
   };
 
   const profile = {
@@ -100,8 +100,6 @@ const CustomerProfilePage: React.FC = () => {
     points: customer?.points ?? fallbackProfile.points,
     level: customer?.level ?? fallbackProfile.level,
     email: customer?.email || fallbackProfile.email,
-    phone: customer?.phone || fallbackProfile.phone,
-    address: customer?.address || fallbackProfile.address
   };
 
   const formatDate = (value?: string | null) => {
@@ -117,102 +115,197 @@ const CustomerProfilePage: React.FC = () => {
     }
   };
 
+  const inputStyle = {
+    backgroundColor: '#FDFCFA',
+    border: '1px solid #E0D6C8',
+    color: '#2D2A26'
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f3fbf7] via-[#f7f4fb] to-[#fdf3f3] px-4 py-6">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/90 via-teal-500/80 to-indigo-500/80 p-6 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-[url('/background.jpg')] opacity-10 mix-blend-soft-light" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <button
-                onClick={() => navigate('/customer-menu')}
-                className="mb-4 inline-flex items-center text-sm font-medium text-teal-100 transition hover:text-white"
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 無地背景 */}
+
+      <div className="relative z-10 max-w-3xl mx-auto px-4 py-8">
+        {/* ヘッダー */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate('/customer-menu')}
+            className="flex items-center gap-2 text-sm transition-all duration-300 mb-6"
+            style={{ color: '#2D2A26', fontWeight: 500 }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            メニューへ戻る
+          </button>
+
+          <div 
+            className="rounded-sm p-6 md:p-8"
+            style={{ 
+              backgroundColor: 'rgba(92,107,74,0.9)',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
+            <p 
+              className="text-xs tracking-[0.2em] mb-2"
+              style={{ color: 'rgba(250,248,245,0.7)' }}
+            >
+              MY PROFILE
+            </p>
+            <h1 
+              className="text-2xl md:text-3xl mb-2"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#FAF8F5'
+              }}
+            >
+              {profile.name}
+            </h1>
+            <p 
+              className="text-sm"
+              style={{ color: 'rgba(250,248,245,0.8)' }}
+            >
+              毎日の暮らしに、草花の心地よさを。
+            </p>
+            
+            <div className="mt-6 flex flex-wrap gap-4">
+              <div 
+                className="px-4 py-2 rounded-sm"
+                style={{ backgroundColor: 'rgba(250,248,245,0.15)' }}
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                メニューへ戻る
-              </button>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                {profile.name} のマイプロフィール
-              </h1>
-              <p className="mt-2 text-sm text-teal-100 max-w-2xl leading-relaxed">
-                {profile.motto}
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-2 rounded-2xl bg-white/20 px-6 py-4 text-sm text-white shadow-lg backdrop-blur">
-              <span className="text-xs uppercase tracking-widest text-emerald-50">Member since</span>
-              <strong className="text-lg">{formatDate(profile.created_at)}</strong>
-              <span className="text-emerald-50">ID: {profile.id?.slice(0, 8) ?? 'pending'}</span>
+                <p className="text-xs" style={{ color: 'rgba(250,248,245,0.6)' }}>MEMBER SINCE</p>
+                <p className="text-sm" style={{ color: '#FAF8F5' }}>{formatDate(profile.created_at)}</p>
+              </div>
+              <div 
+                className="px-4 py-2 rounded-sm"
+                style={{ backgroundColor: 'rgba(250,248,245,0.15)' }}
+              >
+                <p className="text-xs" style={{ color: 'rgba(250,248,245,0.6)' }}>ID</p>
+                <p className="text-sm" style={{ color: '#FAF8F5' }}>{profile.id?.slice(0, 8)}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <section className="space-y-6 rounded-3xl bg-white/90 p-6 shadow-xl backdrop-blur lg:col-span-2">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 text-2xl font-semibold text-emerald-700 shadow-inner">
-                  {profile.name?.charAt(0) ?? 'G'}
-                </div>
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-gray-400">Profile</p>
-                  <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
-                  <p className="text-sm text-gray-500">{profile.email}</p>
-                </div>
+        {/* プロフィール情報 */}
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <div 
+            className="rounded-sm p-6"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <p 
+              className="text-xs tracking-[0.2em] mb-4"
+              style={{ color: '#3D3A36', fontWeight: 500 }}
+            >
+              CONTACT
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Phone className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-sm" style={{ color: '#2D2A26' }}>
+                  {profile.phone || '未登録'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-sm" style={{ color: '#2D2A26' }}>
+                  {profile.address || '未登録'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                <span className="text-sm" style={{ color: '#2D2A26' }}>
+                  {profile.birth_date ? formatDate(profile.birth_date) : '未登録'}
+                </span>
               </div>
             </div>
+          </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-inner">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-500">
-                  コンタクト
-                </div>
-                <div className="space-y-3 text-sm text-gray-600">
-                  <p className="flex items-center gap-2">
-                    {profile.phone}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    {profile.address}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    {profile.birth_date ? formatDate(profile.birth_date) : '生年月日未登録'}
-                  </p>
-                </div>
+          <div 
+            className="rounded-sm p-6"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <p 
+              className="text-xs tracking-[0.2em] mb-4"
+              style={{ color: '#3D3A36', fontWeight: 500 }}
+            >
+              MEMBERSHIP
+            </p>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 600 }}>ステータス</span>
+                <span 
+                  className="text-sm font-medium px-3 py-1 rounded-sm"
+                  style={{ 
+                    backgroundColor: '#F5F0E8',
+                    color: '#5C6B4A'
+                  }}
+                >
+                  {profile.level}
+                </span>
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-inner text-sm text-gray-600">
-                <p className="font-semibold text-gray-900">メンバーシップ</p>
-                <p className="mt-2">ステータス: {profile.level}</p>
-                <p>保有ポイント: {profile.points} pt</p>
-                <p>入会日: {formatDate(profile.created_at)}</p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 600 }}>保有ポイント</span>
+                <span 
+                  className="text-lg"
+                  style={{ 
+                    fontFamily: "'Cormorant Garamond', serif",
+                    color: '#3D4A35',
+                    fontWeight: 600
+                  }}
+                >
+                  {profile.points} pt
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm" style={{ color: '#2D2A26', fontWeight: 600 }}>メール</span>
+                <span className="text-sm" style={{ color: '#2D2A26' }}>
+                  {profile.email}
+                </span>
               </div>
             </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="rounded-3xl bg-white/90 p-5 shadow-lg backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Member Status</p>
-              <p className="mt-3 text-3xl font-semibold text-gray-900">{profile.level}</p>
-              <p className="mt-1 text-sm text-gray-500">保有ポイント {profile.points} pt</p>
-            </div>
-            <div className="rounded-3xl bg-white/90 p-5 shadow-lg backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Contact</p>
-              <p className="mt-3 text-sm text-gray-600">メール: {profile.email}</p>
-              <p className="text-sm text-gray-600">電話: {profile.phone}</p>
-            </div>
-          </section>
+          </div>
         </div>
 
-        <section className="rounded-3xl bg-white p-6 shadow-2xl">
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        {/* 編集フォーム */}
+        <div 
+          className="rounded-sm p-6 md:p-8"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.95)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Edit</p>
-              <h3 className="text-2xl font-semibold text-gray-900">プロフィールの更新</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                連絡先やお届け先を最新のものにアップデートしてください。
+              <p 
+                className="text-xs tracking-[0.2em] mb-1"
+                style={{ color: '#3D3A36', fontWeight: 500 }}
+              >
+                EDIT PROFILE
               </p>
+              <h2 
+                className="text-xl"
+                style={{ 
+                  fontFamily: "'Noto Serif JP', serif",
+                  color: '#2D2A26'
+                }}
+              >
+                プロフィールの更新
+              </h2>
             </div>
             {showCelebration && (
-              <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
-                <Check className="h-4 w-4" />
+              <div 
+                className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm"
+                style={{ 
+                  backgroundColor: '#E8EDE4',
+                  color: '#5C6B4A'
+                }}
+              >
+                <Check className="w-4 h-4" />
                 保存しました
               </div>
             )}
@@ -221,81 +314,126 @@ const CustomerProfilePage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                  <User className="h-4 w-4 text-emerald-400" />
+                <label 
+                  className="flex items-center gap-2 text-xs tracking-[0.1em] mb-2"
+                  style={{ color: '#2D2A26', fontWeight: 500 }}
+                >
+                  <User className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                   お名前
                 </label>
                 <input
-                  id="name"
                   name="name"
                   type="text"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                  style={inputStyle}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                   placeholder="山田 花子"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                  <Phone className="h-4 w-4 text-emerald-400" />
+                <label 
+                  className="flex items-center gap-2 text-xs tracking-[0.1em] mb-2"
+                  style={{ color: '#2D2A26', fontWeight: 500 }}
+                >
+                  <Phone className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                   電話番号
                 </label>
                 <input
-                  id="phone"
                   name="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  required
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                  style={inputStyle}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                   placeholder="090-1234-5678"
                 />
               </div>
             </div>
 
             <div>
-              <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                <MapPin className="h-4 w-4 text-emerald-400" />
+              <label 
+                className="flex items-center gap-2 text-xs tracking-[0.1em] mb-2"
+                style={{ color: '#2D2A26', fontWeight: 500 }}
+              >
+                <MapPin className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                 住所（町名まで）
               </label>
               <input
-                id="address"
                 name="address"
                 type="text"
                 value={formData.address}
                 onChange={handleInputChange}
-                required
-                className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                style={inputStyle}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#5C6B4A';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E0D6C8';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
                 placeholder="東京都目黒区青葉台"
               />
-              <p className="mt-2 text-xs text-gray-400">プライバシー保護のため、番地以降は省略してください。</p>
+              <p className="mt-2 text-xs" style={{ color: '#8A857E' }}>
+                プライバシー保護のため、番地以降は省略してください。
+              </p>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                  <Calendar className="h-4 w-4 text-emerald-400" />
+                <label 
+                  className="flex items-center gap-2 text-xs tracking-[0.1em] mb-2"
+                  style={{ color: '#2D2A26', fontWeight: 500 }}
+                >
+                  <Calendar className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                   生年月日
                 </label>
                 <input
-                  id="birth_date"
                   name="birth_date"
                   type="date"
                   value={formData.birth_date}
                   onChange={handleInputChange}
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-400 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                  style={inputStyle}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#5C6B4A';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E0D6C8';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
               </div>
             </div>
 
             {message && (
               <div
-                className={`rounded-2xl px-4 py-3 text-sm font-medium ${
-                  message.includes('失敗')
-                    ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                }`}
+                className="rounded-sm px-4 py-3 text-sm"
+                style={{
+                  backgroundColor: message.includes('失敗') ? '#FEF2F2' : '#E8EDE4',
+                  color: message.includes('失敗') ? '#DC2626' : '#5C6B4A',
+                  border: `1px solid ${message.includes('失敗') ? '#FECACA' : '#D1DBC9'}`
+                }}
               >
                 {message}
               </div>
@@ -304,15 +442,25 @@ const CustomerProfilePage: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 text-white shadow-lg shadow-emerald-500/30 transition hover:scale-[1.01] hover:from-emerald-600 hover:to-teal-600 focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:opacity-60"
+              className="w-full py-4 rounded-sm text-sm tracking-[0.15em] transition-all duration-300 disabled:opacity-50"
+              style={{ 
+                backgroundColor: '#5C6B4A',
+                color: '#FAF8F5'
+              }}
+              onMouseEnter={(e) => {
+                if (!saving) e.currentTarget.style.backgroundColor = '#4A5D4A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#5C6B4A';
+              }}
             >
-              <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-wide">
-                <Save className="h-4 w-4" />
+              <span className="inline-flex items-center gap-2">
+                <Save className="w-4 h-4" />
                 {saving ? '保存しています...' : 'プロフィールを保存'}
               </span>
             </button>
           </form>
-        </section>
+        </div>
       </div>
     </div>
   );

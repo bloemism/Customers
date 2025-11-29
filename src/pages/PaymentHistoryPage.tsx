@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomer } from '../contexts/CustomerContext';
-import { ArrowLeft, Receipt, Calendar, CreditCard } from 'lucide-react';
+import { ArrowLeft, Receipt, Calendar, CreditCard, TrendingUp } from 'lucide-react';
 import type { CustomerPayment } from '../types/customer';
+
+// 背景画像
+const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 const PaymentHistoryPage: React.FC = () => {
   const { customer, getPaymentHistory } = useCustomer();
@@ -17,7 +20,6 @@ const PaymentHistoryPage: React.FC = () => {
           const data = await getPaymentHistory();
           setPayments(data);
         } else {
-          console.log('顧客データがまだ読み込まれていません');
           setPayments([]);
         }
       } catch (error) {
@@ -40,170 +42,289 @@ const PaymentHistoryPage: React.FC = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-100';
+        return { bg: '#E8EDE4', color: '#5C6B4A', text: '完了' };
       case 'pending':
-        return 'text-yellow-600 bg-yellow-100';
+        return { bg: '#FEF3C7', color: '#92400E', text: '処理中' };
       case 'failed':
-        return 'text-red-600 bg-red-100';
+        return { bg: '#FEE2E2', color: '#DC2626', text: '失敗' };
       default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return '完了';
-      case 'pending':
-        return '処理中';
-      case 'failed':
-        return '失敗';
-      default:
-        return '不明';
+        return { bg: '#F5F0E8', color: '#8A857E', text: '不明' };
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: '#FAF8F5' }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
+          <div 
+            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
+            style={{ borderColor: '#E0D6C8', borderTopColor: '#5C6B4A' }}
+          />
+          <p className="mt-4 text-sm" style={{ color: '#8A857E' }}>読み込み中...</p>
         </div>
       </div>
     );
   }
 
+  const totalAmount = payments
+    .filter(p => p.status === 'completed')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const totalPoints = payments
+    .filter(p => p.status === 'completed')
+    .reduce((sum, p) => sum + (p.points_earned || Math.floor(p.amount * 0.05)), 0);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 無地背景 */}
+
+      <div className="relative z-10 max-w-3xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="flex items-center mb-6">
+        <div className="mb-8">
           <button
-            onClick={() => navigate('/')}
-            className="mr-4 p-2 text-gray-600 hover:text-gray-800 transition-colors"
+            onClick={() => navigate('/customer-menu')}
+            className="flex items-center gap-2 text-sm transition-all duration-300 mb-6"
+            style={{ color: '#5A5651' }}
           >
-            <ArrowLeft className="h-6 w-6" />
+            <ArrowLeft className="w-4 h-4" />
+            メニューへ戻る
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">決済履歴</h1>
+
+          <div className="flex items-center gap-3 mb-2">
+            <Receipt className="w-6 h-6" style={{ color: '#5C6B4A' }} />
+            <h1 
+              className="text-2xl"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26'
+              }}
+            >
+              決済履歴
+            </h1>
+          </div>
+          <p className="text-sm" style={{ color: '#8A857E' }}>
+            過去の決済履歴と総決済金額
+          </p>
         </div>
 
         {/* 統計情報 */}
-        {customer && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-gray-600">総決済回数</p>
-                <p className="text-2xl font-bold text-blue-600">{payments.length}回</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">総決済金額</p>
-                <p className="text-2xl font-bold text-green-600">
-                  ¥{payments
-                    .filter(p => p.status === 'completed')
-                    .reduce((sum, p) => sum + p.amount, 0)
-                    .toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">総獲得ポイント</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {payments
-                    .filter(p => p.status === 'completed')
-                    .reduce((sum, p) => sum + (p.points_earned || Math.floor(p.amount * 0.05)), 0)} pt
-                </p>
-              </div>
-            </div>
+        <div 
+          className="grid grid-cols-3 gap-4 mb-8 p-6 rounded-sm"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          <div className="text-center">
+            <p 
+              className="text-xs tracking-[0.1em] mb-2"
+              style={{ color: '#8A857E' }}
+            >
+              総決済回数
+            </p>
+            <p 
+              className="text-2xl"
+              style={{ 
+                fontFamily: "'Cormorant Garamond', serif",
+                color: '#3D4A35',
+                fontWeight: 600
+              }}
+            >
+              {payments.length}
+            </p>
+            <p className="text-xs" style={{ color: '#8A857E' }}>回</p>
           </div>
-        )}
+          <div className="text-center">
+            <p 
+              className="text-xs tracking-[0.1em] mb-2"
+              style={{ color: '#8A857E' }}
+            >
+              総決済金額
+            </p>
+            <p 
+              className="text-2xl"
+              style={{ 
+                fontFamily: "'Cormorant Garamond', serif",
+                color: '#5C6B4A',
+                fontWeight: 600
+              }}
+            >
+              ¥{totalAmount.toLocaleString()}
+            </p>
+          </div>
+          <div className="text-center">
+            <p 
+              className="text-xs tracking-[0.1em] mb-2"
+              style={{ color: '#8A857E' }}
+            >
+              総獲得ポイント
+            </p>
+            <p 
+              className="text-2xl"
+              style={{ 
+                fontFamily: "'Cormorant Garamond', serif",
+                color: '#C4856C',
+                fontWeight: 600
+              }}
+            >
+              {totalPoints}
+            </p>
+            <p className="text-xs" style={{ color: '#8A857E' }}>pt</p>
+          </div>
+        </div>
 
         {/* 決済履歴リスト */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">決済履歴</h2>
+        <div 
+          className="rounded-sm overflow-hidden"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          <div 
+            className="px-6 py-4 border-b"
+            style={{ borderColor: '#E0D6C8' }}
+          >
+            <p 
+              className="text-xs tracking-[0.2em]"
+              style={{ color: '#8A857E' }}
+            >
+              PAYMENT HISTORY
+            </p>
           </div>
 
           {payments.length === 0 ? (
-            <div className="p-8 text-center">
-              <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">まだ決済履歴がありません</p>
-              <p className="text-sm text-gray-500 mt-2">
+            <div className="p-12 text-center">
+              <div 
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: '#F5F0E8' }}
+              >
+                <Receipt className="w-8 h-8" style={{ color: '#8A857E' }} />
+              </div>
+              <p style={{ color: '#5A5651' }}>まだ決済履歴がありません</p>
+              <p className="text-sm mt-2" style={{ color: '#8A857E' }}>
                 店舗で決済を行うと履歴が表示されます
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {payments.map((payment, index) => (
-                <div key={index} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-blue-100 rounded-full">
-                        <CreditCard className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-gray-900">
+            <div>
+              {payments.map((payment, index) => {
+                const statusStyle = getStatusStyle(payment.status);
+                return (
+                  <div 
+                    key={index} 
+                    className="p-6 transition-colors hover:bg-[#FDFCFA]"
+                    style={{ 
+                      borderBottom: index < payments.length - 1 ? '1px solid #E0D6C8' : 'none'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: '#F5F0E8' }}
+                        >
+                          <CreditCard className="w-5 h-5" style={{ color: '#5C6B4A' }} />
+                        </div>
+                        <div>
+                          <p 
+                            className="text-sm font-medium"
+                            style={{ color: '#2D2A26' }}
+                          >
                             店舗ID: {payment.store_id}
                           </p>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
-                            {getStatusText(payment.status)}
-                          </span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {payment.created_at && formatDate(payment.created_at)}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Calendar className="w-3 h-3" style={{ color: '#8A857E' }} />
+                            <span className="text-xs" style={{ color: '#8A857E' }}>
+                              {payment.created_at && formatDate(payment.created_at)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <span 
+                        className="px-3 py-1 rounded-sm text-xs"
+                        style={{ 
+                          backgroundColor: statusStyle.bg,
+                          color: statusStyle.color
+                        }}
+                      >
+                        {statusStyle.text}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-600">
-                        ¥{payment.amount.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        ポイント使用: {payment.points_used} pt
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* 決済詳細 */}
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">決済方法:</span>
-                        <span className="ml-2 font-medium">{payment.payment_method}</span>
+
+                    <div 
+                      className="flex items-center justify-between pt-3"
+                      style={{ borderTop: '1px solid #F5F0E8' }}
+                    >
+                      <div className="flex items-center gap-4 text-xs" style={{ color: '#8A857E' }}>
+                        <span>決済方法: {payment.payment_method}</span>
+                        <span>ポイント使用: {payment.points_used} pt</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">獲得ポイント:</span>
-                        <span className="ml-2 font-medium text-blue-600">
+                      <div className="text-right">
+                        <p 
+                          className="text-lg"
+                          style={{ 
+                            fontFamily: "'Cormorant Garamond', serif",
+                            color: '#3D4A35',
+                            fontWeight: 600
+                          }}
+                        >
+                          ¥{payment.amount.toLocaleString()}
+                        </p>
+                        <p className="text-xs" style={{ color: '#5C6B4A' }}>
                           +{payment.points_earned || Math.floor(payment.amount * 0.05)} pt
-                        </span>
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* 決済システム説明 */}
-        <div className="mt-6 bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">決済システムについて</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 説明セクション */}
+        <div 
+          className="mt-8 rounded-sm p-6"
+          style={{ 
+            backgroundColor: 'rgba(245,240,232,0.7)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          <p 
+            className="text-xs tracking-[0.2em] mb-4"
+            style={{ color: '#8A857E' }}
+          >
+            PAYMENT SYSTEM
+          </p>
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-medium text-blue-800 mb-2">決済方法</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <p 
+                className="text-sm mb-2"
+                style={{ color: '#5C6B4A', fontWeight: 500 }}
+              >
+                決済方法
+              </p>
+              <ul className="text-sm space-y-1" style={{ color: '#5A5651' }}>
                 <li>• クレジットカード決済</li>
                 <li>• 店舗QRコード読み取り</li>
                 <li>• セキュアな決済処理</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-medium text-blue-800 mb-2">ポイント付与</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <p 
+                className="text-sm mb-2"
+                style={{ color: '#5C6B4A', fontWeight: 500 }}
+              >
+                ポイント付与
+              </p>
+              <ul className="text-sm space-y-1" style={{ color: '#5A5651' }}>
                 <li>• 決済金額の5%がポイント付与</li>
                 <li>• 即座に反映されます</li>
                 <li>• 全国加盟店舗で利用可能</li>
@@ -217,3 +338,5 @@ const PaymentHistoryPage: React.FC = () => {
 };
 
 export default PaymentHistoryPage;
+
+

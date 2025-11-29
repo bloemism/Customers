@@ -10,12 +10,16 @@ import {
   TrendingUp,
   BookOpen,
   LogOut,
-  User,
-  UserPlus,
+  UserCircle,
   Scan,
   Receipt,
-  History
+  History,
+  Shield,
+  ChevronRight
 } from 'lucide-react';
+
+// 花屋の内観画像（ユーザー提供のイメージ）
+const MENU_BG = '/menu-bg.png';
 
 // メニュー項目の型定義
 interface MenuItem {
@@ -23,44 +27,39 @@ interface MenuItem {
   title: string;
   description: string;
   icon?: React.ComponentType<any>;
-  color: string;
+  category: 'primary' | 'secondary' | 'utility';
   route: string;
 }
-
 
 const levelConfig = {
   BASIC: { 
     name: 'BASIC', 
-    color: 'from-gray-400 to-gray-600', 
-    bgColor: 'bg-gray-100', 
-    textColor: 'text-gray-800',
+    color: '#3D3A36',
+    bgColor: '#F5F0E8',
     minPoints: 0,
     maxPoints: 99,
     nextLevel: 'REGULAR'
   },
   REGULAR: { 
     name: 'REGULAR', 
-    color: 'from-blue-400 to-blue-600', 
-    bgColor: 'bg-blue-100', 
-    textColor: 'text-blue-800',
+    color: '#5C6B4A',
+    bgColor: '#E8EDE4',
     minPoints: 100,
     maxPoints: 499,
     nextLevel: 'PRO'
   },
   PRO: { 
     name: 'PRO', 
-    color: 'from-purple-400 to-purple-600', 
-    bgColor: 'bg-purple-100', 
-    textColor: 'text-purple-800',
+    color: '#C4856C',
+    bgColor: '#F5EBE6',
     minPoints: 500,
     maxPoints: 999,
     nextLevel: 'EXPERT'
   },
   EXPERT: { 
     name: 'EXPERT', 
-    color: 'from-yellow-400 to-yellow-600', 
-    bgColor: 'bg-yellow-100', 
-    textColor: 'text-yellow-800',
+    color: '#3D4A35',
+    bgColor: '#E0D6C8',
     minPoints: 1000,
     maxPoints: 9999,
     nextLevel: null
@@ -73,109 +72,106 @@ export const CustomerMenuScreen: React.FC = () => {
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   useEffect(() => {
-    // 顧客データを取得
     const fetchCustomerData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && !customer) {
-        console.log('顧客データを取得中:', user.id);
         await refreshCustomer();
       }
     };
-    
     fetchCustomerData();
   }, [customer, refreshCustomer]);
 
-  // 顧客向けメニュー項目の定義
+  // メニュー項目の定義
   const menuItems: MenuItem[] = [
     {
-      id: 'customer-profile',
-      title: 'マイプロフィール',
-      description: 'プロフィール情報の登録・更新',
-      icon: UserPlus,
-      color: 'from-indigo-500 to-purple-600',
-      route: '/customer-profile'
-    },
-    {
       id: 'customer-qr',
-      title: 'マイ顧客コード',
-      description: '顧客コードとポイント残高を表示',
+      title: 'マイ会員コード',
+      description: '会員コードとポイント残高を表示',
       icon: QrCode,
-      color: 'from-blue-500 to-cyan-600',
+      category: 'primary',
       route: '/customer-qr'
     },
     {
       id: 'store-payment',
       title: '店舗決済',
-      description: '店舗の決済コードを読み取り決済（現金・クレジット）',
+      description: '店舗の決済コードを読み取り決済',
       icon: Scan,
-      color: 'from-green-500 to-emerald-600',
+      category: 'primary',
       route: '/store-payment'
     },
     {
-      id: 'customer-payments',
-      title: '決済履歴',
-      description: '過去の決済履歴と総決済金額を確認',
-      icon: Receipt,
-      color: 'from-violet-500 to-purple-600',
-      route: '/customer-payments'
-    },
-    {
-      id: 'customer-points',
-      title: 'ポイント履歴',
-      description: 'ポイントの獲得・使用履歴を確認',
-      icon: History,
-      color: 'from-amber-500 to-orange-600',
-      route: '/customer-points'
-    },
-    {
       id: 'florist-map',
-      title: '全国フローリストマップ',
+      title: 'フローリストマップ',
       description: 'GPS位置情報で花屋を検索',
       icon: MapPin,
-      color: 'from-teal-500 to-cyan-600',
+      category: 'primary',
       route: '/florist-map'
     },
     {
       id: 'flower-lesson-map',
-      title: 'フラワーレッスンマップ',
-      description: 'レッスンスクールの位置情報検索',
+      title: 'レッスンマップ',
+      description: 'フラワースクールを地図で検索',
       icon: Map,
-      color: 'from-pink-500 to-rose-600',
+      category: 'primary',
       route: '/flower-lesson-map'
     },
     {
       id: 'lesson-schedule-management',
-      title: 'レッスンスケジュール',
-      description: 'レッスン日程・予約・参加者管理',
+      title: 'レッスン予約',
+      description: 'レッスン日程・予約・管理',
       icon: Calendar,
-      color: 'from-pink-500 to-rose-600',
+      category: 'primary',
       route: '/lesson-schedule-management'
     },
     {
       id: 'popularity-rankings',
       title: '人気ランキング',
-      description: '全国の購入データを元にした月次ランキング',
+      description: '全国の月次ランキング',
       icon: TrendingUp,
-      color: 'from-orange-500 to-red-600',
+      category: 'primary',
       route: '/popularity-rankings'
     },
     {
+      id: 'customer-profile',
+      title: 'マイプロフィール',
+      description: 'プロフィール情報の登録・更新',
+      icon: UserCircle,
+      category: 'secondary',
+      route: '/customer-profile'
+    },
+    {
+      id: 'customer-payments',
+      title: '決済履歴',
+      description: '過去の決済履歴と総決済金額',
+      icon: Receipt,
+      category: 'secondary',
+      route: '/customer-payments'
+    },
+    {
+      id: 'customer-points',
+      title: 'ポイント履歴',
+      description: 'ポイントの獲得・使用履歴',
+      icon: History,
+      category: 'secondary',
+      route: '/customer-points'
+    },
+    {
       id: 'customer-readme',
-      title: 'Read me',
-      description: '使い方・システム詳細・利用規約',
+      title: '使い方ガイド',
+      description: 'アプリの使い方とルール',
       icon: BookOpen,
-      color: 'from-gray-500 to-slate-600',
+      category: 'utility',
       route: '/customer-readme'
     },
     {
       id: 'privacy-and-payment',
-      title: '個人データ保護と決済',
+      title: 'プライバシーと決済',
       description: '個人情報保護とStripe決済について',
-      color: 'from-blue-500 to-indigo-600',
+      icon: Shield,
+      category: 'utility',
       route: '/privacy-and-payment'
     }
   ];
-
 
   const handleLogout = async () => {
     try {
@@ -197,176 +193,387 @@ export const CustomerMenuScreen: React.FC = () => {
     const progress = Math.min(100, (currentPoints / levelRange) * 100);
     return {
       progress,
-      currentPoints,
-      levelRange,
-      nextLevelPoints: currentLevel.nextLevel ? levelConfig[currentLevel.nextLevel as keyof typeof levelConfig].minPoints - points : 0
+      nextLevelPoints: currentLevel.nextLevel 
+        ? levelConfig[currentLevel.nextLevel as keyof typeof levelConfig].minPoints - points 
+        : 0
     };
   };
 
-  // ISO形式の日付を日本語形式に変換する関数
-  const convertISODateToJapanese = (isoDate: string): string | null => {
-    if (!isoDate) return null;
-    
-    // 「1972-12-15」形式を「1972年12月15日」形式に変換
-    const match = isoDate.match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      const year = match[1];
-      const month = parseInt(match[2], 10);
-      const day = parseInt(match[3], 10);
-      return `${year}年${month}月${day}日`;
-    }
-    
-    return null;
-  };
-
-  // 顧客データが存在しない場合は、デフォルト値を設定
   const defaultCustomer = customer || {
     id: '',
     name: 'ゲストユーザー',
-    alphabet: '',
     email: 'guest@example.com',
-    phone: '',
-    address: '',
-    birth_date: '',
     points: 0,
     level: 'BASIC' as const,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
   };
 
   const levelInfo = getLevelInfo(defaultCustomer.level);
   const levelProgress = getLevelProgress(defaultCustomer.points, defaultCustomer.level);
 
+  const primaryItems = menuItems.filter(item => item.category === 'primary');
+  const secondaryItems = menuItems.filter(item => item.category === 'secondary');
+  const utilityItems = menuItems.filter(item => item.category === 'utility');
+
   return (
-    <div className="relative min-h-screen bg-[#f1ede7] overflow-hidden">
-      {/* Wood + Brick inspired background */}
-      <div
-        className="absolute inset-0 opacity-60"
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
+      {/* 背景画像 - 花屋店舗内 */}
+      <div 
+        className="fixed inset-0 z-0"
         style={{
-          backgroundImage:
-            "linear-gradient(120deg, rgba(255,255,255,0.2) 0%, rgba(241,237,231,0.9) 100%), url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80')",
+          backgroundImage: `url(${MENU_BG})`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          opacity: 0.85
         }}
       />
-      <div
-        className="absolute inset-0 opacity-35 mix-blend-multiply"
+      <div 
+        className="fixed inset-0 z-0"
         style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80'), url('https://images.unsplash.com/photo-1501045661006-fcebe0257c3f?auto=format&fit=crop&w=1200&q=80')",
-          backgroundSize: 'cover, 800px',
-          backgroundRepeat: 'no-repeat, repeat',
-          backgroundPosition: 'center, top left'
+          background: 'linear-gradient(180deg, rgba(250,248,245,0.35) 0%, rgba(250,248,245,0.25) 50%, rgba(245,240,232,0.35) 100%)'
         }}
       />
 
-      {/* Accent lines */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center gap-6 px-4 pt-6">
-        <span className="h-1 w-32 rounded-full bg-gradient-to-r from-[#0fbab9] to-[#01a7a5]" />
-        <span className="h-1 w-32 rounded-full bg-gradient-to-r from-[#ff9f66] to-[#f77f3f]" />
-      </div>
-
-      <header className="relative z-10 border-b border-white/60 bg-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-gray-400">87app</p>
-            <h1 className="text-2xl font-semibold text-gray-900">Customer Lounge</h1>
-            <p className="text-sm text-gray-500">日々の花時間をアップデートするメニュー</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${levelInfo.bgColor} ${levelInfo.textColor}`}>
-              {levelInfo.name}
-            </span>
-            <span>{defaultCustomer.points} pt</span>
-            <span>{defaultCustomer.email}</span>
+      {/* ヘッダー */}
+      <header 
+        className="sticky top-0 z-50 border-b"
+        style={{ 
+          backgroundColor: 'rgba(250,248,245,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderColor: '#E0D6C8'
+        }}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <span className="text-xl" style={{ color: '#5C6B4A' }}>✿</span>
+              <div>
+                <p 
+                  className="text-xs tracking-[0.2em]"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                >
+                  87app
+                </p>
+                <p 
+                  className="text-sm"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif",
+                    color: '#2D2A26',
+                    fontWeight: 600
+                  }}
+                >
+                  Customer Lounge
+                </p>
+              </div>
+            </div>
+            
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 transition hover:bg-gray-50"
+              className="flex items-center gap-2 px-4 py-2 text-xs tracking-wide transition-all duration-300 rounded-sm border"
+              style={{ 
+                borderColor: '#E0D6C8',
+                color: '#3D3A36'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F5F0E8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="w-4 h-4" />
               ログアウト
             </button>
           </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl space-y-8 px-4 py-10">
-        <section className="grid gap-3 rounded-3xl bg-white/85 p-6 shadow-xl backdrop-blur-sm md:grid-cols-2">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Profile</p>
-            <h2 className="text-3xl font-semibold text-gray-900">{defaultCustomer.name}</h2>
-            <p className="text-sm text-gray-500">{defaultCustomer.address || '居住地未登録'}</p>
-            <p className="text-sm text-gray-500">
-              {defaultCustomer.birth_date ? convertISODateToJapanese(defaultCustomer.birth_date) : '生年月日未登録'}
-            </p>
-            {!customer && <p className="text-sm text-teal-600">プロフィールを仕上げると、より豊かな体験になります。</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
-            <div className="rounded-2xl bg-gray-50 px-4 py-3">
-              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-350">Points</p>
-              <p className="mt-1 text-xl font-semibold text-gray-900">{defaultCustomer.points}</p>
-              <p className="text-[11px] text-gray-400">累積ポイント</p>
-            </div>
-            <div className="rounded-2xl bg-gray-50 px-4 py-3">
-              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-350">Progress</p>
-              <p className="mt-1 text-xs text-gray-500">
-                {levelInfo.nextLevel ? `次のレベルまで ${levelProgress.nextLevelPoints} pt` : '最高レベルです'}
-              </p>
-              <div className="mt-2 h-1.5 rounded-full bg-gray-200">
-                <div
-                  className={`h-1.5 rounded-full bg-gradient-to-r ${levelInfo.color}`}
-                  style={{ width: `${levelProgress.progress}%` }}
-                />
+      <main className="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {/* プロフィールカード */}
+        <section 
+          className="rounded-sm overflow-hidden shadow-lg"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            border: '1px solid #E0D6C8'
+          }}
+        >
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              {/* ユーザー情報 */}
+              <div className="flex items-center gap-4">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
+                  style={{ backgroundColor: '#F5F0E8' }}
+                >
+                  🌸
+                </div>
+                <div>
+                  <p 
+                    className="text-xs tracking-[0.2em] mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
+                    MEMBER
+                  </p>
+                  <h2 
+                    className="text-xl mb-1"
+                    style={{ 
+                      fontFamily: "'Noto Serif JP', serif",
+                      color: '#2D2A26'
+                    }}
+                  >
+                    {defaultCustomer.name}
+                  </h2>
+                  <p className="text-xs" style={{ color: '#3D3A36' }}>
+                    {defaultCustomer.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* ポイント・レベル */}
+              <div className="flex gap-4">
+                <div 
+                  className="px-5 py-3 rounded-sm text-center"
+                  style={{ backgroundColor: '#F5F0E8' }}
+                >
+                  <p 
+                    className="text-xs tracking-[0.15em] mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
+                    POINTS
+                  </p>
+                  <p 
+                    className="text-2xl"
+                    style={{ 
+                      fontFamily: "'Cormorant Garamond', serif",
+                      color: '#3D4A35',
+                      fontWeight: 600
+                    }}
+                  >
+                    {defaultCustomer.points}
+                  </p>
+                </div>
+                <div 
+                  className="px-5 py-3 rounded-sm text-center"
+                  style={{ backgroundColor: levelInfo.bgColor }}
+                >
+                  <p 
+                    className="text-xs tracking-[0.15em] mb-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
+                    LEVEL
+                  </p>
+                  <p 
+                    className="text-sm font-medium tracking-wider"
+                    style={{ color: levelInfo.color }}
+                  >
+                    {levelInfo.name}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* プログレスバー */}
+            {levelInfo.nextLevel && (
+              <div className="mt-6 pt-6 border-t" style={{ borderColor: '#E0D6C8' }}>
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs" style={{ color: '#3D3A36' }}>
+                    次のレベルまで
+                  </p>
+                  <p className="text-xs" style={{ color: '#5C6B4A' }}>
+                    あと {levelProgress.nextLevelPoints} pt
+                  </p>
+                </div>
+                <div 
+                  className="h-1.5 rounded-full overflow-hidden"
+                  style={{ backgroundColor: '#E0D6C8' }}
+                >
+                  <div 
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ 
+                      width: `${levelProgress.progress}%`,
+                      backgroundColor: '#5C6B4A'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
+        {/* メインメニュー */}
         <section>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {menuItems.map((item) => (
+          <p 
+            className="text-xs tracking-[0.3em] mb-4 px-1"
+            style={{ color: '#3D3A36' }}
+          >
+            MAIN MENU
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+            {primaryItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => navigate(item.route)}
                 onTouchStart={() => setActiveCard(item.id)}
                 onTouchEnd={() => setTimeout(() => setActiveCard(null), 200)}
-                className={`group rounded-2xl border border-gray-200/80 bg-white px-4 py-3 text-left shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-transparent hover:bg-[#ffe8d9] hover:shadow-2xl ${
-                  activeCard === item.id ? 'border-transparent bg-[#ffe8d9] -translate-y-1.5 shadow-2xl' : ''
+                className={`group p-3 sm:p-4 md:p-5 rounded-sm text-left transition-all duration-300 ${
+                  activeCard === item.id ? 'shadow-lg -translate-y-1' : 'hover:shadow-lg hover:-translate-y-1'
                 }`}
+                style={{ 
+                  backgroundColor: activeCard === item.id ? '#FFFFFF' : 'rgba(255,255,255,0.95)',
+                  border: '1px solid #E0D6C8',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] uppercase tracking-[0.4em] text-gray-350 block">
-                      {item.id}
-                    </span>
-                    <h3 className="mt-2 text-base font-semibold text-gray-900">{item.title}</h3>
-                  </div>
-                  {item.icon ? (
-                    <span
-                      className={`h-8 w-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center transition duration-300 group-hover:border-transparent group-hover:bg-gradient-to-br group-hover:from-[#0fbab9]/40 group-hover:to-[#ff9f66]/55 group-hover:text-white group-hover:translate-x-1.5 group-hover:-translate-y-1.5 ${
-                        activeCard === item.id
-                          ? 'border-transparent bg-gradient-to-br from-[#0fbab9]/40 to-[#ff9f66]/55 text-white translate-x-1.5 -translate-y-1.5'
-                          : ''
-                      }`}
+                <div className="flex justify-between items-start mb-2 sm:mb-3">
+                  {item.icon && (
+                    <div 
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300"
+                      style={{ 
+                        backgroundColor: activeCard === item.id ? '#5C6B4A' : '#F5F0E8'
+                      }}
                     >
-                      <item.icon className="h-4 w-4" />
-                    </span>
-                  ) : (
-                    <span
-                      className={`text-gray-300 text-sm transition group-hover:text-gray-600 group-hover:translate-x-1 group-hover:-translate-y-1 ${
-                        activeCard === item.id ? 'text-gray-600 translate-x-1 -translate-y-1' : ''
-                      }`}
-                    >
-                      →
-                    </span>
+                      <item.icon 
+                        className="w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300" 
+                        style={{ 
+                          color: activeCard === item.id ? '#FAF8F5' : '#5C6B4A'
+                        }} 
+                      />
+                    </div>
                   )}
+                  <ChevronRight 
+                    className="w-3 h-3 sm:w-4 sm:h-4 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-1"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  />
                 </div>
-                <p className="mt-1 text-xs text-gray-500 leading-relaxed">{item.description}</p>
+                <h3 
+                  className="text-xs sm:text-sm mb-1"
+                  style={{ 
+                    fontFamily: "'Noto Serif JP', serif",
+                    color: '#2D2A26',
+                    fontWeight: 500
+                  }}
+                >
+                  {item.title}
+                </h3>
+                <p 
+                  className="text-xs leading-relaxed"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                >
+                  {item.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* サブメニュー */}
+        <section>
+          <p 
+            className="text-xs tracking-[0.3em] mb-4 px-1"
+            style={{ color: '#3D3A36' }}
+          >
+            MY DATA
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
+            {secondaryItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.route)}
+                className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-sm text-left transition-all duration-300 hover:shadow-lg"
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  border: '1px solid #E0D6C8',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }}
+              >
+                {item.icon && (
+                  <div 
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: '#F5F0E8' }}
+                  >
+                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: '#5C6B4A' }} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 
+                    className="text-xs sm:text-sm"
+                    style={{ color: '#1A1815', fontWeight: 600 }}
+                  >
+                    {item.title}
+                  </h3>
+                  <p 
+                    className="text-xs truncate"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
+                    {item.description}
+                  </p>
+                </div>
+                <ChevronRight 
+                  className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 opacity-50 group-hover:opacity-100 transition-all duration-300"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ユーティリティメニュー */}
+        <section className="pb-8">
+          <p 
+            className="text-xs tracking-[0.3em] mb-4 px-1"
+            style={{ color: '#3D3A36' }}
+          >
+            INFORMATION
+          </p>
+          <div className="space-y-2">
+            {utilityItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.route)}
+                className="group w-full flex items-center justify-between p-3 sm:p-4 rounded-sm text-left transition-all duration-300 hover:bg-white"
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  border: '1px solid #E0D6C8',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {item.icon && (
+                    <item.icon className="w-4 h-4" style={{ color: '#3D3A36' }} />
+                  )}
+                  <span 
+                    className="text-xs sm:text-sm"
+                    style={{ color: '#2D2A26', fontWeight: 600 }}
+                  >
+                    {item.title}
+                  </span>
+                </div>
+                <ChevronRight 
+                  className="w-3 h-3 sm:w-4 sm:h-4 opacity-50 group-hover:opacity-100 transition-all duration-300"
+                  style={{ color: '#2D2A26', fontWeight: 600 }}
+                />
               </button>
             ))}
           </div>
         </section>
       </main>
+
+      {/* フッター */}
+      <footer 
+        className="relative z-10 py-6 border-t"
+        style={{ 
+          backgroundColor: 'rgba(245,240,232,0.9)',
+          borderColor: '#E0D6C8'
+        }}
+      >
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <p 
+            className="text-xs"
+            style={{ color: '#3D3A36' }}
+          >
+            © 2024 87app. 花のある生活を、もっとスマートに。
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
