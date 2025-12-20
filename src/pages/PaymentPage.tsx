@@ -206,8 +206,11 @@ const PaymentPage: React.FC = () => {
         return;
       }
 
-      // 金額の検証
-      const amount = parseInt(paymentAmount.replace(/[^0-9]/g, ''));
+      // 金額の取得（入力されていない場合は合計金額を使用）
+      const amount = paymentAmount 
+        ? parseInt(paymentAmount.replace(/[^0-9]/g, '')) 
+        : scannedData.amount;
+      
       if (!amount || amount <= 0) {
         setError('有効な金額を入力してください');
         setProcessing(false);
@@ -585,49 +588,71 @@ const PaymentPage: React.FC = () => {
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>店舗名</span>
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>{scannedData.store_name}</span>
                   </div>
-                  
-                  {/* 金額入力フィールド */}
                   <div 
-                    className="pt-3"
+                    className="pt-3 flex justify-between"
                     style={{ borderTop: '1px solid #E0D6C8' }}
                   >
-                    <label className="block text-sm mb-2" style={{ color: '#2D2A26', fontWeight: 500 }}>
-                      お支払い金額（円）
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={paymentAmount}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
-                        setPaymentAmount(value);
-                        setError('');
-                      }}
-                      placeholder="金額を入力"
-                      className="w-full px-4 py-3 text-center text-xl rounded-sm transition-all duration-200"
-                      style={{
+                    <span style={{ color: '#2D2A26', fontWeight: 500 }}>合計金額</span>
+                    <span 
+                      className="text-xl"
+                      style={{ 
                         fontFamily: "'Cormorant Garamond', serif",
-                        backgroundColor: '#FDFCFA',
-                        border: '2px solid #E0D6C8',
                         color: '#3D4A35',
                         fontWeight: 600
                       }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#5C6B4A';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#E0D6C8';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    />
-                    {paymentAmount && (
-                      <p className="text-sm mt-2 text-center" style={{ color: '#3D4A35', fontWeight: 500 }}>
-                        ¥{parseInt(paymentAmount.replace(/[^0-9]/g, '') || '0').toLocaleString()}
-                      </p>
-                    )}
+                    >
+                      ¥{scannedData.amount.toLocaleString()}
+                    </span>
                   </div>
+                  {/* クレジット決済の場合のみ金額入力フィールドを表示 */}
+                  {selectedPaymentType === 'credit' && (
+                    <div 
+                      className="pt-3"
+                      style={{ borderTop: '1px solid #E0D6C8' }}
+                    >
+                      <label className="block text-sm mb-2" style={{ color: '#2D2A26', fontWeight: 500 }}>
+                        お支払い金額（円）※Stripe決済ページでも入力可能
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={paymentAmount}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          setPaymentAmount(value);
+                          setError('');
+                        }}
+                        placeholder={scannedData.amount.toString()}
+                        className="w-full px-4 py-3 text-center text-xl rounded-sm transition-all duration-200"
+                        style={{
+                          fontFamily: "'Cormorant Garamond', serif",
+                          backgroundColor: '#FDFCFA',
+                          border: '2px solid #E0D6C8',
+                          color: '#3D4A35',
+                          fontWeight: 600
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = '#5C6B4A';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = '#E0D6C8';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      />
+                      {paymentAmount && (
+                        <p className="text-sm mt-2 text-center" style={{ color: '#3D4A35', fontWeight: 500 }}>
+                          決済金額: ¥{parseInt(paymentAmount.replace(/[^0-9]/g, '') || '0').toLocaleString()}
+                        </p>
+                      )}
+                      {!paymentAmount && (
+                        <p className="text-xs mt-2 text-center" style={{ color: '#8A857E' }}>
+                          金額を変更する場合は入力してください（未入力の場合は合計金額が使用されます）
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -739,7 +764,7 @@ const PaymentPage: React.FC = () => {
                 {selectedPaymentType && (
                   <button
                     onClick={handlePayment}
-                    disabled={processing || !paymentAmount || parseInt(paymentAmount.replace(/[^0-9]/g, '') || '0') <= 0}
+                    disabled={processing}
                     className="flex-1 py-3 sm:py-4 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300 disabled:opacity-50"
                     style={{ 
                       backgroundColor: '#5C6B4A',

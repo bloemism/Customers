@@ -73,13 +73,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 金額の検証（金額が直接指定されている場合）
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ 
-        success: false,
-        error: '有効な金額を入力してください' 
-      });
-    }
+    // 金額の検証（金額が直接指定されている場合はそれを使用、そうでない場合は後でpayment_dataから取得）
 
     console.log('決済コード処理開始:', { paymentCode, customerId });
 
