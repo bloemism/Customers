@@ -1,23 +1,10 @@
 {
-<<<<<<< HEAD
   "functions": {
     "api/**/*.js": {
       "memory": 1024,
       "maxDuration": 10
     }
   },
-=======
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
->>>>>>> feature/payment-improvements
   "rewrites": [
     {
       "source": "/((?!api|_next|static|favicon.ico).*)",
