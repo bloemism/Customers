@@ -167,44 +167,50 @@ export default async function handler(req, res) {
       console.log('Stripe Connect未設定のため、通常決済として処理します');
     }
 
-    // 3. 決済金額を取得（金額が直接指定されている場合はそれを使用、そうでない場合はpayment_dataから取得）
-    let totalAmountYen = parseInt(amount) || 0;
+    // 3. 決済金額を取得
+    // 金額が直接指定されている場合はそれを使用、そうでない場合はpayment_dataから取得
+    let totalAmountYen = 0;
     let pointsUsed = 0;
-    let originalAmount = totalAmountYen; // ポイント差し引き前の金額（デフォルトは入力金額）
+    let originalAmount = 0;
     
-    // 金額が直接指定されていない場合のみ、payment_dataから取得を試みる
-    if (!amount && paymentData) {
+    if (amount) {
+      // 金額が直接指定されている場合
+      totalAmountYen = parseInt(amount);
+      originalAmount = totalAmountYen;
+    } else if (paymentData) {
+      // payment_dataから取得
       if (paymentCode.length === 5) {
         // 5桁コード: payment_dataから取得
         totalAmountYen = parseInt(paymentData.totalAmount || paymentData.total || 0);
         pointsUsed = parseInt(paymentData.pointsUsed || paymentData.points_to_use || 0);
         originalAmount = totalAmountYen + pointsUsed;
-      } else if (paymentCode.length === 6) {
-        // 6桁コード: remote_invoice_codesにはpayment_dataがないため、
-        // payment_requestsテーブルから取得を試みる
-        const { data: paymentRequest } = await supabase
-          .from('payment_requests')
-          .select('total')
-          .eq('store_id', storeId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (paymentRequest) {
-          totalAmountYen = paymentRequest.total || 0;
-        } else {
-          return res.status(400).json({
-            success: false,
-            error: '決済情報が見つかりません。金額を入力してください。'
-          });
-        }
+      }
+    } else if (paymentCode.length === 6) {
+      // 6桁コード: remote_invoice_codesにはpayment_dataがないため、
+      // payment_requestsテーブルから取得を試みる
+      const { data: paymentRequest } = await supabase
+        .from('payment_requests')
+        .select('total')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (paymentRequest) {
+        totalAmountYen = paymentRequest.total || 0;
+        originalAmount = totalAmountYen;
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: '決済情報が見つかりません。金額を入力してください。'
+        });
       }
     }
     
     if (totalAmountYen <= 0) {
       return res.status(400).json({
         success: false,
-        error: '決済金額が無効です'
+        error: '決済金額が無効です。金額を入力してください。'
       });
     }
 
