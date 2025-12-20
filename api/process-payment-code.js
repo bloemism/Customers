@@ -1,12 +1,19 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// Supabaseクライアントの作成
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
+// 環境変数の取得（VercelではVITE_プレフィックスは使えない）
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDk5NjY1MCwiZXhwIjoyMDcwNTcyNjUwfQ.v8vniAL-aYfmFZgVDfBa6q_RoTrvmE_uXQjQweLiui8';
 
+// Stripeクライアントの初期化（環境変数チェック付き）
+if (!stripeSecretKey) {
+  console.error('STRIPE_SECRET_KEY環境変数が設定されていません');
+}
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+
+// Supabaseクライアントの作成
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
@@ -44,6 +51,16 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // 環境変数のチェック
+  if (!stripe) {
+    console.error('Stripeクライアントが初期化されていません。STRIPE_SECRET_KEYを確認してください。');
+    return res.status(500).json({
+      success: false,
+      error: '決済システムの設定が不完全です。管理者に連絡してください。',
+      details: 'STRIPE_SECRET_KEY環境変数が設定されていません'
+    });
   }
 
   try {
@@ -123,7 +140,7 @@ export default async function handler(req, res) {
     // 2. 店舗情報とStripe Connected Accountを取得
     const { data: storeData, error: storeError } = await supabase
       .from('stores')
-      .select('id, name, stripe_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled')
+      .select('id, store_name, name, stripe_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled')
       .eq('id', storeId)
       .single();
 
@@ -220,7 +237,7 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'jpy',
             product_data: {
-              name: `${storeData.name}でのお買い物`,
+              name: `${storeData.store_name || storeData.name}でのお買い物`,
               description: `決済コード: ${paymentCode}`,
             },
             unit_amount: totalAmountYen * 100, // 円をセントに変換
@@ -238,7 +255,7 @@ export default async function handler(req, res) {
         },
         metadata: {
           store_id: storeId,
-          store_name: storeData.name,
+          store_name: storeData.store_name || storeData.name,
           payment_code: paymentCode,
           customer_id: customerId || '',
           points_used: pointsUsed.toString(), // ポイント使用数をmetadataに含める
@@ -312,15 +329,31 @@ export default async function handler(req, res) {
       },
       store: {
         id: storeId,
-        name: storeData.name,
+        name: storeData.store_name || storeData.name,
       },
     });
 
   } catch (error) {
     console.error('決済コード処理エラー:', error);
+    console.error('エラー詳細:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      stripeError: error.type || error.code || null
+    });
+    
+    // エラーメッセージを詳細化
+    let errorMessage = '決済の処理に失敗しました';
+    if (error.type === 'StripeInvalidRequestError') {
+      errorMessage = `Stripe APIエラー: ${error.message}`;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     res.status(500).json({
       success: false,
-      error: error.message || '決済の処理に失敗しました',
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
