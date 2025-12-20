@@ -64,12 +64,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { paymentCode, customerId } = req.body;
+    const { paymentCode, customerId, amount } = req.body;
 
     if (!paymentCode || (paymentCode.length !== 5 && paymentCode.length !== 6)) {
       return res.status(400).json({ 
         success: false,
         error: '5桁または6桁の決済コードが必要です' 
+      });
+    }
+
+    // 金額の検証（金額が直接指定されている場合）
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: '有効な金額を入力してください' 
       });
     }
 
@@ -165,40 +173,37 @@ export default async function handler(req, res) {
       console.log('Stripe Connect未設定のため、通常決済として処理します');
     }
 
-    // 3. 決済金額とポイント情報を取得（payment_dataから）
-    // totalAmountは既にポイントを差し引いた後の金額
-    // 金額は円単位で保存されているため、Stripe用にセント単位に変換
-    let totalAmountYen = 0;
+    // 3. 決済金額を取得（金額が直接指定されている場合はそれを使用、そうでない場合はpayment_dataから取得）
+    let totalAmountYen = parseInt(amount) || 0;
     let pointsUsed = 0;
-    let originalAmount = 0; // ポイント差し引き前の金額
+    let originalAmount = totalAmountYen; // ポイント差し引き前の金額（デフォルトは入力金額）
     
-    if (paymentCode.length === 5 && paymentData) {
-      // 5桁コード: payment_dataから取得
-      totalAmountYen = parseInt(paymentData.totalAmount || paymentData.total || 0);
-      pointsUsed = parseInt(paymentData.pointsUsed || paymentData.points_to_use || 0);
-      
-      // 元の金額を計算（ポイント差し引き前）
-      // totalAmountが既にポイント差し引き後なので、pointsUsedを足す
-      originalAmount = totalAmountYen + pointsUsed;
-    } else if (paymentCode.length === 6) {
-      // 6桁コード: remote_invoice_codesにはpayment_dataがないため、
-      // payment_requestsテーブルから取得するか、別の方法で金額を取得
-      // ここでは簡易的に、payment_requestsテーブルから取得を試みる
-      const { data: paymentRequest } = await supabase
-        .from('payment_requests')
-        .select('total')
-        .eq('store_id', storeId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (paymentRequest) {
-        totalAmountYen = paymentRequest.total || 0;
-      } else {
-        return res.status(400).json({
-          success: false,
-          error: '決済情報が見つかりません。店舗に連絡してください。'
-        });
+    // 金額が直接指定されていない場合のみ、payment_dataから取得を試みる
+    if (!amount && paymentData) {
+      if (paymentCode.length === 5) {
+        // 5桁コード: payment_dataから取得
+        totalAmountYen = parseInt(paymentData.totalAmount || paymentData.total || 0);
+        pointsUsed = parseInt(paymentData.pointsUsed || paymentData.points_to_use || 0);
+        originalAmount = totalAmountYen + pointsUsed;
+      } else if (paymentCode.length === 6) {
+        // 6桁コード: remote_invoice_codesにはpayment_dataがないため、
+        // payment_requestsテーブルから取得を試みる
+        const { data: paymentRequest } = await supabase
+          .from('payment_requests')
+          .select('total')
+          .eq('store_id', storeId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (paymentRequest) {
+          totalAmountYen = paymentRequest.total || 0;
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: '決済情報が見つかりません。金額を入力してください。'
+          });
+        }
       }
     }
     

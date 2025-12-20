@@ -39,6 +39,9 @@ const PaymentPage: React.FC = () => {
   const [selectedPaymentType, setSelectedPaymentType] = useState<'credit' | 'cash' | null>(null);
   const [paymentCodeData, setPaymentCodeData] = useState<any>(null);
   const [activeCodeType, setActiveCodeType] = useState<'cash5' | 'credit5' | 'long6' | null>(null);
+  
+  // 金額入力用の状態
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
 
   // 決済コード検証（3種類対応）
   const verifyPaymentCode = async (code: string, codeType: 'cash5' | 'credit5' | 'long6') => {
@@ -203,9 +206,18 @@ const PaymentPage: React.FC = () => {
         return;
       }
 
+      // 金額の検証
+      const amount = parseInt(paymentAmount.replace(/[^0-9]/g, ''));
+      if (!amount || amount <= 0) {
+        setError('有効な金額を入力してください');
+        setProcessing(false);
+        return;
+      }
+
       console.log('💳 PaymentPage - クレジット決済開始:', {
         payment_code: paymentCode,
-        customer_id: customer.id
+        customer_id: customer.id,
+        amount: amount
       });
 
       // APIエンドポイントを呼び出してStripe Checkout Sessionを作成
@@ -225,7 +237,8 @@ const PaymentPage: React.FC = () => {
         },
         body: JSON.stringify({
           paymentCode: paymentCode,
-          customerId: customer.id
+          customerId: customer.id,
+          amount: amount // 入力された金額を直接送信
         }),
       });
 
@@ -572,21 +585,48 @@ const PaymentPage: React.FC = () => {
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>店舗名</span>
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>{scannedData.store_name}</span>
                   </div>
+                  
+                  {/* 金額入力フィールド */}
                   <div 
-                    className="pt-3 flex justify-between"
+                    className="pt-3"
                     style={{ borderTop: '1px solid #E0D6C8' }}
                   >
-                    <span style={{ color: '#2D2A26', fontWeight: 500 }}>お支払い金額</span>
-                    <span 
-                      className="text-xl"
-                      style={{ 
+                    <label className="block text-sm mb-2" style={{ color: '#2D2A26', fontWeight: 500 }}>
+                      お支払い金額（円）
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={paymentAmount}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        setPaymentAmount(value);
+                        setError('');
+                      }}
+                      placeholder="金額を入力"
+                      className="w-full px-4 py-3 text-center text-xl rounded-sm transition-all duration-200"
+                      style={{
                         fontFamily: "'Cormorant Garamond', serif",
+                        backgroundColor: '#FDFCFA',
+                        border: '2px solid #E0D6C8',
                         color: '#3D4A35',
                         fontWeight: 600
                       }}
-                    >
-                      ¥{scannedData.amount.toLocaleString()}
-                    </span>
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#5C6B4A';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#E0D6C8';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    />
+                    {paymentAmount && (
+                      <p className="text-sm mt-2 text-center" style={{ color: '#3D4A35', fontWeight: 500 }}>
+                        ¥{parseInt(paymentAmount.replace(/[^0-9]/g, '') || '0').toLocaleString()}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -683,6 +723,7 @@ const PaymentPage: React.FC = () => {
                     setCashCode5('');
                     setCreditCode5('');
                     setLongDistanceCode6('');
+                    setPaymentAmount('');
                     setError('');
                   }}
                   className="flex-1 py-3 sm:py-4 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300"
@@ -698,7 +739,7 @@ const PaymentPage: React.FC = () => {
                 {selectedPaymentType && (
                   <button
                     onClick={handlePayment}
-                    disabled={processing}
+                    disabled={processing || !paymentAmount || parseInt(paymentAmount.replace(/[^0-9]/g, '') || '0') <= 0}
                     className="flex-1 py-3 sm:py-4 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300 disabled:opacity-50"
                     style={{ 
                       backgroundColor: '#5C6B4A',
