@@ -242,17 +242,51 @@ export const FloristMap: React.FC = () => {
       console.log('Google Maps API loaded successfully with loading=async');
       // APIが完全に読み込まれるまで少し待つ
       setTimeout(() => {
-        if (window.google?.maps?.Map && window.google?.maps?.MapTypeId) {
-          setError(''); // エラーをクリア
-          // mapRefが存在する場合のみ初期化
-          if (mapRef.current && stores.length > 0 && !map) {
-            initializeMap();
+        // InvalidKeyMapErrorをチェック
+        if (window.google && window.google.maps && window.google.maps.Map) {
+          try {
+            // テスト用のマップインスタンスを作成してエラーを検出
+            const testDiv = document.createElement('div');
+            testDiv.style.display = 'none';
+            document.body.appendChild(testDiv);
+            
+            const testMap = new window.google.maps.Map(testDiv, {
+              center: { lat: 0, lng: 0 },
+              zoom: 1
+            });
+            
+            // エラーイベントをリッスン
+            window.google.maps.event.addListenerOnce(testMap, 'error', (error: any) => {
+              console.error('Google Maps error detected:', error);
+              if (error && (error.message?.includes('InvalidKey') || error.message?.includes('InvalidKeyMapError'))) {
+                setError('InvalidKeyMapError');
+              }
+            });
+            
+            // 成功した場合はクリーンアップ
+            setTimeout(() => {
+              document.body.removeChild(testDiv);
+              if (window.google?.maps?.Map && window.google?.maps?.MapTypeId) {
+                setError(''); // エラーをクリア
+                // mapRefが存在する場合のみ初期化
+                if (mapRef.current && stores.length > 0 && !map) {
+                  initializeMap();
+                }
+              }
+            }, 500);
+          } catch (error: any) {
+            console.error('Error testing Google Maps API:', error);
+            if (error.message?.includes('InvalidKey') || error.message?.includes('InvalidKeyMapError')) {
+              setError('InvalidKeyMapError');
+            } else {
+              setError('Google Maps APIが完全に読み込まれていません。ページをリロードしてください。');
+            }
           }
         } else {
           console.error('Google Maps API objects not available after load');
           setError('Google Maps APIが完全に読み込まれていません。ページをリロードしてください。');
         }
-      }, 200);
+      }, 500);
     };
     
     script.onerror = (error) => {
@@ -260,20 +294,24 @@ export const FloristMap: React.FC = () => {
       console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
       console.error('Script src:', script.src);
       console.error('Environment:', import.meta.env.MODE);
-      setError(`Google Maps APIの読み込みに失敗しました。InvalidKeyMapErrorが発生しています。Google Cloud ConsoleでAPIキーの設定を確認してください。`);
+      console.error('Current domain:', window.location.hostname);
+      setError('InvalidKeyMapError');
     };
     
     // Google Maps APIのエラーをグローバルにキャッチ
-    window.addEventListener('error', (event) => {
-      if (event.message && event.message.includes('InvalidKey')) {
+    const errorHandler = (event: ErrorEvent) => {
+      if (event.message && (event.message.includes('InvalidKey') || event.message.includes('InvalidKeyMapError'))) {
         console.error('Google Maps InvalidKey error detected:', event);
-        setError(`Google Maps APIキーが無効です。Google Cloud Consoleで以下を確認してください：
-1. APIキーが有効か
-2. Maps JavaScript API、Geocoding API、Places APIが有効化されているか
-3. HTTPリファラー制限に本番ドメイン（*.vercel.app）が追加されているか
-4. 請求アカウントが設定されているか`);
+        setError('InvalidKeyMapError');
       }
-    }, true);
+    };
+    
+    window.addEventListener('error', errorHandler, true);
+    
+    // クリーンアップ
+    return () => {
+      window.removeEventListener('error', errorHandler, true);
+    };
     
     document.head.appendChild(script);
 
@@ -395,7 +433,17 @@ export const FloristMap: React.FC = () => {
       // 地図の読み込みエラーをキャッチ
       window.google.maps.event.addListenerOnce(mapInstance, 'error', (error: any) => {
         console.error('Map error:', error);
-        setError('地図の読み込み中にエラーが発生しました');
+        if (error && (error.message?.includes('InvalidKey') || error.message?.includes('InvalidKeyMapError'))) {
+          setError('InvalidKeyMapError');
+        } else {
+          setError('地図の読み込み中にエラーが発生しました');
+        }
+      });
+      
+      // 地図のtilesloadedイベントでエラーをチェック
+      window.google.maps.event.addListenerOnce(mapInstance, 'tilesloaded', () => {
+        // タイルが読み込まれたらエラーがないと判断
+        console.log('Map tiles loaded successfully');
       });
       
       setMap(mapInstance);
