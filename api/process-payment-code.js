@@ -139,11 +139,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. 店舗情報とStripe Connected Accountを取得
-    // カラム名のバリエーションに対応（stripe_account_id または stripe_connect_account_id）
+    // 2. 店舗情報を取得（Stripe Connectは必須ではない）
     const { data: storeData, error: storeError } = await supabase
       .from('stores')
-      .select('id, store_name, name, stripe_account_id, stripe_connect_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled')
+      .select('id, store_name, name')
       .eq('id', storeId)
       .single();
 
@@ -154,17 +153,6 @@ export default async function handler(req, res) {
         error: '店舗情報が見つかりません',
         details: storeError?.message || 'Unknown error'
       });
-    }
-
-    // stripe_account_id または stripe_connect_account_id のいずれかを使用
-    const stripeAccountId = storeData.stripe_account_id || storeData.stripe_connect_account_id;
-
-    // Stripe Connectが設定されていない場合は、通常の決済として処理
-    // （手数料は後で処理する）
-    const useStripeConnect = !!stripeAccountId && storeData.stripe_charges_enabled !== false;
-    
-    if (!useStripeConnect) {
-      console.log('Stripe Connect未設定のため、通常決済として処理します');
     }
 
     // 3. 決済金額を取得
@@ -214,14 +202,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. 手数料を計算（円単位）
-    const fees = calculateFees(totalAmountYen);
-
     console.log('決済情報:', {
       storeId,
-      storeAccountId: stripeAccountId,
-      totalAmountYen,
-      fees
+      storeName: storeData.store_name || storeData.name,
+      totalAmountYen
     });
 
     // 5. Stripe ConnectでCheckout Sessionを作成（Destination Charge方式）
@@ -237,8 +221,9 @@ export default async function handler(req, res) {
 
     let checkoutSession;
     try {
-      // Stripe Connectが設定されている場合はConnect決済、そうでない場合は通常決済
-      const sessionConfig = {
+      // シンプルなStripe Checkout Sessionを作成（通常決済）
+      // プラットフォームアカウントに入金され、後で店舗に振り込む
+      checkoutSession = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
           {
@@ -264,38 +249,9 @@ export default async function handler(req, res) {
           points_used: pointsUsed.toString(),
           original_amount: originalAmount.toString(),
           final_amount: totalAmountYen.toString(),
-          platform_fee: fees.platformFee.toString(),
-          stripe_fee: fees.stripeFee.toString(),
-          store_amount: fees.storeAmount.toString(),
           platform: 'bloemism-87app',
-          use_connect: useStripeConnect.toString(),
         },
-      };
-
-      // Stripe Connectが設定されている場合のみ、transfer_dataを追加
-      if (useStripeConnect) {
-        sessionConfig.payment_intent_data = {
-          application_fee_amount: fees.platformFee * 100, // 運営手数料（セント単位）
-          transfer_data: {
-            destination: stripeAccountId, // 店舗のStripe Connected Account
-          },
-          metadata: {
-            store_id: storeId,
-            store_name: storeData.store_name || storeData.name,
-            payment_code: paymentCode,
-            customer_id: customerId || '',
-            points_used: pointsUsed.toString(),
-            original_amount: originalAmount.toString(),
-            final_amount: totalAmountYen.toString(),
-            platform_fee: fees.platformFee.toString(),
-            stripe_fee: fees.stripeFee.toString(),
-            store_amount: fees.storeAmount.toString(),
-            platform: 'bloemism-87app',
-          },
-        };
-      }
-
-      checkoutSession = await stripe.checkout.sessions.create(sessionConfig);
+      });
     } catch (stripeError) {
       console.error('Stripe Checkout Session作成エラー:', stripeError);
       return res.status(500).json({
@@ -319,16 +275,15 @@ export default async function handler(req, res) {
         stripe_payment_intent_id: null, // Checkout Sessionから作成されるため、後で更新
         amount: totalAmountYen,
         currency: 'jpy',
-        platform_fee: fees.platformFee,
-        stripe_fee: fees.stripeFee,
-        store_amount: fees.storeAmount,
+        platform_fee: 0, // 手数料なし
+        stripe_fee: 0, // Stripe手数料は後で計算
+        store_amount: totalAmountYen, // 全額を店舗に振り込む
         status: 'pending',
         payment_method: 'card',
         metadata: {
           checkout_session_id: checkoutSession.id,
           payment_data: paymentData,
           items: paymentData?.items || [], // 品目情報を含める
-          fees: fees,
         },
       });
 
@@ -346,11 +301,6 @@ export default async function handler(req, res) {
       checkoutUrl: checkoutSession.url,
       amount: totalAmountYen,
       amountInCents: totalAmountYen * 100,
-      fees: {
-        platformFee: fees.platformFee,
-        stripeFee: fees.stripeFee,
-        storeAmount: fees.storeAmount,
-      },
       store: {
         id: storeId,
         name: storeData.store_name || storeData.name,
