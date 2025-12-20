@@ -124,6 +124,16 @@ export const FloristMap: React.FC = () => {
 
   // Google Maps JavaScript APIキー（環境変数から取得）
   const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  
+  // デバッグ用：環境変数の確認（本番環境でも確認できるように）
+  useEffect(() => {
+    console.log('=== Google Maps API Key Check ===');
+    console.log('API Key exists:', !!GOOGLE_MAPS_API_KEY);
+    console.log('API Key length:', GOOGLE_MAPS_API_KEY?.length || 0);
+    console.log('API Key prefix:', GOOGLE_MAPS_API_KEY?.substring(0, 10) || 'N/A');
+    console.log('Environment:', import.meta.env.MODE);
+    console.log('All env vars:', Object.keys(import.meta.env).filter(key => key.includes('GOOGLE')));
+  }, []);
 
   useEffect(() => {
     // ページの最上部にスクロール
@@ -213,7 +223,9 @@ export const FloristMap: React.FC = () => {
 
     if (!GOOGLE_MAPS_API_KEY) {
       console.error('Google Maps API Key is not set');
-      setError('Google Maps APIキーが設定されていません');
+      console.error('Environment mode:', import.meta.env.MODE);
+      console.error('Available env vars:', Object.keys(import.meta.env));
+      setError('Google Maps APIキーが設定されていません。Vercelの環境変数設定を確認してください。');
       return;
     }
 
@@ -246,7 +258,9 @@ export const FloristMap: React.FC = () => {
     script.onerror = (error) => {
       console.error('Failed to load Google Maps API:', error);
       console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
-      setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。');
+      console.error('Script src:', script.src);
+      console.error('Environment:', import.meta.env.MODE);
+      setError(`Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。環境: ${import.meta.env.MODE}`);
     };
     
     document.head.appendChild(script);
@@ -1261,16 +1275,17 @@ export const FloristMap: React.FC = () => {
                       style={{ minHeight: isMobile ? '500px' : '400px' }}
                     />
                     
-                    {/* デバッグ情報（開発時のみ表示） */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded max-w-xs">
+                    {/* デバッグ情報（本番環境でも表示） */}
+                    {(process.env.NODE_ENV === 'development' || error) && (
+                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded max-w-xs z-50">
                         <div>Map Loaded: {mapLoaded ? 'Yes' : 'No'}</div>
                         <div>Map Instance: {map ? 'Yes' : 'No'}</div>
                         <div>Stores: {stores.length}</div>
                         <div>Markers: {markers.length}</div>
                         <div>Mobile: {isMobile ? 'Yes' : 'No'}</div>
-                        <div>API Key: {GOOGLE_MAPS_API_KEY ? 'Set' : 'Not Set'}</div>
+                        <div>API Key: {GOOGLE_MAPS_API_KEY ? `Set (${GOOGLE_MAPS_API_KEY.substring(0, 10)}...)` : 'Not Set'}</div>
                         <div>Google API: {window.google ? 'Loaded' : 'Not Loaded'}</div>
+                        <div>Environment: {import.meta.env.MODE}</div>
                         <div>Error: {error || 'None'}</div>
                         <div>Loading: {loading ? 'Yes' : 'No'}</div>
                       </div>
