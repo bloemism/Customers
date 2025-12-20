@@ -157,19 +157,12 @@ export default async function handler(req, res) {
     // stripe_account_id または stripe_connect_account_id のいずれかを使用
     const stripeAccountId = storeData.stripe_account_id || storeData.stripe_connect_account_id;
 
-    if (!stripeAccountId) {
-      return res.status(400).json({
-        success: false,
-        error: 'この店舗はStripe Connectアカウントが設定されていません。店舗に連絡してください。'
-      });
-    }
-
-    // stripe_charges_enabledがnullの場合はtrueとして扱う（後方互換性）
-    if (storeData.stripe_charges_enabled === false) {
-      return res.status(400).json({
-        success: false,
-        error: 'この店舗は決済を受け付ける準備ができていません。店舗に連絡してください。'
-      });
+    // Stripe Connectが設定されていない場合は、通常の決済として処理
+    // （手数料は後で処理する）
+    const useStripeConnect = !!stripeAccountId && storeData.stripe_charges_enabled !== false;
+    
+    if (!useStripeConnect) {
+      console.log('Stripe Connect未設定のため、通常決済として処理します');
     }
 
     // 3. 決済金額とポイント情報を取得（payment_dataから）
@@ -239,57 +232,65 @@ export default async function handler(req, res) {
 
     let checkoutSession;
     try {
-      checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'jpy',
-            product_data: {
-              name: `${storeData.store_name || storeData.name}でのお買い物`,
-              description: `決済コード: ${paymentCode}`,
+      // Stripe Connectが設定されている場合はConnect決済、そうでない場合は通常決済
+      const sessionConfig = {
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'jpy',
+              product_data: {
+                name: `${storeData.store_name || storeData.name}でのお買い物`,
+                description: `決済コード: ${paymentCode}`,
+              },
+              unit_amount: totalAmountYen * 100, // 円をセントに変換
             },
-            unit_amount: totalAmountYen * 100, // 円をセントに変換
+            quantity: 1,
           },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}&payment_code=${paymentCode}`,
-      cancel_url: `${baseUrl}/payment-cancel?payment_code=${paymentCode}`,
-      payment_intent_data: {
-        application_fee_amount: fees.platformFee * 100, // 運営手数料（セント単位）
-        transfer_data: {
-          destination: stripeAccountId, // 店舗のStripe Connected Account
-        },
+        ],
+        mode: 'payment',
+        success_url: `${baseUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}&payment_code=${paymentCode}`,
+        cancel_url: `${baseUrl}/payment-cancel?payment_code=${paymentCode}`,
         metadata: {
           store_id: storeId,
           store_name: storeData.store_name || storeData.name,
           payment_code: paymentCode,
           customer_id: customerId || '',
-          points_used: pointsUsed.toString(), // ポイント使用数をmetadataに含める
-          original_amount: originalAmount.toString(), // ポイント差し引き前の金額
-          final_amount: totalAmountYen.toString(), // ポイント差し引き後の金額（実際の決済金額）
+          points_used: pointsUsed.toString(),
+          original_amount: originalAmount.toString(),
+          final_amount: totalAmountYen.toString(),
           platform_fee: fees.platformFee.toString(),
           stripe_fee: fees.stripeFee.toString(),
           store_amount: fees.storeAmount.toString(),
           platform: 'bloemism-87app',
+          use_connect: useStripeConnect.toString(),
         },
-      },
-      metadata: {
-        store_id: storeId,
-        store_name: storeData.name,
-        payment_code: paymentCode,
-        customer_id: customerId || '',
-        points_used: pointsUsed.toString(), // ポイント使用数をmetadataに含める
-        original_amount: originalAmount.toString(), // ポイント差し引き前の金額
-        final_amount: totalAmountYen.toString(), // ポイント差し引き後の金額（実際の決済金額）
-        platform_fee: fees.platformFee.toString(),
-        stripe_fee: fees.stripeFee.toString(),
-        store_amount: fees.storeAmount.toString(),
-        platform: 'bloemism-87app',
-      },
-      });
+      };
+
+      // Stripe Connectが設定されている場合のみ、transfer_dataを追加
+      if (useStripeConnect) {
+        sessionConfig.payment_intent_data = {
+          application_fee_amount: fees.platformFee * 100, // 運営手数料（セント単位）
+          transfer_data: {
+            destination: stripeAccountId, // 店舗のStripe Connected Account
+          },
+          metadata: {
+            store_id: storeId,
+            store_name: storeData.store_name || storeData.name,
+            payment_code: paymentCode,
+            customer_id: customerId || '',
+            points_used: pointsUsed.toString(),
+            original_amount: originalAmount.toString(),
+            final_amount: totalAmountYen.toString(),
+            platform_fee: fees.platformFee.toString(),
+            stripe_fee: fees.stripeFee.toString(),
+            store_amount: fees.storeAmount.toString(),
+            platform: 'bloemism-87app',
+          },
+        };
+      }
+
+      checkoutSession = await stripe.checkout.sessions.create(sessionConfig);
     } catch (stripeError) {
       console.error('Stripe Checkout Session作成エラー:', stripeError);
       return res.status(500).json({
