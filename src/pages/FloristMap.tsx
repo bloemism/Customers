@@ -178,77 +178,84 @@ export const FloristMap: React.FC = () => {
     };
   }, []);
 
-  // Google Maps JavaScript APIの読み込み
+  // Google Maps JavaScript APIの読み込み（重複防止）
   useEffect(() => {
-    const loadGoogleMapsAPI = () => {
-      console.log('=== Google Maps API読み込み開始 ===');
-      console.log('API Key:', GOOGLE_MAPS_API_KEY ? '設定済み' : '未設定');
-      
-      // 既存のGoogle Maps APIオブジェクトをクリア（強制的に再読み込み）
-      if (window.google) {
-        console.log('Clearing existing Google Maps API object');
-        delete (window as any).google;
+    // 既にGoogle Maps APIが読み込まれている場合はスキップ
+    if (window.google && window.google.maps && window.google.maps.Map) {
+      console.log('Google Maps API already loaded');
+      if (mapRef.current && stores.length > 0 && !map) {
+        setTimeout(() => initializeMap(), 100);
       }
+      return;
+    }
 
-      // 既存のスクリプトタグを削除（古いバージョンを確実に削除）
-      const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
-      existingScripts.forEach(script => {
-        const src = script.getAttribute('src');
-        console.log('Removing existing Google Maps script:', src);
-        // loading=asyncが含まれていない場合は確実に削除
-        if (!src?.includes('loading=async')) {
-          script.remove();
-        }
-      });
-
-      // 既にloading=asyncを含むスクリプトが存在する場合は、それを使用
-      const asyncScript = document.querySelector('script[src*="maps.googleapis.com"][src*="loading=async"]');
-      if (asyncScript && window.google && window.google.maps) {
-        console.log('Google Maps API already loaded with loading=async');
-        if (stores.length > 0) {
-          initializeMap();
-        }
-        return;
-      }
-
-      if (!GOOGLE_MAPS_API_KEY) {
-        console.error('Google Maps API Key is not set');
-        setError('Google Maps APIキーが設定されていません');
-        return;
-      }
-
-      // Google Maps APIスクリプトを作成（loading=asyncは使用しない）
-      const script = document.createElement('script');
-      script.id = 'google-maps-api-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        console.log('Google Maps API loaded successfully');
-        // APIが完全に読み込まれるまで少し待つ
-        setTimeout(() => {
-          if (window.google?.maps?.Map && window.google?.maps?.MapTypeId) {
-            setError(''); // エラーをクリア
-            // mapRefが存在する場合のみ初期化
-            if (mapRef.current && stores.length > 0) {
-              initializeMap();
-            }
-          } else {
-            console.error('Google Maps API objects not available after load');
-            setError('Google Maps APIが完全に読み込まれていません。ページをリロードしてください。');
+    // 既存のスクリプトタグを確認
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      console.log('Google Maps API script already exists, waiting for load...');
+      // 既存のスクリプトが読み込み完了を待つ
+      const checkLoaded = setInterval(() => {
+        if (window.google && window.google.maps && window.google.maps.Map) {
+          console.log('Existing Google Maps API loaded');
+          clearInterval(checkLoaded);
+          if (mapRef.current && stores.length > 0 && !map) {
+            setTimeout(() => initializeMap(), 100);
           }
-        }, 100);
-      };
-      script.onerror = (error) => {
-        console.error('Failed to load Google Maps API:', error);
-        console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
-        setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。');
-      };
-      document.head.appendChild(script);
-    };
+        }
+      }, 100);
+      
+      // 10秒でタイムアウト
+      setTimeout(() => {
+        clearInterval(checkLoaded);
+      }, 10000);
+      return;
+    }
 
-    loadGoogleMapsAPI();
-  }, [GOOGLE_MAPS_API_KEY, stores.length]);
+    if (!GOOGLE_MAPS_API_KEY) {
+      console.error('Google Maps API Key is not set');
+      setError('Google Maps APIキーが設定されていません');
+      return;
+    }
+
+    console.log('=== Google Maps API読み込み開始 ===');
+    
+    // loading=asyncを使用してGoogle Maps APIを読み込む
+    const script = document.createElement('script');
+    script.id = 'google-maps-api-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      console.log('Google Maps API loaded successfully with loading=async');
+      // APIが完全に読み込まれるまで少し待つ
+      setTimeout(() => {
+        if (window.google?.maps?.Map && window.google?.maps?.MapTypeId) {
+          setError(''); // エラーをクリア
+          // mapRefが存在する場合のみ初期化
+          if (mapRef.current && stores.length > 0 && !map) {
+            initializeMap();
+          }
+        } else {
+          console.error('Google Maps API objects not available after load');
+          setError('Google Maps APIが完全に読み込まれていません。ページをリロードしてください。');
+        }
+      }, 200);
+    };
+    
+    script.onerror = (error) => {
+      console.error('Failed to load Google Maps API:', error);
+      console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
+      setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。');
+    };
+    
+    document.head.appendChild(script);
+
+    // クリーンアップ関数
+    return () => {
+      // コンポーネントのアンマウント時はスクリプトを削除しない（他のコンポーネントで使用される可能性があるため）
+    };
+  }, [GOOGLE_MAPS_API_KEY]);
 
   // 店舗データが読み込まれた後に地図を初期化
   useEffect(() => {
