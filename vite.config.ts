@@ -79,14 +79,6 @@ export default defineConfig({
     host: true,
     hmr: {
       overlay: false
-    },
-    proxy: {
-      '/api': {
-        target: 'https://customers-three-rust.vercel.app',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path
-      }
     }
   },
   preview: {

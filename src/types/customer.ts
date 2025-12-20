@@ -26,27 +26,10 @@ export interface CustomerPayment {
   user_id: string;
   store_id: string;
   amount: number;
-  points_used?: number;
-  points_spent?: number;
-  points_earned?: number;
+  points_used: number;
   payment_method: string;
   status: 'pending' | 'completed' | 'failed';
-  payment_code?: string;
-  payment_date?: string;
   stripe_payment_intent_id?: string;
-  payment_data?: {
-    items?: Array<{
-      name: string;
-      price: number;
-      quantity: number;
-      total: number;
-    }>;
-    subtotal?: number;
-    tax?: number;
-    totalAmount?: number;
-    storeName?: string;
-    paymentCode?: string;
-  };
   created_at?: string;
 }
 

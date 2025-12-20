@@ -24,7 +24,8 @@ import {
   saveSchedule,
   deleteSchedule,
   updateCustomerParticipation,
-  completeLesson
+  completeLesson,
+  registerCustomerToSchoolByCode
 } from '../services/lessonService';
 import { supabase } from '../lib/supabase';
 import type {
@@ -64,6 +65,9 @@ const LessonScheduleManagement: React.FC = () => {
     customer_phone: '',
     notes: ''
   });
+  const [isRegisteringCustomer, setIsRegisteringCustomer] = useState(false);
+  const [customerCodeInput, setCustomerCodeInput] = useState('');
+  const [selectedSchoolForRegistration, setSelectedSchoolForRegistration] = useState<string>('');
   
   const [formData, setFormData] = useState<ScheduleFormData>({
     lesson_school_id: '',
@@ -439,6 +443,39 @@ const LessonScheduleManagement: React.FC = () => {
     }
   };
 
+  const handleRegisterCustomerToSchool = async () => {
+    if (!user || !customerCodeInput.trim() || !selectedSchoolForRegistration) {
+      setMessage('顧客コードとスクールを選択してください');
+      setMessageType('error');
+      return;
+    }
+
+    setIsRegisteringCustomer(true);
+    try {
+      const result = await registerCustomerToSchoolByCode(
+        customerCodeInput.trim().toUpperCase(),
+        selectedSchoolForRegistration,
+        user.email
+      );
+
+      if (result.success) {
+        setMessage(`${result.customerName || '顧客'}をスクールに登録しました`);
+        setMessageType('success');
+        setCustomerCodeInput('');
+        setSelectedSchoolForRegistration('');
+      } else {
+        setMessage(result.error || '登録に失敗しました');
+        setMessageType('error');
+      }
+    } catch (error) {
+      console.error('顧客登録エラー:', error);
+      setMessage('顧客の登録中にエラーが発生しました');
+      setMessageType('error');
+    } finally {
+      setIsRegisteringCustomer(false);
+    }
+  };
+
   const inputStyle = {
     backgroundColor: '#FDFCFA',
     border: '1px solid #E0D6C8',
@@ -704,6 +741,75 @@ const LessonScheduleManagement: React.FC = () => {
             selectedDate={selectedDate}
           />
         </div>
+
+        {/* 顧客スクール登録セクション */}
+        {lessonSchools.length > 0 && (
+          <div 
+            className="mb-6 rounded-sm p-6"
+            style={{ 
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: '1px solid #E0D6C8'
+            }}
+          >
+            <h3 
+              className="text-lg mb-4"
+              style={{ 
+                fontFamily: "'Noto Serif JP', serif",
+                color: '#2D2A26'
+              }}
+            >
+              顧客をスクールに登録
+            </h3>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                  スクールを選択
+                </label>
+                <select
+                  value={selectedSchoolForRegistration}
+                  onChange={(e) => setSelectedSchoolForRegistration(e.target.value)}
+                  className="w-full px-3 py-3 rounded-sm"
+                  style={inputStyle}
+                >
+                  <option value="">スクールを選択</option>
+                  {lessonSchools.map((school) => (
+                    <option key={school.id} value={school.id}>{school.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs tracking-wide mb-2" style={{ color: '#2D2A26', fontWeight: 600 }}>
+                  顧客コード
+                </label>
+                <input
+                  type="text"
+                  value={customerCodeInput}
+                  onChange={(e) => setCustomerCodeInput(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-3 rounded-sm"
+                  style={inputStyle}
+                  placeholder="例: A1234"
+                  maxLength={5}
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={handleRegisterCustomerToSchool}
+                  disabled={isRegisteringCustomer || !customerCodeInput.trim() || !selectedSchoolForRegistration}
+                  className="px-6 py-3 rounded-sm text-sm transition-colors disabled:opacity-50"
+                  style={{ 
+                    backgroundColor: '#5C6B4A',
+                    color: '#FAF8F5'
+                  }}
+                >
+                  {isRegisteringCustomer ? '登録中...' : '登録'}
+                </button>
+              </div>
+            </div>
+            <p className="text-xs mt-2" style={{ color: '#8A857E' }}>
+              顧客コードを入力してスクールに登録すると、顧客のスケジュールページに反映されます
+            </p>
+          </div>
+        )}
 
         {/* メインコンテンツ */}
         <div className="grid lg:grid-cols-2 gap-6">

@@ -253,3 +253,95 @@ export const completeLesson = async (
     throw error;
   }
 };
+
+// 顧客コードで顧客を検索
+export const findCustomerByCode = async (customerCode: string): Promise<{ id: string; name: string; email: string | null } | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, name, email')
+      .eq('customer_code', customerCode)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // 行が見つからない
+        return null;
+      }
+      console.error('顧客検索エラー:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('顧客検索例外:', error);
+    throw error;
+  }
+};
+
+// 顧客をスクールに登録（店舗側から）
+export const registerCustomerToSchoolByCode = async (
+  customerCode: string,
+  lessonSchoolId: string,
+  userEmail: string
+): Promise<{ success: boolean; error?: string; customerName?: string }> => {
+  try {
+    // 顧客を検索
+    const customer = await findCustomerByCode(customerCode);
+    if (!customer) {
+      return { success: false, error: '顧客コードが見つかりません' };
+    }
+
+    // スクールがこの店舗のものか確認
+    const { data: school, error: schoolError } = await supabase
+      .from('lesson_schools')
+      .select('id, name')
+      .eq('id', lessonSchoolId)
+      .eq('store_email', userEmail)
+      .single();
+
+    if (schoolError || !school) {
+      return { success: false, error: 'スクールが見つかりません' };
+    }
+
+    // 既に登録されているかチェック
+    const { data: existing, error: checkError } = await supabase
+      .from('customer_school_registrations')
+      .select('id')
+      .eq('customer_id', customer.id)
+      .eq('lesson_school_id', lessonSchoolId)
+      .eq('is_active', true)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('登録チェックエラー:', checkError);
+      throw checkError;
+    }
+
+    if (existing) {
+      return { success: false, error: '既に登録されています' };
+    }
+
+    // 登録
+    const { error: insertError } = await supabase
+      .from('customer_school_registrations')
+      .insert({
+        customer_id: customer.id,
+        lesson_school_id: lessonSchoolId,
+        is_active: true
+      });
+
+    if (insertError) {
+      console.error('スクール登録エラー:', insertError);
+      throw insertError;
+    }
+
+    return { success: true, customerName: customer.name };
+  } catch (error: any) {
+    console.error('スクール登録例外:', error);
+    return { 
+      success: false, 
+      error: error.message || 'スクール登録に失敗しました' 
+    };
+  }
+};

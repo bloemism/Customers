@@ -116,12 +116,12 @@ export const CustomerMenuScreen: React.FC = () => {
       route: '/flower-lesson-map'
     },
     {
-      id: 'lesson-schedule-management',
-      title: 'レッスン予約',
-      description: 'レッスン日程・予約・管理',
+      id: 'customer-lesson-schedules',
+      title: 'レッスンスケジュール',
+      description: '登録スクールのレッスン予定',
       icon: Calendar,
       category: 'primary',
-      route: '/lesson-schedule-management'
+      route: '/customer-lesson-schedules'
     },
     {
       id: 'popularity-rankings',

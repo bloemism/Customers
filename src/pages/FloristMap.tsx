@@ -184,32 +184,30 @@ export const FloristMap: React.FC = () => {
       console.log('=== Google Maps API読み込み開始 ===');
       console.log('API Key:', GOOGLE_MAPS_API_KEY ? '設定済み' : '未設定');
       
-      if (window.google && window.google.maps) {
-        console.log('Google Maps API already loaded');
+      // 既存のGoogle Maps APIオブジェクトをクリア（強制的に再読み込み）
+      if (window.google) {
+        console.log('Clearing existing Google Maps API object');
+        delete (window as any).google;
+      }
+
+      // 既存のスクリプトタグを削除（古いバージョンを確実に削除）
+      const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+      existingScripts.forEach(script => {
+        const src = script.getAttribute('src');
+        console.log('Removing existing Google Maps script:', src);
+        // loading=asyncが含まれていない場合は確実に削除
+        if (!src?.includes('loading=async')) {
+          script.remove();
+        }
+      });
+
+      // 既にloading=asyncを含むスクリプトが存在する場合は、それを使用
+      const asyncScript = document.querySelector('script[src*="maps.googleapis.com"][src*="loading=async"]');
+      if (asyncScript && window.google && window.google.maps) {
+        console.log('Google Maps API already loaded with loading=async');
         if (stores.length > 0) {
           initializeMap();
         }
-        return;
-      }
-
-      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-      if (existingScript) {
-        console.log('Google Maps API script already exists');
-        // 既存のスクリプトが読み込み完了を待つ
-        const checkLoaded = setInterval(() => {
-          if (window.google && window.google.maps) {
-            console.log('Existing Google Maps API loaded');
-            clearInterval(checkLoaded);
-            if (stores.length > 0) {
-              initializeMap();
-            }
-          }
-        }, 100);
-        
-        // 10秒でタイムアウト
-        setTimeout(() => {
-          clearInterval(checkLoaded);
-        }, 10000);
         return;
       }
 
@@ -219,20 +217,32 @@ export const FloristMap: React.FC = () => {
         return;
       }
 
+      // Google Maps APIスクリプトを作成（loading=asyncは使用しない）
       const script = document.createElement('script');
+      script.id = 'google-maps-api-script';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;
       script.defer = true;
       script.onload = () => {
         console.log('Google Maps API loaded successfully');
-        setError(''); // エラーをクリア
-        if (stores.length > 0) {
-          initializeMap();
-        }
+        // APIが完全に読み込まれるまで少し待つ
+        setTimeout(() => {
+          if (window.google?.maps?.Map && window.google?.maps?.MapTypeId) {
+            setError(''); // エラーをクリア
+            // mapRefが存在する場合のみ初期化
+            if (mapRef.current && stores.length > 0) {
+              initializeMap();
+            }
+          } else {
+            console.error('Google Maps API objects not available after load');
+            setError('Google Maps APIが完全に読み込まれていません。ページをリロードしてください。');
+          }
+        }, 100);
       };
       script.onerror = (error) => {
         console.error('Failed to load Google Maps API:', error);
-        setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。');
+        console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
+        setError('Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。');
       };
       document.head.appendChild(script);
     };
@@ -242,11 +252,18 @@ export const FloristMap: React.FC = () => {
 
   // 店舗データが読み込まれた後に地図を初期化
   useEffect(() => {
-    if (stores.length > 0 && window.google && window.google.maps && !map) {
+    // mapRefが存在し、Google Maps APIが読み込まれ、店舗データがある場合のみ初期化
+    if (mapRef.current && stores.length > 0 && window.google && window.google.maps && !map) {
       console.log('Stores loaded, initializing map...');
-      initializeMap();
+      // 少し待ってから初期化（DOMの確実なレンダリングを待つ）
+      const timer = setTimeout(() => {
+        if (mapRef.current) {
+          initializeMap();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [stores.length, map]);
+  }, [stores.length, map, mapRef.current]);
 
   // userLocationが取得された後に地図を再中心化
   useEffect(() => {
@@ -295,6 +312,13 @@ export const FloristMap: React.FC = () => {
         console.log('Using default center:', center);
       }
       
+      // Google Maps APIが完全に読み込まれているか確認
+      if (!window.google?.maps?.Map || !window.google?.maps?.MapTypeId) {
+        console.error('Google Maps API is not fully loaded');
+        setError('Google Maps APIが完全に読み込まれていません。しばらく待ってから再度お試しください。');
+        return;
+      }
+
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: center,
         zoom: userLocation ? (isMobile ? 15 : 13) : (isMobile ? 13 : 11), // 現在地がある場合は拡大

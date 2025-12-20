@@ -38,8 +38,7 @@ const CustomerCodePage = React.lazy(() => import('./pages/CustomerCodePage'));
 const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
 const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
 const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
-const PaymentSuccess = React.lazy(() => import('./pages/PaymentSuccess'));
-const PaymentCancel = React.lazy(() => import('./pages/PaymentCancel'));
+const CustomerLessonSchedulePage = React.lazy(() => import('./pages/CustomerLessonSchedulePage'));
 
 
 // 認証ページ
@@ -210,10 +209,19 @@ function App() {
                 </CustomerProvider>
                 </CustomerAuthGuard>
               } />
-              <Route path="/store-payment" element={
+              <Route path="/customer-lesson-schedules" element={
+              <CustomerAuthGuard>
                 <CustomerProvider>
-                  <PaymentPage />
+                  <CustomerLessonSchedulePage />
                 </CustomerProvider>
+                </CustomerAuthGuard>
+              } />
+              <Route path="/store-payment" element={
+                <SimpleAuthGuard>
+                  <CustomerProvider>
+                    <PaymentPage />
+                  </CustomerProvider>
+                </SimpleAuthGuard>
               } />
               <Route path="/dynamic-stripe-checkout" element={
                 <SimpleAuthGuard>
@@ -229,8 +237,6 @@ function App() {
                   </CustomerProvider>
                 </SimpleAuthGuard>
               } />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/payment-cancel" element={<PaymentCancel />} />
 
               
               {/* レガシールート */}

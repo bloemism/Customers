@@ -860,8 +860,14 @@ export const StoreRegistration: React.FC = () => {
       setError('');
       setSuccess('位置情報を取得中...');
       
+      const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!GOOGLE_MAPS_API_KEY) {
+        setError('Google Maps APIキーが設定されていません');
+        return false;
+      }
+      
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g&region=jp`
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}&region=jp`
       );
       const data = await response.json();
       
