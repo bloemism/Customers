@@ -1363,12 +1363,41 @@ export const FloristMap: React.FC = () => {
                   </div>
                 ) : (
                   <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
-                    <div className="text-center">
+                    <div className="text-center max-w-2xl px-4">
                       <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Google Maps APIキーが設定されていません</p>
+                      <p className="text-gray-600 font-bold text-lg mb-2">Google Maps APIキーが設定されていません</p>
                       <p className="text-sm text-gray-500 mt-2">
-                        APIキーを設定してください
+                        Vercelの環境変数設定で <code className="bg-gray-300 px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> を設定してください
                       </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* InvalidKeyMapErrorが発生した場合の詳細なエラーメッセージ */}
+                {error && error.includes('InvalidKey') && (
+                  <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 p-4">
+                    <div className="bg-red-50 border-2 border-red-400 rounded-lg p-6 max-w-2xl">
+                      <h3 className="text-xl font-bold text-red-800 mb-4">Google Maps APIキーエラー</h3>
+                      <div className="text-sm text-red-700 space-y-2 mb-4">
+                        <p className="font-semibold">InvalidKeyMapErrorが発生しています。以下の設定を確認してください：</p>
+                        <ol className="list-decimal list-inside space-y-2 ml-4">
+                          <li><strong>Google Cloud Console</strong>でAPIキーが有効か確認</li>
+                          <li><strong>APIの有効化</strong>：Maps JavaScript API、Geocoding API、Places APIが有効化されているか</li>
+                          <li><strong>HTTPリファラー制限</strong>：本番ドメイン（<code className="bg-red-100 px-1 rounded">*.vercel.app</code>）が追加されているか</li>
+                          <li><strong>請求アカウント</strong>：有効な請求アカウントが設定されているか</li>
+                        </ol>
+                        <p className="mt-4 text-xs text-gray-600">
+                          <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                            Google Cloud Consoleで設定を確認
+                          </a>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      >
+                        ページを再読み込み
+                      </button>
                     </div>
                   </div>
                 )}
