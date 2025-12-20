@@ -260,8 +260,20 @@ export const FloristMap: React.FC = () => {
       console.error('API Key:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : '未設定');
       console.error('Script src:', script.src);
       console.error('Environment:', import.meta.env.MODE);
-      setError(`Google Maps APIの読み込みに失敗しました。APIキーを確認してください。InvalidKeyMapErrorが発生している場合は、Google Cloud ConsoleでAPIキーの設定を確認してください。環境: ${import.meta.env.MODE}`);
+      setError(`Google Maps APIの読み込みに失敗しました。InvalidKeyMapErrorが発生しています。Google Cloud ConsoleでAPIキーの設定を確認してください。`);
     };
+    
+    // Google Maps APIのエラーをグローバルにキャッチ
+    window.addEventListener('error', (event) => {
+      if (event.message && event.message.includes('InvalidKey')) {
+        console.error('Google Maps InvalidKey error detected:', event);
+        setError(`Google Maps APIキーが無効です。Google Cloud Consoleで以下を確認してください：
+1. APIキーが有効か
+2. Maps JavaScript API、Geocoding API、Places APIが有効化されているか
+3. HTTPリファラー制限に本番ドメイン（*.vercel.app）が追加されているか
+4. 請求アカウントが設定されているか`);
+      }
+    }, true);
     
     document.head.appendChild(script);
 
