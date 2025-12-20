@@ -138,27 +138,34 @@ export default async function handler(req, res) {
     }
 
     // 2. 店舗情報とStripe Connected Accountを取得
+    // カラム名のバリエーションに対応（stripe_account_id または stripe_connect_account_id）
     const { data: storeData, error: storeError } = await supabase
       .from('stores')
-      .select('id, store_name, name, stripe_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled')
+      .select('id, store_name, name, stripe_account_id, stripe_connect_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled')
       .eq('id', storeId)
       .single();
 
     if (storeError || !storeData) {
+      console.error('店舗情報取得エラー:', storeError);
       return res.status(404).json({
         success: false,
-        error: '店舗情報が見つかりません'
+        error: '店舗情報が見つかりません',
+        details: storeError?.message || 'Unknown error'
       });
     }
 
-    if (!storeData.stripe_account_id) {
+    // stripe_account_id または stripe_connect_account_id のいずれかを使用
+    const stripeAccountId = storeData.stripe_account_id || storeData.stripe_connect_account_id;
+
+    if (!stripeAccountId) {
       return res.status(400).json({
         success: false,
         error: 'この店舗はStripe Connectアカウントが設定されていません。店舗に連絡してください。'
       });
     }
 
-    if (!storeData.stripe_charges_enabled) {
+    // stripe_charges_enabledがnullの場合はtrueとして扱う（後方互換性）
+    if (storeData.stripe_charges_enabled === false) {
       return res.status(400).json({
         success: false,
         error: 'この店舗は決済を受け付ける準備ができていません。店舗に連絡してください。'
@@ -214,7 +221,7 @@ export default async function handler(req, res) {
 
     console.log('決済情報:', {
       storeId,
-      storeAccountId: storeData.stripe_account_id,
+      storeAccountId: stripeAccountId,
       totalAmountYen,
       fees
     });
@@ -230,7 +237,9 @@ export default async function handler(req, res) {
       ? 'https://customers-three-rust.vercel.app'
       : 'http://localhost:5174';
 
-    const checkoutSession = await stripe.checkout.sessions.create({
+    let checkoutSession;
+    try {
+      checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
@@ -251,7 +260,7 @@ export default async function handler(req, res) {
       payment_intent_data: {
         application_fee_amount: fees.platformFee * 100, // 運営手数料（セント単位）
         transfer_data: {
-          destination: storeData.stripe_account_id, // 店舗のStripe Connected Account
+          destination: stripeAccountId, // 店舗のStripe Connected Account
         },
         metadata: {
           store_id: storeId,
@@ -280,7 +289,16 @@ export default async function handler(req, res) {
         store_amount: fees.storeAmount.toString(),
         platform: 'bloemism-87app',
       },
-    });
+      });
+    } catch (stripeError) {
+      console.error('Stripe Checkout Session作成エラー:', stripeError);
+      return res.status(500).json({
+        success: false,
+        error: 'Stripe決済セッションの作成に失敗しました',
+        details: stripeError.message || 'Unknown Stripe error',
+        type: stripeError.type || 'Unknown'
+      });
+    }
 
     console.log('Checkout Session作成成功:', checkoutSession.id);
 
