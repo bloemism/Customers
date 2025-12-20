@@ -10,7 +10,20 @@ const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?a
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
-  const { customer, loading: customerLoading, error: customerError } = useCustomer();
+  
+  // エラーハンドリングを追加
+  let customer, customerLoading, customerError;
+  try {
+    const customerContext = useCustomer();
+    customer = customerContext.customer;
+    customerLoading = customerContext.loading;
+    customerError = customerContext.error;
+  } catch (err) {
+    console.error('PaymentPage - useCustomer error:', err);
+    customer = null;
+    customerLoading = false;
+    customerError = '顧客データの取得に失敗しました';
+  }
   
   const [scannedData, setScannedData] = useState<PaymentData | null>(null);
   const [error, setError] = useState('');
@@ -44,47 +57,22 @@ const PaymentPage: React.FC = () => {
       let paymentData = null;
 
       // コードタイプに応じて適切なテーブルから検索
-      if (codeType === 'cash5') {
-        // 現金用5桁コード: cash_payment_codesテーブルから検索
-        const cashResult = await supabase
-          .from('cash_payment_codes')
-          .select('*')
+      // 5桁の場合はpayment_codes、6桁の場合はremote_invoice_codesから検索
+      if (codeType === 'cash5' || code.length === 5) {
+        // 5桁コード: payment_codesテーブルから検索
+        const paymentResult = await supabase
+          .from('payment_codes')
+          .select('*, payment_data')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
           .is('used_at', null)
           .single();
-        
-        if (cashResult.data) {
-          data = cashResult.data;
-          // cash_payment_codesにはpayment_dataがないので、payment_codesから取得を試みる
-          const paymentResult = await supabase
-            .from('payment_codes')
-            .select('*, payment_data')
-            .eq('code', code)
-            .gt('expires_at', new Date().toISOString())
-            .single();
           
-          if (paymentResult.data && paymentResult.data.payment_data) {
-            paymentData = paymentResult.data.payment_data;
-          } else {
-            // payment_codesにない場合は、cash_payment_codesの情報から構築
-            codeError = { message: '決済情報が見つかりません' };
-          }
+        if (paymentResult.data) {
+          data = paymentResult.data;
+          paymentData = paymentResult.data.payment_data;
         } else {
-          // cash_payment_codesにない場合は、payment_codesから検索（フォールバック）
-          const paymentResult = await supabase
-            .from('payment_codes')
-            .select('*, payment_data')
-            .eq('code', code)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-          
-          if (paymentResult.data) {
-            data = paymentResult.data;
-            paymentData = paymentResult.data.payment_data;
-          } else {
-            codeError = paymentResult.error || { message: 'コードが見つかりません' };
-          }
+          codeError = paymentResult.error || { message: 'コードが見つかりません' };
         }
       } else if (codeType === 'credit5') {
         // クレジット決済用5桁コード: payment_codesテーブルから検索
@@ -93,17 +81,20 @@ const PaymentPage: React.FC = () => {
           .select('*, payment_data')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
+          .is('used_at', null)
           .single();
         data = result.data;
         codeError = result.error;
-        if (data) {
-          paymentData = data.payment_data;
+        if (result.data && result.data.payment_data) {
+          paymentData = result.data.payment_data;
+        } else {
+          codeError = result.error || { message: 'コードが見つかりません' };
         }
-      } else if (codeType === 'long6') {
-        // 遠距離決済用6桁コード: remote_invoice_codesテーブルから検索
+      } else if (codeType === 'long6' || code.length === 6) {
+        // 6桁コード: remote_invoice_codesテーブルから検索
         const remoteResult = await supabase
           .from('remote_invoice_codes')
-          .select('*')
+          .select('*, payment_data')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
           .is('used_at', null)
@@ -111,20 +102,7 @@ const PaymentPage: React.FC = () => {
         
         if (remoteResult.data) {
           data = remoteResult.data;
-          // remote_invoice_codesにはpayment_dataがないので、payment_codesから取得を試みる
-          const paymentResult = await supabase
-            .from('payment_codes')
-            .select('*, payment_data')
-            .eq('code', code)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-          
-          if (paymentResult.data && paymentResult.data.payment_data) {
-            paymentData = paymentResult.data.payment_data;
-          } else {
-            // payment_codesにない場合は、remote_invoice_codesの情報から構築
-            codeError = { message: '決済情報が見つかりません' };
-          }
+          paymentData = remoteResult.data.payment_data;
         } else {
           codeError = remoteResult.error || { message: 'コードが見つかりません' };
         }
@@ -207,22 +185,69 @@ const PaymentPage: React.FC = () => {
     }
   };
 
-  // クレジット決済処理
+  // クレジット決済処理（Stripe Checkout）
   const handleCreditPayment = async () => {
-    if (!scannedData) return;
+    if (!scannedData || !paymentCodeData || !customer) return;
     
     setProcessing(true);
     setError('');
 
     try {
-      const result = await CustomerStripeService.processPayment(scannedData);
+      const paymentCode = activeCodeType === 'credit5' ? creditCode5 : 
+                         activeCodeType === 'cash5' ? cashCode5 : 
+                         activeCodeType === 'long6' ? longDistanceCode6 : '';
       
-      if (!result.success) {
-        setError(result.error || '決済処理に失敗しました');
+      if (!paymentCode) {
+        setError('決済コードが設定されていません');
+        setProcessing(false);
+        return;
       }
+
+      console.log('💳 PaymentPage - クレジット決済開始:', {
+        payment_code: paymentCode,
+        customer_id: customer.id
+      });
+
+      // APIエンドポイントを呼び出してStripe Checkout Sessionを作成
+      // ローカル開発環境ではVercelのデプロイURLを使用、本番環境では相対パスを使用
+      const isDev = import.meta.env.DEV;
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+                           (isDev ? 'https://customers-three-rust.vercel.app' : '');
+      
+      const apiUrl = `${API_BASE_URL}/api/process-payment-code`;
+      console.log('💳 API URL:', apiUrl);
+      console.log('💳 isDev:', isDev);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentCode: paymentCode,
+          customerId: customer.id
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: '決済処理に失敗しました' }));
+        throw new Error(errorData.error || '決済処理に失敗しました');
+      }
+
+      const result = await response.json();
+
+      if (!result.success || !result.checkoutUrl) {
+        throw new Error(result.error || 'Checkout Sessionの作成に失敗しました');
+      }
+
+      console.log('💳 PaymentPage - Checkout Session作成成功:', result.checkoutSessionId);
+
+      // Stripe Checkoutページにリダイレクト
+      window.location.href = result.checkoutUrl;
+
     } catch (err) {
-      setError('決済処理中にエラーが発生しました');
-    } finally {
+      console.error('クレジット決済エラー:', err);
+      setError(err instanceof Error ? err.message : 'クレジット決済処理中にエラーが発生しました');
       setProcessing(false);
     }
   };
@@ -547,25 +572,6 @@ const PaymentPage: React.FC = () => {
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>店舗名</span>
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>{scannedData.store_name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: '#2D2A26', fontWeight: 500 }}>決済金額</span>
-                    <span 
-                      className="text-lg"
-                      style={{ 
-                        fontFamily: "'Cormorant Garamond', serif",
-                        color: '#5C6B4A',
-                        fontWeight: 600
-                      }}
-                    >
-                      ¥{scannedData.amount.toLocaleString()}
-                    </span>
-                  </div>
-                  {scannedData.points_to_use > 0 && (
-                  <div className="flex justify-between">
-                      <span style={{ color: '#2D2A26', fontWeight: 500 }}>使用ポイント</span>
-                      <span style={{ color: '#C4856C' }}>-{scannedData.points_to_use} pt</span>
-                  </div>
-                  )}
                   <div 
                     className="pt-3 flex justify-between"
                     style={{ borderTop: '1px solid #E0D6C8' }}
@@ -579,7 +585,7 @@ const PaymentPage: React.FC = () => {
                         fontWeight: 600
                       }}
                     >
-                      ¥{Math.max(0, scannedData.amount - scannedData.points_to_use).toLocaleString()}
+                      ¥{scannedData.amount.toLocaleString()}
                     </span>
                   </div>
                 </div>

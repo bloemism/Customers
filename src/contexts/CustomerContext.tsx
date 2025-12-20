@@ -148,12 +148,12 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
         return [];
       }
 
-      console.log('ポイント履歴取得開始:', customer.id);
+      console.log('ポイント履歴取得開始:', customer.user_id);
 
       const { data, error } = await supabase
         .from('point_history')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('user_id', customer.user_id?.toString() || customer.id?.toString()) // user_idはauth.usersのid（text型）
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -162,7 +162,31 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
       }
 
       console.log('ポイント履歴取得成功:', data?.length || 0, '件');
-      return data || [];
+      console.log('ポイント履歴データ（マッピング前）:', data);
+      
+      // データベースのカラム名をPointHistory型にマッピング
+      const mappedData: PointHistory[] = (data || []).map((item: any) => {
+        const points = Math.abs(item.points_change || 0);
+        const type = item.transaction_type === 'earned' ? 'earned' : 'used';
+        const reason = item.description || item.reason || '';
+        
+        console.log('ポイント履歴マッピング:', {
+          original: item,
+          mapped: { points, type, reason }
+        });
+        
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          points: points, // points_changeの絶対値を使用
+          reason: reason, // descriptionをreasonにマッピング
+          type: type, // transaction_typeをtypeにマッピング
+          created_at: item.created_at
+        };
+      });
+      
+      console.log('ポイント履歴データ（マッピング後）:', mappedData);
+      return mappedData;
     } catch (err) {
       console.error('ポイント履歴取得エラー:', err);
       return [];
@@ -176,12 +200,12 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
         return [];
       }
 
-      console.log('決済履歴取得開始:', customer.id);
+      console.log('決済履歴取得開始:', customer.user_id);
 
       const { data, error } = await supabase
         .from('customer_payments')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('user_id', customer.user_id?.toString() || customer.id?.toString()) // user_idはauth.usersのid（text型）
         .order('created_at', { ascending: false });
 
       if (error) {

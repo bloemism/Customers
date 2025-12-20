@@ -258,13 +258,72 @@ const PaymentHistoryPage: React.FC = () => {
                       </span>
                     </div>
 
+                    {/* 品目情報の表示 */}
+                    {payment.payment_data?.items && payment.payment_data.items.length > 0 && (
+                      <div 
+                        className="mt-3 pt-3"
+                        style={{ borderTop: '1px solid #F5F0E8' }}
+                      >
+                        <p 
+                          className="text-xs mb-2 font-medium"
+                          style={{ color: '#5C6B4A' }}
+                        >
+                          購入品目
+                        </p>
+                        <div className="space-y-1">
+                          {payment.payment_data.items.map((item: any, itemIndex: number) => {
+                            // nameから品目名と色名を抽出（例: "カーネーション (白)"）
+                            const nameMatch = item.name?.match(/^(.+?)\s*\((.+?)\)$/);
+                            const itemName = nameMatch ? nameMatch[1] : item.name || '不明';
+                            const colorName = nameMatch ? nameMatch[2] : '-';
+                            const unitPrice = item.price || 0;
+                            const quantity = item.quantity || 1;
+                            const total = item.total || (unitPrice * quantity) || 0;
+                            
+                            return (
+                              <div 
+                                key={itemIndex}
+                                className="flex justify-between text-xs"
+                                style={{ color: '#5A5651' }}
+                              >
+                                <span>{itemName} ({colorName}) - ¥{unitPrice.toLocaleString()} × {quantity}</span>
+                                <span>¥{total.toLocaleString()}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {payment.payment_data.subtotal && (
+                          <div 
+                            className="flex justify-between text-xs mt-2 pt-2"
+                            style={{ 
+                              borderTop: '1px solid #F5F0E8',
+                              color: '#5C6B4A',
+                              fontWeight: 500
+                            }}
+                          >
+                            <span>小計:</span>
+                            <span>¥{payment.payment_data.subtotal.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {payment.payment_data.tax && (
+                          <div 
+                            className="flex justify-between text-xs"
+                            style={{ color: '#5C6B4A' }}
+                          >
+                            <span>消費税:</span>
+                            <span>¥{payment.payment_data.tax.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div 
                       className="flex items-center justify-between pt-3"
                       style={{ borderTop: '1px solid #F5F0E8' }}
                     >
                       <div className="flex items-center gap-4 text-xs" style={{ color: '#8A857E' }}>
                         <span>決済方法: {payment.payment_method}</span>
-                        <span>ポイント使用: {payment.points_used} pt</span>
+                        <span>ポイント使用: {payment.points_spent || payment.points_used || 0} pt</span>
                       </div>
                       <div className="text-right">
                         <p 

@@ -30,6 +30,10 @@ export default async function handler(req, res) {
 
   try {
     switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+      
       case 'payment_intent.succeeded':
         await handlePaymentSucceeded(event.data.object);
         break;
@@ -61,8 +65,83 @@ export default async function handler(req, res) {
   }
 }
 
+// Checkout Session完了時の処理
+async function handleCheckoutSessionCompleted(session) {
+  console.log('Checkout Session完了処理開始:', session.id);
+  console.log('Session metadata:', session.metadata);
+
+  const metadata = session.metadata;
+  const customerId = metadata.customer_id;
+  const storeId = metadata.store_id;
+  const paymentCode = metadata.payment_code;
+
+  if (!paymentCode) {
+    console.error('payment_codeがmetadataに含まれていません');
+    return;
+  }
+
+  try {
+    // Payment Intentを取得
+    const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+
+    // payment_codesからpayment_dataを取得
+    let paymentData = null;
+    if (paymentCode.length === 5) {
+      const { data: codeData } = await supabase
+        .from('payment_codes')
+        .select('payment_data')
+        .eq('code', paymentCode)
+        .single();
+      
+      if (codeData?.payment_data) {
+        paymentData = codeData.payment_data;
+      }
+    }
+
+    // payment_transactionsテーブルを更新
+    const { error: transactionUpdateError } = await supabase
+      .from('payment_transactions')
+      .update({
+        stripe_payment_intent_id: paymentIntent.id,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('payment_code', paymentCode)
+      .eq('status', 'pending');
+
+    if (transactionUpdateError) {
+      console.error('payment_transactions更新エラー:', transactionUpdateError);
+    } else {
+      console.log('payment_transactions更新成功');
+    }
+
+    // 決済コードを使用済みにマーク
+    if (paymentCode.length === 5) {
+      await supabase
+        .from('payment_codes')
+        .update({ used_at: new Date().toISOString() })
+        .eq('code', paymentCode)
+        .is('used_at', null);
+    } else if (paymentCode.length === 6) {
+      await supabase
+        .from('remote_invoice_codes')
+        .update({ used_at: new Date().toISOString() })
+        .eq('code', paymentCode)
+        .is('used_at', null);
+    }
+
+    // 顧客IDがある場合は、payment_intent.succeededの処理も実行（payment_dataを渡す）
+    if (customerId && paymentIntent) {
+      await handlePaymentSucceeded(paymentIntent, paymentData);
+    }
+
+  } catch (error) {
+    console.error('Checkout Session完了処理エラー:', error);
+  }
+}
+
 // 決済成功時の処理
-async function handlePaymentSucceeded(paymentIntent) {
+async function handlePaymentSucceeded(paymentIntent, paymentDataFromCode = null) {
   console.log('決済成功処理開始:', paymentIntent.id);
   console.log('Payment Intent metadata:', paymentIntent.metadata);
 
@@ -71,7 +150,33 @@ async function handlePaymentSucceeded(paymentIntent) {
   const storeId = metadata.store_id;
   const paymentCode = metadata.payment_code;
   const pointsUsed = parseInt(metadata.points_used || '0');
-  const pointsEarned = Math.floor(paymentIntent.amount / 100 * 0.05); // 5%のポイント付与（amountはセント単位）
+  
+  // ポイント差し引き後の金額（実際の決済金額）から5%を計算
+  // final_amountが設定されていればそれを使用、なければpaymentIntent.amountを使用
+  const finalAmount = parseInt(metadata.final_amount || (paymentIntent.amount / 100).toString());
+  const pointsEarned = Math.floor(finalAmount * 0.05); // 5%のポイント付与
+
+  // payment_dataを取得（引数で渡されていない場合は、payment_codesから取得）
+  let paymentData = paymentDataFromCode;
+  if (!paymentData && paymentCode && paymentCode.length === 5) {
+    const { data: codeData } = await supabase
+      .from('payment_codes')
+      .select('payment_data')
+      .eq('code', paymentCode)
+      .single();
+    
+    if (codeData?.payment_data) {
+      paymentData = codeData.payment_data;
+    }
+  }
+
+  console.log('ポイント計算:', {
+    pointsUsed,
+    finalAmount,
+    pointsEarned,
+    paymentIntentAmount: paymentIntent.amount / 100,
+    hasPaymentData: !!paymentData
+  });
 
   if (!customerId) {
     console.error('customer_idがmetadataに含まれていません');
@@ -92,13 +197,66 @@ async function handlePaymentSucceeded(paymentIntent) {
       console.log('顧客の現在のポイント:', customerData?.total_points || 0);
     }
 
-    // 2. 顧客データを更新（ポイント付与）
-    const newPoints = (customerData?.total_points || 0) + pointsEarned - pointsUsed;
+    // 2. ポイント使用を処理
+    // 決済コード生成時に既にpayment_dataに合計、使用ポイント、差し引き後の金額、消費税が含まれているため、
+    // 決済コード生成時にポイントが既に引かれている可能性がある
+    // payment_dataのtotalAmountが既にポイント差し引き後の金額であるため、ポイントを再度引く必要はない
+    let shouldDeductPoints = false; // デフォルトは引かない
+    
+    // 決済コード生成時にポイントが引かれていない場合のみ、Webhookでポイントを引く
+    // payment_codesテーブルから決済コードの情報を取得
+    if (paymentCode && paymentCode.length === 5) {
+      const { data: codeData } = await supabase
+        .from('payment_codes')
+        .select('payment_data, created_at')
+        .eq('code', paymentCode)
+        .single();
+      
+      if (codeData?.payment_data) {
+        // payment_dataにpointsUsedが含まれていて、totalAmountが既にポイント差し引き後の金額である場合
+        // 決済コード生成時にポイントが引かれている可能性がある
+        // ポイント使用履歴を確認して、既に処理済みかどうかを確認
+        if (codeData.payment_data.pointsUsed && codeData.payment_data.pointsUsed > 0) {
+          // 決済コード生成時（created_at）から10分以内にポイント使用履歴があるか確認
+          const codeCreatedAt = new Date(codeData.created_at);
+          const { data: pointHistory } = await supabase
+            .from('point_history')
+            .select('*')
+            .eq('user_id', customerId)
+            .eq('points_change', -Math.abs(pointsUsed)) // 絶対値で比較
+            .eq('transaction_type', 'spent')
+            .gte('created_at', codeCreatedAt.toISOString()) // 決済コード生成時以降
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          // 決済コード生成時以降にポイント使用履歴がない場合、Webhookでポイントを引く必要がある
+          if (!pointHistory || pointHistory.length === 0) {
+            shouldDeductPoints = true;
+            console.log('決済コード生成時にポイントが引かれていないため、Webhookでポイントを引きます。', {
+              paymentCode,
+              pointsUsed,
+              codeCreatedAt: codeData.created_at
+            });
+          } else {
+            console.log('決済コード生成時に既にポイントが引かれています。再度引きません。', {
+              paymentCode,
+              pointsUsed,
+              historyDate: pointHistory[0].created_at
+            });
+          }
+        }
+      }
+    }
+
+    // 3. 顧客データを更新（ポイント付与と使用）
+    // ポイント使用は既に処理済みの可能性があるため、shouldDeductPointsで制御
+    const currentPoints = customerData?.total_points || 0;
+    const newPoints = currentPoints + pointsEarned - (shouldDeductPoints ? pointsUsed : 0);
     const { error: updateError } = await supabase
       .from('customers')
       .update({
         total_points: newPoints,
-        total_purchase_amount: supabase.sql`total_purchase_amount + ${paymentIntent.amount / 100}`,
+        total_purchase_amount: supabase.sql`total_purchase_amount + ${finalAmount}`, // ポイント差し引き後の金額を使用
         last_purchase_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -110,20 +268,31 @@ async function handlePaymentSucceeded(paymentIntent) {
       console.log('顧客データ更新成功:', { customerId, newPoints });
     }
 
-    // 3. 決済履歴を記録（customer_payments）
+    // 4. 決済履歴を記録（customer_payments）- 顧客アプリ用
+    // amountはポイント差し引き後の金額（finalAmount）を使用
+    // payment_dataの情報も含める
     const { error: historyError } = await supabase
       .from('customer_payments')
       .insert([
         {
-          customer_id: customerId,
+          user_id: customerId, // customer_idではなくuser_id
           store_id: storeId,
-          amount: paymentIntent.amount / 100, // 円に変換
+          amount: finalAmount, // ポイント差し引き後の金額
           points_earned: pointsEarned,
-          points_used: pointsUsed,
+          points_spent: pointsUsed, // points_usedではなくpoints_spent
           payment_method: 'stripe_checkout',
           status: 'completed',
+          payment_date: new Date().toISOString(),
           payment_code: paymentCode,
-          stripe_payment_intent_id: paymentIntent.id,
+          // payment_dataの情報をJSONBとして保存（品目、色、本数など）
+          payment_data: paymentData ? {
+            items: paymentData.items || [],
+            subtotal: paymentData.subtotal || 0,
+            tax: paymentData.tax || 0,
+            totalAmount: paymentData.totalAmount || finalAmount,
+            storeName: paymentData.storeName || metadata.store_name,
+            paymentCode: paymentCode
+          } : null,
           created_at: new Date().toISOString()
         }
       ]);
@@ -134,16 +303,79 @@ async function handlePaymentSucceeded(paymentIntent) {
       console.log('決済履歴記録成功');
     }
 
-    // 4. ポイント履歴を記録（付与）
+    // 5. 店舗アプリ用の購入履歴を記録（purchases + purchase_items）
+    if (paymentData && paymentData.items && paymentData.items.length > 0) {
+      // purchasesテーブルに記録
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from('purchases')
+        .insert([
+          {
+            customer_id: customerId,
+            store_id: storeId,
+            purchase_date: new Date().toISOString(),
+            total_amount: paymentData.subtotal || 0,
+            tax_amount: paymentData.tax || 0,
+            points_earned: pointsEarned,
+            points_used: pointsUsed,
+            payment_method: 'stripe_checkout',
+            qr_code_data: {
+              payment_code: paymentCode,
+              payment_data: paymentData,
+              stripe_payment_intent_id: paymentIntent.id
+            },
+            notes: `決済コード: ${paymentCode}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+
+      if (purchaseError) {
+        console.error('purchases記録エラー:', purchaseError);
+      } else if (purchaseData) {
+        console.log('purchases記録成功:', purchaseData.id);
+        
+        // purchase_itemsテーブルに品目を記録
+        const purchaseItems = paymentData.items.map((item: any) => {
+          // nameから品目名と色名を抽出（例: "カーネーション (白)"）
+          const nameMatch = item.name?.match(/^(.+?)\s*\((.+?)\)$/);
+          const itemName = nameMatch ? nameMatch[1] : item.name || '不明';
+          const colorName = nameMatch ? nameMatch[2] : '-';
+          
+          return {
+            purchase_id: purchaseData.id,
+            item_name: `${itemName} (${colorName})`, // 品目名と色名を含める
+            unit_price: item.price || 0,
+            quantity: item.quantity || 1,
+            total_price: item.total || (item.price * item.quantity) || 0,
+            created_at: new Date().toISOString()
+          };
+        });
+
+        const { error: itemsError } = await supabase
+          .from('purchase_items')
+          .insert(purchaseItems);
+
+        if (itemsError) {
+          console.error('purchase_items記録エラー:', itemsError);
+        } else {
+          console.log('purchase_items記録成功:', purchaseItems.length, '件');
+        }
+      }
+    }
+
+    // 6. ポイント履歴を記録（付与）- 顧客アプリ用
     if (pointsEarned > 0) {
       const { error: pointError } = await supabase
         .from('point_history')
         .insert([
           {
-            customer_id: customerId,
-            points: pointsEarned,
-            reason: `決済完了 - ${metadata.store_name || '不明な店舗'}`,
-            type: 'earned',
+            user_id: customerId,
+            store_id: storeId,
+            points_change: pointsEarned,
+            transaction_type: 'earned',
+            description: `決済完了 - ${metadata.store_name || '不明な店舗'} (決済コード: ${paymentCode})${paymentData?.items ? ` - ${paymentData.items.length}品目` : ''}`,
             created_at: new Date().toISOString()
           }
         ]);
@@ -155,16 +387,17 @@ async function handlePaymentSucceeded(paymentIntent) {
       }
     }
 
-    // 5. ポイント使用履歴を記録
-    if (pointsUsed > 0) {
+    // 7. ポイント使用履歴を記録（既に処理済みでない場合のみ）- 顧客アプリ用
+    if (pointsUsed > 0 && shouldDeductPoints) {
       const { error: pointUsedError } = await supabase
         .from('point_history')
         .insert([
           {
-            customer_id: customerId,
-            points: -pointsUsed,
-            reason: `決済時のポイント使用 - ${metadata.store_name || '不明な店舗'}`,
-            type: 'used',
+            user_id: customerId,
+            store_id: storeId,
+            points_change: -pointsUsed,
+            transaction_type: 'spent',
+            description: `決済時のポイント使用 - ${metadata.store_name || '不明な店舗'} (決済コード: ${paymentCode})${paymentData?.items ? ` - ${paymentData.items.length}品目` : ''}`,
             created_at: new Date().toISOString()
           }
         ]);
@@ -173,6 +406,29 @@ async function handlePaymentSucceeded(paymentIntent) {
         console.error('ポイント使用履歴記録エラー:', pointUsedError);
       } else {
         console.log('ポイント使用履歴記録成功:', pointsUsed);
+      }
+    } else if (pointsUsed > 0 && !shouldDeductPoints) {
+      console.log('ポイント使用は既に処理済みのため、履歴を記録しません:', pointsUsed);
+    }
+
+    // 6. payment_transactionsテーブルを更新（Stripe Connect決済の場合）
+    if (paymentCode && storeId) {
+      const platformFee = parseInt(metadata.platform_fee || '0');
+      const stripeFee = parseInt(metadata.stripe_fee || '0');
+      const storeAmount = parseInt(metadata.store_amount || '0');
+
+      const { error: transactionUpdateError } = await supabase
+        .from('payment_transactions')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('stripe_payment_intent_id', paymentIntent.id);
+
+      if (transactionUpdateError) {
+        console.error('payment_transactions更新エラー:', transactionUpdateError);
+      } else {
+        console.log('payment_transactions更新成功');
       }
     }
 
