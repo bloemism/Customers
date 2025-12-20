@@ -1374,30 +1374,55 @@ export const FloristMap: React.FC = () => {
                 )}
                 
                 {/* InvalidKeyMapErrorが発生した場合の詳細なエラーメッセージ */}
-                {error && error.includes('InvalidKey') && (
+                {error && (error.includes('InvalidKey') || error.includes('InvalidKeyMapError')) && (
                   <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 p-4">
-                    <div className="bg-red-50 border-2 border-red-400 rounded-lg p-6 max-w-2xl">
-                      <h3 className="text-xl font-bold text-red-800 mb-4">Google Maps APIキーエラー</h3>
-                      <div className="text-sm text-red-700 space-y-2 mb-4">
-                        <p className="font-semibold">InvalidKeyMapErrorが発生しています。以下の設定を確認してください：</p>
+                    <div className="bg-red-50 border-2 border-red-400 rounded-lg p-6 max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-xl font-bold text-red-800 mb-4">⚠️ Google Maps APIキーエラー</h3>
+                      <div className="text-sm text-red-700 space-y-3 mb-4">
+                        <div className="bg-yellow-100 border border-yellow-400 rounded p-3">
+                          <p className="font-semibold mb-2">現在のドメイン:</p>
+                          <code className="bg-white px-2 py-1 rounded text-xs break-all">{window.location.origin}</code>
+                        </div>
+                        <p className="font-semibold">InvalidKeyMapErrorが発生しています。localhostでは動作しているため、本番ドメインがHTTPリファラー制限に追加されていない可能性があります。</p>
                         <ol className="list-decimal list-inside space-y-2 ml-4">
-                          <li><strong>Google Cloud Console</strong>でAPIキーが有効か確認</li>
-                          <li><strong>APIの有効化</strong>：Maps JavaScript API、Geocoding API、Places APIが有効化されているか</li>
-                          <li><strong>HTTPリファラー制限</strong>：本番ドメイン（<code className="bg-red-100 px-1 rounded">*.vercel.app</code>）が追加されているか</li>
-                          <li><strong>請求アカウント</strong>：有効な請求アカウントが設定されているか</li>
+                          <li><strong>Google Cloud Console</strong>にアクセス:
+                            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline ml-1">
+                              認証情報ページを開く
+                            </a>
+                          </li>
+                          <li>APIキー <code className="bg-red-100 px-1 rounded">AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g</code> をクリック</li>
+                          <li><strong>「アプリケーションの制限」</strong>で<strong>「HTTPリファラー（ウェブサイト）」</strong>を選択</li>
+                          <li><strong>「ウェブサイトの制限」</strong>に以下を追加:
+                            <div className="bg-white p-2 rounded mt-2 font-mono text-xs">
+                              <div>localhost:*</div>
+                              <div>127.0.0.1:*</div>
+                              <div className="font-bold text-red-600">*.vercel.app/*</div>
+                              <div className="font-bold text-red-600">{window.location.hostname}/*</div>
+                            </div>
+                          </li>
+                          <li><strong>「保存」</strong>をクリック（反映まで数分かかる場合があります）</li>
                         </ol>
-                        <p className="mt-4 text-xs text-gray-600">
-                          <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                            Google Cloud Consoleで設定を確認
-                          </a>
-                        </p>
+                        <div className="bg-blue-50 border border-blue-400 rounded p-3 mt-4">
+                          <p className="font-semibold text-blue-800 mb-1">💡 ヒント:</p>
+                          <p className="text-blue-700 text-xs">ワイルドカード（<code className="bg-blue-100 px-1 rounded">*</code>）を使用すると、すべてのVercelドメインを一度に許可できます。</p>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        ページを再読み込み
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                        >
+                          ページを再読み込み
+                        </button>
+                        <a
+                          href="https://console.cloud.google.com/apis/credentials"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-center"
+                        >
+                          Google Cloud Consoleを開く
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}
