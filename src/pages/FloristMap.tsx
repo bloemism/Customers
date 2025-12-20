@@ -125,14 +125,28 @@ export const FloristMap: React.FC = () => {
   // Google Maps JavaScript APIキー（環境変数から取得）
   const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   
+  // プレースホルダー値のチェック
+  const isPlaceholderKey = GOOGLE_MAPS_API_KEY && (
+    GOOGLE_MAPS_API_KEY.includes('your_production_google_maps_key_here') ||
+    GOOGLE_MAPS_API_KEY.includes('your_google_maps_api_key') ||
+    GOOGLE_MAPS_API_KEY.length < 20
+  );
+  
   // デバッグ用：環境変数の確認（本番環境でも確認できるように）
   useEffect(() => {
     console.log('=== Google Maps API Key Check ===');
     console.log('API Key exists:', !!GOOGLE_MAPS_API_KEY);
     console.log('API Key length:', GOOGLE_MAPS_API_KEY?.length || 0);
-    console.log('API Key prefix:', GOOGLE_MAPS_API_KEY?.substring(0, 10) || 'N/A');
+    console.log('API Key prefix:', GOOGLE_MAPS_API_KEY?.substring(0, 20) || 'N/A');
+    console.log('Is placeholder:', isPlaceholderKey);
     console.log('Environment:', import.meta.env.MODE);
     console.log('All env vars:', Object.keys(import.meta.env).filter(key => key.includes('GOOGLE')));
+    
+    if (isPlaceholderKey) {
+      console.error('⚠️ Google Maps API Key appears to be a placeholder value!');
+      console.error('Please set VITE_GOOGLE_MAPS_API_KEY in Vercel environment variables.');
+      setError('Google Maps APIキーがプレースホルダー値のままです。Vercelの環境変数設定でVITE_GOOGLE_MAPS_API_KEYを設定してください。');
+    }
   }, []);
 
   useEffect(() => {
@@ -221,11 +235,13 @@ export const FloristMap: React.FC = () => {
       return;
     }
 
-    if (!GOOGLE_MAPS_API_KEY) {
-      console.error('Google Maps API Key is not set');
+    if (!GOOGLE_MAPS_API_KEY || isPlaceholderKey) {
+      console.error('Google Maps API Key is not set or is a placeholder');
+      console.error('API Key value:', GOOGLE_MAPS_API_KEY);
+      console.error('Is placeholder:', isPlaceholderKey);
       console.error('Environment mode:', import.meta.env.MODE);
       console.error('Available env vars:', Object.keys(import.meta.env));
-      setError('Google Maps APIキーが設定されていません。Vercelの環境変数設定を確認してください。');
+      setError('Google Maps APIキーが設定されていないか、プレースホルダー値のままです。Vercelの環境変数設定でVITE_GOOGLE_MAPS_API_KEYを正しく設定してください。');
       return;
     }
 
@@ -1396,10 +1412,32 @@ export const FloristMap: React.FC = () => {
                   <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
                     <div className="text-center max-w-2xl px-4">
                       <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 font-bold text-lg mb-2">Google Maps APIキーが設定されていません</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Vercelの環境変数設定で <code className="bg-gray-300 px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> を設定してください
-                      </p>
+                      {isPlaceholderKey ? (
+                        <>
+                          <p className="text-red-600 font-bold text-lg mb-2">⚠️ Google Maps APIキーがプレースホルダー値のままです</p>
+                          <p className="text-sm text-gray-700 mt-2 mb-4">
+                            Vercelの環境変数設定で <code className="bg-gray-300 px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> に実際のAPIキーを設定してください
+                          </p>
+                          <div className="bg-yellow-50 border border-yellow-400 rounded p-4 text-left">
+                            <p className="font-semibold text-yellow-800 mb-2">設定手順:</p>
+                            <ol className="list-decimal list-inside space-y-1 text-sm text-yellow-700">
+                              <li>Vercelダッシュボードにアクセス</li>
+                              <li>プロジェクトの「Settings」→「Environment Variables」を開く</li>
+                              <li><code className="bg-yellow-100 px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> を追加</li>
+                              <li>値に実際のGoogle Maps APIキーを設定（例: <code className="bg-yellow-100 px-1 rounded">AIzaSyDcJkaHDTPcgBSfr2923T6K6YT_kiL3s4g</code>）</li>
+                              <li>環境を「Production」「Preview」「Development」すべてに設定</li>
+                              <li>「Save」をクリックして再デプロイ</li>
+                            </ol>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-gray-600 font-bold text-lg mb-2">Google Maps APIキーが設定されていません</p>
+                          <p className="text-sm text-gray-500 mt-2">
+                            Vercelの環境変数設定で <code className="bg-gray-300 px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> を設定してください
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
