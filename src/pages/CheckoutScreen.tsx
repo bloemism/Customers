@@ -5,9 +5,14 @@ import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft,
   Plus,
+  QrCode,
   ShoppingCart,
+  Mail,
+  Copy,
+  Download,
   X
 } from 'lucide-react';
+import QRCode from 'qrcode';
 
 // 会計アイテムの型定義
 interface CheckoutItem {
@@ -88,16 +93,17 @@ const CheckoutScreen: React.FC = () => {
   // 支払い方法
   // const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_card'>('cash');
   
-  // 決済コード情報（5桁: 基本決済・5分間有効）
-  const [paymentCode5Digit, setPaymentCode5Digit] = useState<string | null>(null);
-  const [paymentCode5DigitLoading, setPaymentCode5DigitLoading] = useState(false);
+  // QRコード・URL情報
+  const [itemQRInfo, setItemQRInfo] = useState<{
+    type: 'item' | 'receipt';
+    title: string;
+    qrCodeUrl: string;
+    emailUrl: string;
+    data: unknown;
+  } | null>(null);
   
-  // 決済コード情報（6桁: 遠距離決済・1ヶ月有効）
-  const [paymentCode6Digit, setPaymentCode6Digit] = useState<string | null>(null);
-  const [paymentCode6DigitLoading, setPaymentCode6DigitLoading] = useState(false);
-  
-  // 動的決済用の金額入力（5桁コード用）
-  const [dynamicPaymentAmount, setDynamicPaymentAmount] = useState<number>(0);
+  // モーダル表示
+  const [showItemQRModal, setShowItemQRModal] = useState(false);
 
   // 店舗情報を読み込み
   useEffect(() => {
@@ -176,13 +182,17 @@ const CheckoutScreen: React.FC = () => {
         if (!isNaN(numValue)) {
           if (selectedField === 'quantity') {
             setNewItem(prev => ({ ...prev, quantity: numValue }));
+            // 数量確定後、自動的に単価に移動
+            setSelectedField('price');
           } else if (selectedField === 'price') {
             setNewItem(prev => ({ ...prev, unit_price: numValue }));
+            // 単価確定後、自動的に使用ポイントに移動
+            setSelectedField('points');
           } else if (selectedField === 'points') {
             setPointsToUse(numValue);
+            // ポイント確定後、選択をクリア（品目追加の準備完了）
+            setSelectedField(null);
           }
-          // 値を設定したら選択をクリア
-          setSelectedField(null);
           setCalculatorValue('');
         }
       }
@@ -251,190 +261,153 @@ const CheckoutScreen: React.FC = () => {
     setFinalTotal(newTotal);
   }, [checkoutItems, pointsToUse]);
 
-  // 決済コードをクリップボードにコピー
+  // URLをクリップボードにコピー
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      alert('決済コードをクリップボードにコピーしました');
+      alert('URLをクリップボードにコピーしました');
     } catch (error) {
       console.error('コピーエラー:', error);
     }
   };
 
-  // 5桁決済コード生成（基本決済、5分間有効・動的決済対応）
-  const generatePaymentCode5Digit = async () => {
-    if (!store) {
-      alert('店舗情報が不足しています');
-      return;
-    }
-
-    // 動的決済の場合、金額が入力されているか確認
-    const finalAmount = dynamicPaymentAmount > 0 ? dynamicPaymentAmount : total;
-    if (finalAmount <= 0) {
-      alert('決済金額を入力してください');
-      return;
-    }
-
+  // 5桁の決済コード生成（テーブル制約: varchar(5)）
+  const generatePaymentCode = async () => {
     try {
-      setPaymentCode5DigitLoading(true);
-      console.log('5桁決済コード生成開始（基本決済・動的決済）');
-
-      // 決済データの準備
+      console.log('決済コード生成開始');
+      
+      // 5桁のランダムコード生成
+      const code = Math.floor(10000 + Math.random() * 90000).toString();
+      
       const paymentData = {
-        type: 'payment',
-        code_type: '5digit', // 5桁コードであることを示す
-        is_dynamic: dynamicPaymentAmount > 0, // 動的決済かどうか
-        storeId: store.id,
-        storeName: store.name,
-        storeAddress: store.address,
-        storePhone: store.phone,
-        storeEmail: store.email,
-        items: checkoutItems.length > 0 ? checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            id: `${item.flower_item_category_id}_${item.color_category_id}`,
-            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
-            price: item.unit_price,
-            quantity: item.quantity,
-            total: item.total_price
-          };
-        }) : [],
-        subtotal: dynamicPaymentAmount > 0 ? dynamicPaymentAmount : subtotal,
-        tax: dynamicPaymentAmount > 0 ? Math.round(dynamicPaymentAmount * 0.1) : tax,
-        totalAmount: finalAmount,
-        pointsUsed: pointsToUse,
-        pointsEarned: dynamicPaymentAmount > 0 ? Math.round(finalAmount * 0.05) : pointsEarned,
-        timestamp: new Date().toISOString()
-      };
-
-      console.log('決済データ:', paymentData);
-
-      // 5桁の決済コードを生成（10000-99999）
-      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
-      console.log('生成された5桁決済コード:', generatedCode);
-
-      // 決済コード生成（5分間有効）
-      const { data, error } = await supabase
-        .from('payment_codes')
-        .insert({
-          code: generatedCode,
-          store_id: store.id,
-          payment_data: paymentData,
-          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分後
-        })
-        .select('code')
-        .single();
-
-      // エラーハンドリング
-      if (error) {
-        console.error('5桁決済コード生成エラー:', error);
-        alert(`決済コード生成エラー: ${error.message}`);
-        return;
-      }
-
-      if (data && data.code) {
-        setPaymentCode5Digit(data.code);
-        console.log('5桁決済コード生成成功:', data.code);
-        
-        // クリップボードにコピー
-        await copyToClipboard(data.code);
-      }
-
-    } catch (error) {
-      console.error('5桁決済コード生成エラー:', error);
-      alert(`決済コード生成エラー: ${error}`);
-    } finally {
-      setPaymentCode5DigitLoading(false);
-    }
-  };
-
-  // 6桁決済コード生成（遠距離決済、1ヶ月有効）
-  const generatePaymentCode6Digit = async () => {
-    if (!store || checkoutItems.length === 0) {
-      alert('店舗情報または商品が不足しています');
-      return;
-    }
-
-    try {
-      setPaymentCode5DigitLoading(true);
-      console.log('5桁決済コード生成開始（遠距離決済）');
-
-      // 決済データの準備
-      const paymentData = {
-        type: 'payment',
-        code_type: '5digit', // 5桁コードであることを示す
-        storeId: store.id,
-        storeName: store.name,
-        storeAddress: store.address,
-        storePhone: store.phone,
-        storeEmail: store.email,
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            id: `${item.flower_item_category_id}_${item.color_category_id}`,
-            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
-            price: item.unit_price,
-            quantity: item.quantity,
-            total: item.total_price
-          };
-        }),
+        store_name: store?.name || '不明',
+        store_address: store?.address || '不明',
+        store_phone: store?.phone || '不明',
+        store_email: store?.email || '不明',
+        store_id: store?.id || null,
+        items: checkoutItems.map(item => ({
+          id: item.id,
+          name: flowerItemCategories.find(c => c.id === item.flower_item_category_id)?.name || '不明',
+          color: colorCategories.find(c => c.id === item.color_category_id)?.name || '不明',
+          quantity: item.quantity,
+          price: item.unit_price,
+          total: item.total_price
+        })),
         subtotal: subtotal,
         tax: tax,
-        totalAmount: total,
-        pointsUsed: pointsToUse,
-        pointsEarned: pointsEarned,
+        total_amount: finalTotal,
+        points_used: pointsToUse,
+        points_earned: pointsEarned,
+        payment_method: 'payment_code',
         timestamp: new Date().toISOString()
       };
 
-      console.log('決済データ:', paymentData);
-
-      // 5桁の決済コードを生成（10000-99999）
-      const generatedCode = Math.floor(Math.random() * 90000 + 10000).toString();
-      console.log('生成された5桁決済コード:', generatedCode);
-
-      // 決済コード生成（1ヶ月有効）
-      const oneMonthFromNow = new Date();
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-      
+      // payment_codes テーブルに保存
       const { data, error } = await supabase
         .from('payment_codes')
         .insert({
-          code: generatedCode,
-          store_id: store.id,
+          code: code,
+          store_id: store?.id || null,
           payment_data: paymentData,
-          expires_at: oneMonthFromNow.toISOString() // 1ヶ月後
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30分後に期限切れ
         })
-        .select('code')
+        .select()
         .single();
 
-      // エラーハンドリング
       if (error) {
-        console.error('5桁決済コード生成エラー:', error);
-        alert(`決済コード生成エラー: ${error.message}`);
-        return;
+        console.error('決済コード保存エラー:', error);
+        throw error;
       }
 
-      if (data && data.code) {
-        setPaymentCode5Digit(data.code);
-        console.log('5桁決済コード生成成功:', data.code);
-        
-        // クリップボードにコピー
-        await copyToClipboard(data.code);
-      }
+      console.log('決済コード保存成功:', data);
 
+      setItemQRInfo({
+        type: 'receipt',
+        title: '決済コード',
+        qrCodeUrl: '',
+        emailUrl: '',
+        data: { ...paymentData, payment_code: code }
+      });
+      
+      setShowItemQRModal(true);
+      
     } catch (error) {
-      console.error('5桁決済コード生成エラー:', error);
-      alert(`決済コード生成エラー: ${error}`);
-    } finally {
-      setPaymentCode5DigitLoading(false);
+      console.error('決済コード生成エラー:', error);
+      alert(`決済コード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
+
+  // 6桁の遠距離クレジット決済コード生成
+  const generateRemoteInvoiceCode = async () => {
+    try {
+      console.log('遠距離クレジット決済コード生成開始');
+      
+      // 6桁のランダムコード生成
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const paymentData = {
+        store_name: store?.name || '不明',
+        store_address: store?.address || '不明',
+        store_phone: store?.phone || '不明',
+        store_email: store?.email || '不明',
+        store_id: store?.id || null,
+        items: checkoutItems.map(item => ({
+          id: item.id,
+          name: flowerItemCategories.find(c => c.id === item.flower_item_category_id)?.name || '不明',
+          color: colorCategories.find(c => c.id === item.color_category_id)?.name || '不明',
+          quantity: item.quantity,
+          price: item.unit_price,
+          total: item.total_price
+        })),
+        subtotal: subtotal,
+        tax: tax,
+        total_amount: finalTotal,
+        points_used: pointsToUse,
+        points_earned: pointsEarned,
+        payment_method: 'remote_credit',
+        timestamp: new Date().toISOString()
+      };
+
+      // remote_invoice_codes テーブルに保存
+      const { data, error } = await supabase
+        .from('remote_invoice_codes')
+        .insert({
+          code: code,
+          store_id: store?.id || null,
+          invoice_data: paymentData,
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 2週間後に期限切れ
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('遠距離クレジット決済コード保存エラー:', error);
+        throw error;
+      }
+
+      console.log('遠距離クレジット決済コード保存成功:', data);
+
+      setItemQRInfo({
+        type: 'receipt',
+        title: '遠距離クレジット決済コード',
+        qrCodeUrl: '',
+        emailUrl: '',
+        data: { ...paymentData, remote_invoice_code: code }
+      });
+      
+      setShowItemQRModal(true);
+      
+    } catch (error) {
+      console.error('遠距離クレジット決済コード生成エラー:', error);
+      alert(`遠距離クレジット決済コード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+
 
   if (storeLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">店舗情報を読み込み中...</p>
@@ -445,7 +418,7 @@ const CheckoutScreen: React.FC = () => {
 
   if (!store) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">店舗情報が見つかりません</p>
           <p className="text-sm text-gray-500">店舗登録を行ってください</p>
@@ -455,21 +428,21 @@ const CheckoutScreen: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="page-header-wood rounded-2xl p-6 mb-8">
+          <div className="header-content flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => window.history.back()}
-                className="p-2 text-white hover:text-green-100 transition-colors"
+                className="back-button"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-white">会計画面</h1>
-                <p className="text-green-100">{store.name}</p>
+                <h1 className="header-title text-2xl font-bold">会計画面</h1>
+                <p className="header-subtitle">{store.name}</p>
               </div>
             </div>
           </div>
@@ -477,19 +450,19 @@ const CheckoutScreen: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* 左側：品目追加・電卓 */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">品目追加</h2>
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 lg:p-4">
+            <h2 className="text-xl lg:text-lg font-semibold text-gray-900 mb-6 lg:mb-4">品目追加</h2>
 
             {/* 品目・色選択（モバイル対応・縦並び） */}
-            <div className="space-y-4 mb-4">
+            <div className="space-y-4 lg:space-y-2 mb-4 lg:mb-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                   品目 <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newItem.flower_item_category_id}
                   onChange={(e) => setNewItem(prev => ({ ...prev, flower_item_category_id: e.target.value }))}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                  className="w-full px-3 py-3 lg:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm"
                 >
                   <option value="">選択してください</option>
                   {flowerItemCategories.map(item => (
@@ -501,13 +474,13 @@ const CheckoutScreen: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                   色
                 </label>
                 <select
                   value={newItem.color_category_id}
                   onChange={(e) => setNewItem(prev => ({ ...prev, color_category_id: e.target.value }))}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+                  className="w-full px-3 py-3 lg:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base lg:text-sm"
                 >
                   <option value="">選択してください</option>
                   {colorCategories.map(color => (
@@ -520,27 +493,28 @@ const CheckoutScreen: React.FC = () => {
             </div>
 
             {/* 数量・単価・ポイント入力（モバイル対応・縦並び） */}
-            <div className="space-y-4 mb-4">
+            <div className="space-y-4 lg:space-y-2 mb-4 lg:mb-3">
               {/* 数量入力 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                   数量 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 lg:gap-1">
                   <input
                     type="text"
                     value={newItem.quantity || ''}
                     placeholder="数量"
-                    className={`flex-1 px-3 py-3 border rounded-lg text-base ${
+                    className={`flex-1 px-3 py-3 lg:py-2 border rounded-lg text-base lg:text-sm cursor-pointer ${
                       selectedField === 'quantity'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300'
+                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50'
                     }`}
                     readOnly
+                    onClick={() => setSelectedField('quantity')}
                   />
                   <button
                     onClick={() => setSelectedField('quantity')}
-                    className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
+                    className={`px-3 py-3 lg:py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium hidden sm:block ${
                       selectedField === 'quantity'
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
@@ -553,24 +527,25 @@ const CheckoutScreen: React.FC = () => {
 
               {/* 単価入力 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                   単価 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 lg:gap-1">
                   <input
                     type="text"
                     value={newItem.unit_price || ''}
                     placeholder="単価"
-                    className={`flex-1 px-3 py-3 border rounded-lg text-base ${
+                    className={`flex-1 px-3 py-3 lg:py-2 border rounded-lg text-base lg:text-sm cursor-pointer ${
                       selectedField === 'price'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        ? 'border-green-500 bg-green-50 ring-2 ring-green-300'
+                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50/50'
                     }`}
                     readOnly
+                    onClick={() => setSelectedField('price')}
                   />
                   <button
                     onClick={() => setSelectedField('price')}
-                    className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
+                    className={`px-3 py-3 lg:py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium hidden sm:block ${
                       selectedField === 'price'
                         ? 'bg-green-600 text-white shadow-md'
                         : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
@@ -584,24 +559,25 @@ const CheckoutScreen: React.FC = () => {
 
             {/* ポイント入力 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                 使用ポイント
               </label>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-1">
                 <input
                   type="text"
                   value={pointsToUse || ''}
                   placeholder="使用ポイント"
-                  className={`flex-1 px-3 py-3 border rounded-lg text-base ${
+                  className={`flex-1 px-3 py-3 lg:py-2 border rounded-lg text-base lg:text-sm cursor-pointer ${
                     selectedField === 'points'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-300'
+                      : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50/50'
                   }`}
                   readOnly
+                  onClick={() => setSelectedField('points')}
                 />
                 <button
                   onClick={() => setSelectedField('points')}
-                  className={`px-3 py-3 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
+                  className={`px-3 py-3 lg:py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium hidden sm:block ${
                     selectedField === 'points'
                       ? 'bg-purple-600 text-white shadow-md'
                       : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
@@ -613,20 +589,20 @@ const CheckoutScreen: React.FC = () => {
             </div>
 
             {/* モバイル対応電卓 */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mt-4 lg:mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2 lg:mb-1">
                 電卓
               </label>
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <div className="bg-white p-3 rounded border mb-3 text-right text-base font-mono">
+              <div className="bg-gray-100 p-4 lg:p-3 rounded-lg">
+                <div className="bg-white p-3 lg:p-2 rounded border mb-3 lg:mb-2 text-right text-base lg:text-sm font-mono">
                   {calculatorValue || '0'}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2 lg:gap-1">
                   {[7, 8, 9, 4, 5, 6, 1, 2, 3, 0, '00', '='].map((value) => (
                     <button
                       key={value}
                       onClick={() => handleCalculatorClick(value.toString())}
-                      className={`p-3 rounded text-base font-medium ${
+                      className={`p-3 lg:p-2 rounded text-base lg:text-sm font-medium ${
                         typeof value === 'number'
                           ? 'bg-white hover:bg-gray-50 text-gray-900'
                           : value === '='
@@ -638,18 +614,18 @@ const CheckoutScreen: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 lg:mt-2">
                   <button
                     onClick={() => setCalculatorValue('')}
-                    className="w-full py-3 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
+                    className="w-full py-3 lg:py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
                   >
                     クリア (C)
                   </button>
                 </div>
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800 text-center leading-relaxed">
+                <div className="mt-3 lg:mt-2 p-3 lg:p-2 bg-blue-50 rounded-lg">
+                  <p className="text-sm lg:text-xs text-blue-800 text-center leading-relaxed">
                     <strong>使い方:</strong><br/>
-                    1. 設定したい場所の「設定」ボタンを押す<br/>
+                    1. 入力欄をタップして選択<br/>
                     2. 電卓で数字を入力<br/>
                     3. 「確定」ボタンを押す
                   </p>
@@ -661,48 +637,25 @@ const CheckoutScreen: React.FC = () => {
             <button
               onClick={addItem}
               disabled={!newItem.flower_item_category_id || newItem.quantity <= 0 || newItem.unit_price <= 0}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-4"
+              className="w-full py-3 lg:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-4 lg:mt-3 text-base lg:text-sm"
             >
-              <Plus className="w-5 h-5 mr-2 inline" />
-              品目を追加
-            </button>
-
-            {/* テストデータ追加ボタン */}
-            <button
-              onClick={() => {
-                // テスト用の品目を追加
-                if (flowerItemCategories.length > 0 && colorCategories.length > 0) {
-                  const testItem: CheckoutItem = {
-                    id: `test-${Date.now()}`,
-                    flower_item_category_id: flowerItemCategories[0].id,
-                    color_category_id: colorCategories[0].id,
-                    quantity: 2,
-                    unit_price: 500,
-                    total_price: 1000
-                  };
-                  setCheckoutItems([...checkoutItems, testItem]);
-                  console.log('テスト品目を追加しました:', testItem);
-                }
-              }}
-              className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mt-2"
-            >
-              <Plus className="w-5 h-5 mr-2 inline" />
-              テスト品目追加（QRテスト用）
+              <Plus className="w-5 h-5 lg:w-4 lg:h-4 mr-2 inline" />
+              合計＋品目追加
             </button>
           </div>
 
           {/* 右側：品目一覧・計算結果 */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">会計内容</h2>
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 lg:p-4">
+            <h2 className="text-xl lg:text-lg font-semibold text-gray-900 mb-6 lg:mb-4">会計内容</h2>
 
             {/* 品目一覧 */}
                 {checkoutItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p>品目を追加してください</p>
+                  <div className="text-center py-8 lg:py-4 text-gray-500">
+                <ShoppingCart className="w-16 h-16 lg:w-12 lg:h-12 mx-auto mb-4 lg:mb-2 text-gray-300" />
+                <p className="text-base lg:text-sm">品目を追加してください</p>
                   </div>
                 ) : (
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 lg:space-y-2 mb-6 lg:mb-4">
                 {checkoutItems.map((item, index) => {
                   const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
                   const color = colorCategories.find(cat => cat.id === item.color_category_id);
@@ -735,7 +688,6 @@ const CheckoutScreen: React.FC = () => {
                 })}
               </div>
             )}
-
                     {/* ポイント使用 */}
             {checkoutItems.length > 0 && (
               <div className="border-t pt-4 mb-4">
@@ -795,102 +747,124 @@ const CheckoutScreen: React.FC = () => {
                       </div>
                     </div>
 
-            {/* 支払い方法選択 */}
+            {/* 決済コード生成ボタン */}
             <div className="mt-6 space-y-3">
-              {/* 5桁決済コード生成（基本決済・動的決済対応） */}
-              <div className="space-y-2">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
-                  <label className="block text-sm font-medium text-purple-700 mb-2">
-                    動的決済: 金額を入力してください（¥）
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={dynamicPaymentAmount || ''}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      setDynamicPaymentAmount(value);
-                    }}
-                    placeholder="金額を入力（例: 5000）"
-                    className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:outline-none text-lg"
-                  />
-                  <p className="text-xs text-purple-600 mt-1">
-                    {dynamicPaymentAmount > 0 ? `入力金額: ¥${dynamicPaymentAmount.toLocaleString()}` : '金額を入力すると動的決済になります'}
-                  </p>
-                </div>
-                
+              <button 
+                onClick={() => generatePaymentCode()}
+                className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center font-semibold"
+              >
+                <QrCode className="w-5 h-5 mr-2" />
+                決済コード生成（5桁）
+              </button>
+              
                 <button 
-                  onClick={generatePaymentCode5Digit}
-                  disabled={paymentCode5DigitLoading}
-                  className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                onClick={() => generateRemoteInvoiceCode()}
+                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center font-semibold"
                 >
-                  {paymentCode5DigitLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      生成中...
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-xl mr-2">🔢</span>
-                      決済コード生成（5桁・基本決済）
-                    </>
-                  )}
+                <QrCode className="w-5 h-5 mr-2" />
+                遠距離クレジット決済コード生成（6桁）
                 </button>
-
-                {/* 生成された5桁決済コード表示 */}
-                {paymentCode5Digit && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <p className="text-sm text-purple-700 mb-2">決済コード（5桁）</p>
-                      <p className="text-3xl font-bold text-purple-900 mb-2">{paymentCode5Digit}</p>
-                      <p className="text-xs text-purple-600">お客様にこのコードをお伝えください</p>
-                      <p className="text-xs text-purple-500 mt-1">（5分間有効）</p>
-                      {dynamicPaymentAmount > 0 && (
-                        <p className="text-xs text-purple-600 mt-1 font-semibold">
-                          動的決済: ¥{dynamicPaymentAmount.toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 6桁決済コード生成（遠距離決済） */}
-              <div className="space-y-2 mt-4">
-                <button 
-                  onClick={generatePaymentCode6Digit}
-                  disabled={paymentCode6DigitLoading}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  {paymentCode6DigitLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      生成中...
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-xl mr-2">🌐</span>
-                      決済コード生成（6桁・遠距離決済）
-                    </>
-                  )}
-                </button>
-
-                {/* 生成された6桁決済コード表示 */}
-                {paymentCode6Digit && (
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <p className="text-sm text-indigo-700 mb-2">決済コード（6桁）</p>
-                      <p className="text-3xl font-bold text-indigo-900 mb-2">{paymentCode6Digit}</p>
-                      <p className="text-xs text-indigo-600">お客様にこのコードをお伝えください</p>
-                      <p className="text-xs text-indigo-500 mt-1">（1ヶ月間有効）</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
             </div>
                       </div>
                     </div>
+
+        {/* 決済コードモーダル */}
+        {showItemQRModal && itemQRInfo && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+                {itemQRInfo.title}
+              </h3>
+              
+              {/* 決済コード表示 */}
+              {itemQRInfo.data?.payment_code && (
+                <div className="text-center mb-6">
+                  <p className="text-sm text-gray-600 mb-2">決済コード（5桁）</p>
+                  <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6">
+                    <p className="text-5xl font-bold text-green-700 tracking-widest font-mono">
+                      {itemQRInfo.data.payment_code}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-3">
+                    このコードをお客様に伝えてください<br />
+                    <span className="text-xs text-amber-600">※ 有効期限: 30分</span>
+                  </p>
+                </div>
+              )}
+
+              {/* 遠距離クレジット決済コード表示 */}
+              {itemQRInfo.data?.remote_invoice_code && (
+                <div className="text-center mb-6">
+                  <p className="text-sm text-gray-600 mb-2">遠距離クレジット決済コード（6桁）</p>
+                  <div className="bg-blue-50 border-2 border-blue-500 rounded-xl p-6">
+                    <p className="text-5xl font-bold text-blue-700 tracking-widest font-mono">
+                      {itemQRInfo.data.remote_invoice_code}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-3">
+                    このコードをお客様に伝えてください<br />
+                    <span className="text-xs text-amber-600">※ 有効期限: 2週間</span>
+                  </p>
+                </div>
+              )}
+
+              {/* QRコード - 従来の支払いの場合のみ表示 */}
+              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl && !itemQRInfo.data?.payment_code && !itemQRInfo.data?.remote_invoice_code && (
+                <div className="text-center mb-4">
+                  <img 
+                    src={itemQRInfo.qrCodeUrl} 
+                    alt="QR Code" 
+                    className="mx-auto w-48 h-48"
+                    onError={(e) => {
+                      console.error('QRコード画像の読み込みに失敗しました');
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('QRコード画像の読み込みに成功しました');
+                    }}
+                  />
+                  <p className="text-sm text-gray-600 mt-2">QRコードをスキャンして支払い</p>
+                </div>
+              )}
+
+              {/* 金額情報 */}
+              {itemQRInfo.data && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">合計金額</span>
+                    <span className="text-xl font-bold text-gray-900">
+                      ¥{itemQRInfo.data.total_amount?.toLocaleString()}
+                    </span>
+                      </div>
+                    </div>
+              )}
+
+              {/* ボタン */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowItemQRModal(false)}
+                  className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  閉じる
+                </button>
+                {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl && (
+                    <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = itemQRInfo.qrCodeUrl;
+                      link.download = `receipt-qr-${new Date().toISOString().slice(0, 10)}.png`;
+                      link.click();
+                    }}
+                    className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    QRコード保存
+                    </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
