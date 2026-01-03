@@ -1,17 +1,11 @@
 import Stripe from 'stripe';
 
-// Stripeの初期化（エラーハンドリング付き）
-let stripe;
-try {
+// Stripeインスタンスを取得する関数（エラーハンドリング付き）
+function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.error('STRIPE_SECRET_KEYが設定されていません');
     throw new Error('STRIPE_SECRET_KEY environment variable is not set');
   }
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  console.log('Stripe初期化成功');
-} catch (error) {
-  console.error('Stripe初期化エラー:', error);
-  throw error;
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
 }
 
 export default async function handler(req, res) {
@@ -32,15 +26,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Stripeの初期化チェック
-  if (!stripe) {
-    console.error('Stripeが初期化されていません');
+  // Stripeの初期化
+  let stripe;
+  try {
+    stripe = getStripe();
+    console.log('Stripe初期化成功');
+  } catch (initError) {
+    console.error('Stripe初期化エラー:', initError);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(500).json({ 
-      error: 'Stripe設定エラー: Stripeが初期化されていません',
-      details: 'STRIPE_SECRET_KEYが設定されているか確認してください'
+      error: 'Stripe設定エラー: Stripeの初期化に失敗しました',
+      details: initError.message || 'STRIPE_SECRET_KEYが設定されているか確認してください',
+      success: false
     });
   }
 
