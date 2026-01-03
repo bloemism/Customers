@@ -100,6 +100,7 @@ export class CustomerStripeService {
           amount: finalAmount,
           currency: 'jpy',
           application_fee_amount: Math.floor(finalAmount * 0.03), // 3%のプラットフォーム手数料
+          stripeAccount: paymentData.store_connect_account_id, // Stripe ConnectアカウントID
           transfer_data: {
             destination: paymentData.store_connect_account_id,
           },

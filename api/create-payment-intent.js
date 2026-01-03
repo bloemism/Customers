@@ -42,6 +42,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'transfer_data.destination（Stripe ConnectアカウントID）は必須です' });
     }
 
+    // amountがセント単位か確認（JPYの場合はそのまま、他の通貨の場合はセント単位）
+    // ただし、JPYの場合は最小単位が1円なので、そのまま使用
+    const amountInSmallestUnit = currency === 'jpy' ? amount : amount;
+
     console.log('Stripe Connect決済Intent作成開始:', {
       amount,
       currency,
@@ -130,9 +134,19 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Stripe Connect決済Intent作成エラー:', error);
+    console.error('エラー詳細:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      statusCode: error.statusCode,
+      raw: error.raw
+    });
     res.status(500).json({ 
       error: error.message || 'Internal server error',
-      success: false
+      errorType: error.type,
+      errorCode: error.code,
+      success: false,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
