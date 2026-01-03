@@ -10,6 +10,16 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1Ni
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
+  // CORS設定
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // OPTIONSリクエストの処理（プリフライト）
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -77,11 +87,18 @@ export default async function handler(req, res) {
 
     console.log('Supabase更新成功:', updateData);
 
+    // ベースURLを取得（環境変数またはデフォルト値）
+    // 本番環境ではVercelのURLを自動検出
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+      || (req.headers.host ? `https://${req.headers.host}` : null)
+      || 'http://localhost:5173';
+
     // 3. オンボーディングリンクを作成
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5174'}/stripe-connect-refresh?store_id=${storeId}`,
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5174'}/stripe-connect-return?store_id=${storeId}`,
+      refresh_url: `${baseUrl}/stripe-connect-refresh?store_id=${storeId}`,
+      return_url: `${baseUrl}/stripe-connect-return?store_id=${storeId}`,
       type: 'account_onboarding',
     });
 

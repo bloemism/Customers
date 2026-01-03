@@ -81,7 +81,11 @@ export const createConnectedAccount = async (
       }),
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      throw new Error('空のレスポンスが返されました');
+    }
+    const data = JSON.parse(text);
 
     if (!response.ok) {
       throw new Error(data.error || 'Connected Accountの作成に失敗しました');
@@ -110,7 +114,11 @@ export const getConnectedAccount = async (
   try {
     const response = await fetch(`${API_BASE_URL}/api/get-connected-account?storeId=${storeId}`);
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      return { success: false, hasAccount: false, error: '空のレスポンスが返されました' };
+    }
+    const data = JSON.parse(text);
 
     if (!response.ok) {
       throw new Error(data.error || 'アカウント情報の取得に失敗しました');
@@ -151,7 +159,11 @@ export const createAccountLink = async (
       }),
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      throw new Error('空のレスポンスが返されました');
+    }
+    const data = JSON.parse(text);
 
     if (!response.ok) {
       throw new Error(data.error || 'オンボーディングリンクの作成に失敗しました');
@@ -297,7 +309,11 @@ export const createConnectPayment = async (
       }),
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      throw new Error('空のレスポンスが返されました');
+    }
+    const data = JSON.parse(text);
 
     if (!response.ok) {
       throw new Error(data.error || '決済の作成に失敗しました');

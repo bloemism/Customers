@@ -79,7 +79,7 @@ export const StripeCheckout: React.FC = () => {
       // カスタムフィールドとして決済情報を追加
       checkoutUrl.searchParams.set('customer_name', paymentData.customerData.name);
       checkoutUrl.searchParams.set('store_name', paymentData.storeData.storeName);
-      checkoutUrl.searchParams.set('amount', paymentData.finalAmount.toString());
+      checkoutUrl.searchParams.set('amount', (paymentData.finalAmount || 0).toString());
 
       // Stripe Checkoutページにリダイレクト
       window.location.href = checkoutUrl.toString();

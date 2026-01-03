@@ -291,7 +291,7 @@ const CashPaymentPage: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">決済金額:</span>
                     <span className="font-medium text-lg text-green-600">
-                      ¥{scannedData.amount.toLocaleString()}
+                      ¥{(scannedData.amount || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between">

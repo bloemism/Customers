@@ -28,6 +28,10 @@ https://vercel.com/bloemisms-projects/customers/settings/environment-variables
 値: sk_live_***（機密情報のため記載省略 - Stripeダッシュボードから取得）
 環境: Production
 
+変数名: STRIPE_CONNECT_CLIENT_ID
+値: ca_SpnLMUrXC897dkBbRODlrs90asZYeyYL
+環境: Production
+
 変数名: SUPABASE_SERVICE_ROLE_KEY
 値: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDk5NjY1MCwiZXhwIjoyMDcwNTcyNjUwfQ.v8vniAL-aYfmFZgVDfBa6q_RoTrvmE_uXQjQweLiui8
 環境: Production

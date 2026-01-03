@@ -46,13 +46,14 @@ const PaymentPage: React.FC = () => {
       // コードタイプに応じて適切なテーブルから検索
       if (codeType === 'cash5') {
         // 現金用5桁コード: cash_payment_codesテーブルから検索
+        // 403エラー回避のため、まずpayment_codesから検索を試みる
         const cashResult = await supabase
           .from('cash_payment_codes')
           .select('*')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
           .is('used_at', null)
-          .single();
+          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（エラーを回避）
         
         if (cashResult.data) {
           data = cashResult.data;
@@ -62,7 +63,7 @@ const PaymentPage: React.FC = () => {
             .select('*, payment_data')
             .eq('code', code)
             .gt('expires_at', new Date().toISOString())
-            .single();
+            .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
           
           if (paymentResult.data && paymentResult.data.payment_data) {
             paymentData = paymentResult.data.payment_data;
@@ -77,7 +78,7 @@ const PaymentPage: React.FC = () => {
             .select('*, payment_data')
             .eq('code', code)
             .gt('expires_at', new Date().toISOString())
-            .single();
+            .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
           
           if (paymentResult.data) {
             data = paymentResult.data;
@@ -93,7 +94,7 @@ const PaymentPage: React.FC = () => {
           .select('*, payment_data')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
-          .single();
+          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
         data = result.data;
         codeError = result.error;
         if (data) {
@@ -107,7 +108,7 @@ const PaymentPage: React.FC = () => {
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
           .is('used_at', null)
-          .single();
+          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
         
         if (remoteResult.data) {
           data = remoteResult.data;
@@ -117,7 +118,7 @@ const PaymentPage: React.FC = () => {
             .select('*, payment_data')
             .eq('code', code)
             .gt('expires_at', new Date().toISOString())
-            .single();
+            .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
           
           if (paymentResult.data && paymentResult.data.payment_data) {
             paymentData = paymentResult.data.payment_data;
@@ -131,18 +132,46 @@ const PaymentPage: React.FC = () => {
       }
 
       if (codeError || !data || !paymentData) {
-        setError('無効な決済コードです。コードを確認してください。');
+        const errorMessage = codeError?.message || '無効な決済コードです。コードを確認してください。';
+        console.error('決済コード検証エラー:', { codeError, data, paymentData });
+        setError(errorMessage);
         setCodeVerifying(false);
         return;
       }
 
+      // paymentDataの構造を確認して、正しいフィールド名を使用
+      console.log('paymentData構造:', paymentData);
+      console.log('data構造:', data);
+      console.log('paymentData.items:', paymentData.items);
+      if (paymentData.items && paymentData.items.length > 0) {
+        console.log('最初のitem:', paymentData.items[0]);
+      }
+      
+      // 決済金額の計算: ポイントを引いた後に消費税をかける
+      const subtotal = paymentData.subtotal || 0;
+      const pointsToUse = paymentData.pointsUsed || paymentData.points_used || paymentData.points_to_use || 0;
+      
+      // ポイントを引いた後の金額
+      const afterPoints = Math.max(0, subtotal - pointsToUse);
+      
+      // ポイント引いた後の金額に消費税を計算（10%）
+      const tax = Math.round(afterPoints * 0.1);
+      
+      // 最終金額: ポイント引いた後 + 消費税
+      const calculatedAmount = afterPoints + tax;
+      
+      // totalAmountが存在する場合はそれを使用、なければ計算値を使用
+      const finalAmount = paymentData.totalAmount || paymentData.total_amount || paymentData.amount || calculatedAmount;
+      
       const paymentInfo: PaymentData = {
-        store_id: paymentData.storeId || data.store_id,
-        store_name: paymentData.storeName,
-        amount: paymentData.totalAmount,
-        points_to_use: paymentData.pointsUsed || 0,
+        store_id: paymentData.storeId || paymentData.store_id || data.store_id,
+        store_name: paymentData.storeName || paymentData.store_name || '不明な店舗',
+        amount: finalAmount,
+        points_to_use: pointsToUse,
         items: paymentData.items || []
       };
+      
+      console.log('設定するpaymentInfo:', paymentInfo);
 
       setScannedData(paymentInfo);
       setPaymentCodeData({ ...data, payment_data: paymentData });
@@ -215,7 +244,38 @@ const PaymentPage: React.FC = () => {
     setError('');
 
     try {
-      const result = await CustomerStripeService.processPayment(scannedData);
+      // PaymentDataの構造を確認・修正
+      console.log('決済前のscannedData:', scannedData);
+      
+      // 店舗のStripe ConnectアカウントIDを取得
+      const storeId = scannedData.store_id;
+      let storeConnectAccountId = '';
+      
+      if (storeId) {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('stripe_account_id')
+          .eq('id', storeId)
+          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
+        
+        if (storeData?.stripe_account_id) {
+          storeConnectAccountId = storeData.stripe_account_id;
+        }
+      }
+      
+      // PaymentDataを正しい形式に変換
+      const paymentData: PaymentData = {
+        store_id: scannedData.store_id,
+        store_name: scannedData.store_name || '不明な店舗',
+        amount: scannedData.amount || 0,
+        points_to_use: scannedData.points_to_use || 0,
+        items: scannedData.items || [],
+        store_connect_account_id: storeConnectAccountId
+      };
+      
+      console.log('修正後のpaymentData:', paymentData);
+      
+      const result = await CustomerStripeService.processPayment(paymentData);
       
       if (!result.success) {
         setError(result.error || '決済処理に失敗しました');
@@ -547,24 +607,87 @@ const PaymentPage: React.FC = () => {
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>店舗名</span>
                     <span style={{ color: '#2D2A26', fontWeight: 500 }}>{scannedData.store_name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: '#2D2A26', fontWeight: 500 }}>決済金額</span>
-                    <span 
-                      className="text-lg"
-                      style={{ 
-                        fontFamily: "'Cormorant Garamond', serif",
-                        color: '#5C6B4A',
-                        fontWeight: 600
-                      }}
-                    >
-                      ¥{scannedData.amount.toLocaleString()}
-                    </span>
-                  </div>
-                  {scannedData.points_to_use > 0 && (
-                  <div className="flex justify-between">
-                      <span style={{ color: '#2D2A26', fontWeight: 500 }}>使用ポイント</span>
-                      <span style={{ color: '#C4856C' }}>-{scannedData.points_to_use} pt</span>
-                  </div>
+                  
+                  {/* 購入品目テーブル */}
+                  {scannedData.items && scannedData.items.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium mb-2" style={{ color: '#2D2A26' }}>購入品目</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #E0D6C8' }}>
+                              <th className="text-left py-2 px-2" style={{ color: '#2D2A26', fontWeight: 600 }}>品目</th>
+                              <th className="text-center py-2 px-2" style={{ color: '#2D2A26', fontWeight: 600 }}>本数</th>
+                              <th className="text-right py-2 px-2" style={{ color: '#2D2A26', fontWeight: 600 }}>単価</th>
+                              <th className="text-right py-2 px-2" style={{ color: '#2D2A26', fontWeight: 600 }}>小計</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scannedData.items.map((item: any, index: number) => (
+                              <tr key={index} style={{ borderBottom: index < scannedData.items.length - 1 ? '1px solid #E0D6C8' : 'none' }}>
+                                <td className="py-2 px-2" style={{ color: '#2D2A26' }}>{item.name || item.item_name || '不明'}</td>
+                                <td className="text-center py-2 px-2" style={{ color: '#2D2A26' }}>{item.quantity || 0}</td>
+                                <td className="text-right py-2 px-2" style={{ color: '#2D2A26' }}>
+                                  ¥{(() => {
+                                    // 単価の計算: 複数のフィールド名に対応
+                                    // unit_price, price, unitPrice をチェック
+                                    // なければ total_price/quantity または totalPrice/quantity
+                                    const unitPrice = item.unit_price ?? item.price ?? item.unitPrice ?? 
+                                      (item.total_price ? (item.total_price / (item.quantity || 1)) : 
+                                      (item.totalPrice ? (item.totalPrice / (item.quantity || 1)) : 0));
+                                    return (unitPrice || 0).toLocaleString();
+                                  })()}
+                                </td>
+                                <td className="text-right py-2 px-2" style={{ color: '#2D2A26', fontWeight: 500 }}>
+                                  ¥{(() => {
+                                    // 小計の計算: 複数のフィールド名に対応
+                                    const quantity = item.quantity ?? 1;
+                                    const unitPrice = item.unit_price ?? item.unitPrice ?? item.price ?? 0;
+                                    
+                                    // total_price/totalPriceが存在する場合
+                                    const totalPriceValue = item.total_price ?? item.totalPrice;
+                                    
+                                    // total_priceが単価と同じ値の場合は、unit_price*quantityを使用
+                                    // そうでない場合は、total_priceを使用
+                                    if (totalPriceValue && totalPriceValue !== unitPrice && totalPriceValue >= unitPrice * quantity) {
+                                      return (totalPriceValue || 0).toLocaleString();
+                                    } else {
+                                      // unit_price*quantityで計算
+                                      return ((unitPrice * quantity) || 0).toLocaleString();
+                                    }
+                                  })()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {paymentCodeData?.payment_data && (
+                    <>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#2D2A26', fontWeight: 500 }}>小計</span>
+                        <span style={{ color: '#2D2A26' }}>¥{((paymentCodeData.payment_data.subtotal ?? 0) || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#2D2A26', fontWeight: 500 }}>使用ポイント</span>
+                        <span style={{ color: '#C4856C' }}>-{scannedData.points_to_use || 0} pt</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#2D2A26', fontWeight: 500 }}>ポイント引いた後</span>
+                        <span style={{ color: '#2D2A26' }}>
+                          ¥{Math.max(0, ((paymentCodeData.payment_data.subtotal ?? 0) || 0) - (scannedData.points_to_use || 0)).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span style={{ color: '#2D2A26', fontWeight: 500 }}>消費税（10%）</span>
+                        <span style={{ color: '#2D2A26' }}>
+                          ¥{Math.round(Math.max(0, ((paymentCodeData.payment_data.subtotal ?? 0) || 0) - (scannedData.points_to_use || 0)) * 0.1).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
                   )}
                   <div 
                     className="pt-3 flex justify-between"
@@ -579,7 +702,7 @@ const PaymentPage: React.FC = () => {
                         fontWeight: 600
                       }}
                     >
-                      ¥{Math.max(0, scannedData.amount - scannedData.points_to_use).toLocaleString()}
+                      ¥{((scannedData.amount ?? 0) || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>

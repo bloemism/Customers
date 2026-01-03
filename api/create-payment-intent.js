@@ -3,6 +3,16 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
+  // CORS設定
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // OPTIONSリクエストの処理（プリフライト）
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -75,13 +85,21 @@ export default async function handler(req, res) {
       };
     }
 
+    // ベースURLを取得（環境変数またはデフォルト値）
+    // 本番環境ではVercelのURLを自動検出
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || process.env.VITE_BASE_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+      || (req.headers.host ? `https://${req.headers.host}` : null)
+      || 'http://localhost:5173';
+
     // Checkout Sessionを作成（Stripe Connectアカウントで）
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [lineItem],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5175'}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5175'}/payment?canceled=true`,
+      success_url: `${baseUrl}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/dynamic-stripe-checkout?canceled=true`,
       payment_intent_data: {
         application_fee_amount: application_fee_amount,
         transfer_data: transfer_data,
@@ -96,35 +114,18 @@ export default async function handler(req, res) {
       stripeAccount: stripeAccount // Stripe Connectアカウントで作成
     });
 
-    console.log('Checkout Session作成成功:', session.id);
-
-    // Payment Intentも作成（必要に応じて）
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
-      currency: currency,
-      application_fee_amount: application_fee_amount,
-      transfer_data: transfer_data,
-      metadata: {
-        ...metadata,
-        amount: amount.toString(),
-        currency: currency,
-        created_via: '87app',
-        checkout_session_id: session.id
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    }, {
-      stripeAccount: stripeAccount // Stripe Connectアカウントで作成
+    console.log('Checkout Session作成成功:', {
+      sessionId: session.id,
+      url: session.url,
+      stripeAccount
     });
 
-    console.log('Payment Intent作成成功:', paymentIntent.id);
-
+    // Checkout SessionのURLを返す
     res.status(200).json({
+      success: true,
       sessionId: session.id,
-      payment_intent_id: paymentIntent.id,
-      client_secret: paymentIntent.client_secret,
-      success: true
+      url: session.url, // Checkout SessionのURL
+      payment_intent_id: session.payment_intent,
     });
 
   } catch (error) {

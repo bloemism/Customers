@@ -37,7 +37,11 @@ export const createPaymentIntent = async (amount: number, storeId: string, custo
       throw new Error('Payment Intent作成に失敗しました');
     }
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      throw new Error('空のレスポンスが返されました');
+    }
+    const data = JSON.parse(text);
     return data;
   } catch (error) {
     console.error('Payment Intent作成エラー:', error);
@@ -74,7 +78,11 @@ export const getStoreAccount = async (storeId: string) => {
       throw new Error('店舗アカウント情報の取得に失敗しました');
     }
 
-    const data = await response.json();
+    const text = await response.text();
+    if (!text) {
+      throw new Error('空のレスポンスが返されました');
+    }
+    const data = JSON.parse(text);
     return data;
   } catch (error) {
     console.error('店舗アカウント取得エラー:', error);

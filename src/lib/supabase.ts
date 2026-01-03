@@ -36,7 +36,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': '87app-flower-shop'
+      'X-Client-Info': '87app-flower-shop',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
     }
   }
 })

@@ -3,11 +3,14 @@ import type { PaymentIntent, ApiResponse } from '../types';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+// API Base URL（空の場合は相対パス）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export class PaymentService {
   // 決済セッションを作成
   static async createPaymentSession(amount: number, currency: string = 'jpy'): Promise<ApiResponse<PaymentIntent>> {
     try {
-      const response = await fetch('/api/create-payment-intent', {
+      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -18,7 +21,11 @@ export class PaymentService {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text) {
+        throw new Error('空のレスポンスが返されました');
+      }
+      const data = JSON.parse(text);
 
       if (!response.ok) {
         throw new Error(data.error || '決済セッションの作成に失敗しました');
@@ -38,7 +45,7 @@ export class PaymentService {
   // QRコード用の決済セッションを作成
   static async createQRPaymentSession(amount: number): Promise<ApiResponse<{ qr_code: string; session_id: string }>> {
     try {
-      const response = await fetch('/api/create-qr-payment', {
+      const response = await fetch(`${API_BASE_URL}/api/create-qr-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +76,7 @@ export class PaymentService {
   // 決済を確認
   static async confirmPayment(paymentIntentId: string): Promise<ApiResponse<boolean>> {
     try {
-      const response = await fetch('/api/confirm-payment', {
+      const response = await fetch(`${API_BASE_URL}/api/confirm-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

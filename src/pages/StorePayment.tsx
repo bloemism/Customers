@@ -105,16 +105,18 @@ export const StorePayment: React.FC = () => {
         .from('payment_codes')
         .select('payment_data, expires_at, used_at')
         .eq('code', code)
-        .single();
+        .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラーを回避）
 
       if (error) {
         console.error('決済コード取得エラー:', error);
         if (error.code === 'PGRST116') {
           setCodeError('決済コードが見つかりません');
-        } else if (error.code === '406') {
+        } else if (error.code === '406' || error.status === 406) {
           setCodeError('アクセス権限がありません。管理者にお問い合わせください。');
+        } else if (error.code === 'PGRST301' || error.status === 403) {
+          setCodeError('アクセス権限がありません。ログイン状態を確認してください。');
         } else {
-          setCodeError(`決済コードの取得に失敗しました: ${error.message}`);
+          setCodeError(`決済コードの取得に失敗しました: ${error.message || '不明なエラー'}`);
         }
         return;
       }
@@ -339,7 +341,7 @@ export const StorePayment: React.FC = () => {
                 )}
                 <div className="flex justify-between text-xl font-bold">
                   <span className="text-gray-900">合計金額:</span>
-                  <span className="text-purple-600">¥{paymentData.finalAmount.toLocaleString()}</span>
+                  <span className="text-purple-600">¥{(paymentData.finalAmount || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -359,7 +361,7 @@ export const StorePayment: React.FC = () => {
             ) : (
               <>
                 <CreditCard className="w-5 h-5 mr-2" />
-                ¥{paymentData.finalAmount.toLocaleString()} を決済する
+                ¥{(paymentData.finalAmount || 0).toLocaleString()} を決済する
               </>
             )}
           </button>

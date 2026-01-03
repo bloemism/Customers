@@ -3,12 +3,17 @@ import { supabase } from '../lib/supabase';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+// API Base URL（空の場合は相対パス）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export interface PaymentData {
+  store_id?: string;
   amount: number;
   store_connect_account_id: string;
   store_name: string;
-  customer_id: string;
+  customer_id?: string;
   points_to_use: number;
+  items?: any[];
 }
 
 export interface PaymentResult {
@@ -82,8 +87,11 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
+      // API Base URL（空の場合は相対パス）
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
       // Stripe Payment Intentを作成
-      const response = await fetch('/api/create-payment-intent', {
+      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,13 +106,17 @@ export class CustomerStripeService {
           metadata: {
             store_name: paymentData.store_name,
             customer_id: customerData.user_id,
-            points_used: paymentData.points_to_use.toString(),
-            original_amount: paymentData.amount.toString(),
+            points_used: (paymentData.points_to_use || 0).toString(),
+            original_amount: (paymentData.amount || 0).toString(),
           },
         }),
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      if (!text) {
+        throw new Error('空のレスポンスが返されました');
+      }
+      const result = JSON.parse(text);
 
       if (!response.ok) {
         throw new Error(result.error || '決済セッションの作成に失敗しました');
@@ -145,8 +157,12 @@ export class CustomerStripeService {
       }
 
       // 決済情報を取得
-      const response = await fetch(`/api/payment-status/${paymentIntentId}`);
-      const paymentStatus = await response.json();
+      const response = await fetch(`${API_BASE_URL}/api/payment-status/${paymentIntentId}`);
+      const text = await response.text();
+      if (!text) {
+        throw new Error('空のレスポンスが返されました');
+      }
+      const paymentStatus = JSON.parse(text);
 
       if (!paymentStatus.success) {
         throw new Error('決済情報の取得に失敗しました');
@@ -226,8 +242,12 @@ export class CustomerStripeService {
   // 決済状態を確認
   static async checkPaymentStatus(paymentIntentId: string): Promise<any> {
     try {
-      const response = await fetch(`/api/payment-status/${paymentIntentId}`);
-      const result = await response.json();
+      const response = await fetch(`${API_BASE_URL}/api/payment-status/${paymentIntentId}`);
+      const text = await response.text();
+      if (!text) {
+        return { success: false, error: '空のレスポンスが返されました' };
+      }
+      const result = JSON.parse(text);
 
       if (!response.ok) {
         throw new Error(result.error || '決済状態の確認に失敗しました');

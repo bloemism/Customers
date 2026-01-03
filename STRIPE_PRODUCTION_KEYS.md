@@ -14,7 +14,7 @@ STRIPE_SECRET_KEY=sk_live_***（機密情報のため記載省略）
 
 ### Connect Client ID
 ```
-STRIPE_CONNECT_CLIENT_ID=ca_***（機密情報のため記載省略）
+STRIPE_CONNECT_CLIENT_ID=ca_SpnLMUrXC897dkBbRODlrs90asZYeyYL
 ```
 
 ## 環境変数設定
@@ -33,7 +33,7 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_live_***（機密情報のため記載省略）
 
 # Stripe設定（サーバーサイド用）
 STRIPE_SECRET_KEY=sk_live_***（機密情報のため記載省略）
-STRIPE_CONNECT_CLIENT_ID=ca_***（機密情報のため記載省略）
+STRIPE_CONNECT_CLIENT_ID=ca_SpnLMUrXC897dkBbRODlrs90asZYeyYL
 
 # アプリケーション設定
 VITE_APP_NAME=Bloemism Customers
@@ -51,7 +51,7 @@ VITE_DEV_MODE=false
 
 ```bash
 STRIPE_SECRET_KEY=sk_live_***（機密情報のため記載省略）
-STRIPE_CONNECT_CLIENT_ID=ca_***（機密情報のため記載省略）
+STRIPE_CONNECT_CLIENT_ID=ca_SpnLMUrXC897dkBbRODlrs90asZYeyYL
 SUPABASE_URL=https://aoqmdyapjsmmvjrwfdup.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 ```

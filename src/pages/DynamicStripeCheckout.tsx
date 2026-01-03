@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CreditCard, User, Building, ShoppingCart, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 // API Base URL（空の場合は相対パス）
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -40,6 +41,8 @@ export const DynamicStripeCheckout: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [storeAccountId, setStoreAccountId] = useState<string | null>(null);
+  const [loadingAccount, setLoadingAccount] = useState(true);
 
   // ローカルストレージから決済データを取得
   useEffect(() => {
@@ -58,25 +61,86 @@ export const DynamicStripeCheckout: React.FC = () => {
     }
   }, []);
 
-  // Stripe Checkout（API経由でmetadataを正しく渡す）
+  // 店舗のStripe ConnectアカウントIDを取得
+  useEffect(() => {
+    const fetchStoreAccount = async () => {
+      if (!paymentData?.storeData?.storeId) return;
+
+      try {
+        setLoadingAccount(true);
+        const { data, error } = await supabase
+          .from('stores')
+          .select('stripe_account_id, stripe_charges_enabled, stripe_onboarding_completed')
+          .eq('id', paymentData.storeData.storeId)
+          .single();
+
+        if (error) {
+          console.error('店舗情報取得エラー:', error);
+          setError('店舗情報の取得に失敗しました');
+          return;
+        }
+
+        if (data?.stripe_account_id) {
+          setStoreAccountId(data.stripe_account_id);
+          console.log('Stripe ConnectアカウントID取得:', data.stripe_account_id);
+          
+          // オンボーディングが完了していない場合の警告
+          if (!data.stripe_onboarding_completed) {
+            setError('この店舗はStripe Connectの設定が完了していません。店舗オーナーに連絡してください。');
+          }
+        } else {
+          setError('この店舗はStripe Connectアカウントが設定されていません。');
+        }
+      } catch (error) {
+        console.error('アカウント取得エラー:', error);
+        setError('店舗アカウント情報の取得に失敗しました');
+      } finally {
+        setLoadingAccount(false);
+      }
+    };
+
+    if (paymentData?.storeData?.storeId) {
+      fetchStoreAccount();
+    }
+  }, [paymentData?.storeData?.storeId]);
+
+  // Stripe Checkout（Stripe Connect経由）
   const handleDynamicPayment = async () => {
     if (!paymentData) return;
+    if (!storeAccountId) {
+      setError('店舗のStripe Connectアカウントが設定されていません');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
-      console.log('決済データ:', paymentData);
+      console.log('Stripe Connect決済開始:', {
+        amount: paymentData.finalAmount,
+        storeAccountId,
+        paymentData
+      });
 
-      // Payment Intent作成（metadata付き）
+      // 手数料計算（3%のプラットフォーム手数料）
+      const platformFeeRate = 0.03;
+      const applicationFeeAmount = Math.round(paymentData.finalAmount * 100 * platformFeeRate);
+      const amountInCents = Math.round(paymentData.finalAmount * 100);
+
+      // Stripe Connect決済Intent作成
       const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: Math.round(paymentData.finalAmount * 100), // 円をセントに変換
+          amount: amountInCents, // 円をセントに変換
           currency: 'jpy',
+          stripeAccount: storeAccountId, // Stripe ConnectアカウントID
+          application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（3%）
+          transfer_data: {
+            destination: storeAccountId, // 店舗アカウントへの送金先
+          },
           metadata: {
             customer_id: paymentData.customerData.id,
             customer_name: paymentData.customerData.name,
@@ -85,29 +149,48 @@ export const DynamicStripeCheckout: React.FC = () => {
             store_name: paymentData.storeData.storeName,
             payment_code: paymentData.paymentCode,
             points_used: '0', // 今後実装
+            platform_fee: (applicationFeeAmount || 0).toString(),
           }
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          const text = await response.text();
+          errorData = text ? JSON.parse(text) : { error: 'Unknown error' };
+        } catch (e) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
         console.error('API エラーレスポンス:', errorData);
         throw new Error(errorData.error || 'Payment Intentの作成に失敗しました');
       }
 
-      const { url, sessionId } = await response.json();
+      const text = await response.text();
+      if (!text) {
+        throw new Error('空のレスポンスが返されました');
+      }
+      const result = JSON.parse(text);
+      console.log('Stripe Connect決済Intent作成成功:', result);
 
-      console.log('Checkout Session作成成功:', { sessionId, url });
-
-      // Stripe Checkoutページにリダイレクト
-      if (url) {
-        window.location.href = url;
+      // Checkout SessionのURLを取得
+      if (result.url) {
+        // Checkout Session URLが直接返された場合
+        window.location.href = result.url;
+      } else if (result.sessionId) {
+        // Session IDのみ返された場合、Stripe Checkout URLを構築
+        const checkoutUrl = `https://checkout.stripe.com/c/pay/${result.sessionId}`;
+        window.location.href = checkoutUrl;
+      } else if (result.client_secret) {
+        // Payment Intentのclient_secretが返された場合
+        // Stripe Elementsを使用する必要がありますが、ここではCheckout Sessionを使用
+        throw new Error('Checkout Session URLが取得できませんでした');
       } else {
         throw new Error('Checkout URLが取得できませんでした');
       }
 
     } catch (error) {
-      console.error('Stripe決済エラー:', error);
+      console.error('Stripe Connect決済エラー:', error);
       setError(error instanceof Error ? error.message : '決済に失敗しました');
     } finally {
       setLoading(false);
@@ -117,10 +200,17 @@ export const DynamicStripeCheckout: React.FC = () => {
   // 決済完了後の処理
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
+    const session_id = urlParams.get('session_id');
     const payment_intent = urlParams.get('payment_intent');
     const payment_intent_client_secret = urlParams.get('payment_intent_client_secret');
+    const canceled = urlParams.get('canceled');
 
-    if (payment_intent && payment_intent_client_secret) {
+    if (canceled === 'true') {
+      setError('決済がキャンセルされました');
+      return;
+    }
+
+    if (session_id || (payment_intent && payment_intent_client_secret)) {
       // 決済完了
       setSuccess(true);
       // ローカルストレージをクリア
@@ -249,21 +339,45 @@ export const DynamicStripeCheckout: React.FC = () => {
 
         {/* 決済ボタン */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-              <p className="text-sm text-yellow-800">
-                <strong>動的決済:</strong> 金額が正確に反映されます（¥{paymentData.finalAmount.toLocaleString()}）
-              </p>
+          {loadingAccount && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                <p className="text-sm text-blue-800">
+                  店舗のStripe Connectアカウント情報を取得中...
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+          
+          {!loadingAccount && !storeAccountId && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                <p className="text-sm text-red-800">
+                  <strong>エラー:</strong> この店舗はStripe Connectアカウントが設定されていません。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!loadingAccount && storeAccountId && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                <p className="text-sm text-green-800">
+                  <strong>Stripe Connect決済:</strong> 金額 ¥{paymentData.finalAmount.toLocaleString()}（手数料3%込み）
+                </p>
+              </div>
+            </div>
+          )}
           
           <button
             onClick={handleDynamicPayment}
-            disabled={loading}
+            disabled={loading || loadingAccount || !storeAccountId}
             className="w-full bg-blue-600 text-white py-4 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium text-lg"
           >
-            {loading ? (
+            {loading || loadingAccount ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                 処理中...
@@ -271,7 +385,7 @@ export const DynamicStripeCheckout: React.FC = () => {
             ) : (
               <>
                 <CreditCard className="h-5 w-5 mr-2" />
-                動的決済でStripe決済する
+                Stripe Connectで決済する
               </>
             )}
           </button>
