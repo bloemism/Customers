@@ -9,11 +9,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export interface PaymentData {
   store_id?: string;
   amount: number;
-  store_connect_account_id: string;
   store_name: string;
   customer_id?: string;
   points_to_use: number;
   items?: any[];
+  // 注意: store_connect_account_idは削除（Destination Charges方式では不要）
 }
 
 export interface PaymentResult {
