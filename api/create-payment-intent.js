@@ -1,6 +1,18 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Stripeの初期化（エラーハンドリング付き）
+let stripe;
+try {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('STRIPE_SECRET_KEYが設定されていません');
+    throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+  }
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  console.log('Stripe初期化成功');
+} catch (error) {
+  console.error('Stripe初期化エラー:', error);
+  throw error;
+}
 
 export default async function handler(req, res) {
   // CORS設定
@@ -14,7 +26,22 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Stripeの初期化チェック
+  if (!stripe) {
+    console.error('Stripeが初期化されていません');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(500).json({ 
+      error: 'Stripe設定エラー: Stripeが初期化されていません',
+      details: 'STRIPE_SECRET_KEYが設定されているか確認してください'
+    });
   }
 
   try {
@@ -34,13 +61,16 @@ export default async function handler(req, res) {
       items                      // 商品情報（直接指定も可能）
     } = req.body;
 
-    // 環境変数のチェック
+    // 環境変数のチェック（既に初期化時にチェック済みだが、念のため再確認）
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEYが設定されていません');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      return res.status(500).json({ error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません' });
+      return res.status(500).json({ 
+        error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません',
+        details: 'Vercelの環境変数でSTRIPE_SECRET_KEYを設定してください'
+      });
     }
 
     // 必須パラメータのチェック
