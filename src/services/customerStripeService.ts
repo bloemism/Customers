@@ -35,16 +35,17 @@ export class CustomerStripeService {
       const data = JSON.parse(qrData);
       
       // 必要なフィールドが存在するかチェック
-      if (!data.amount || !data.store_connect_account_id || !data.store_name) {
+      if (!data.amount || !data.store_name) {
         throw new Error('QRコードデータが不完全です');
       }
 
       return {
+        store_id: data.store_id,
         amount: data.amount,
-        store_connect_account_id: data.store_connect_account_id,
         store_name: data.store_name,
         customer_id: data.customer_id || '',
-        points_to_use: data.points_to_use || 0
+        points_to_use: data.points_to_use || 0,
+        items: data.items || []
       };
     } catch (error) {
       console.error('QRコードデータ解析エラー:', error);
