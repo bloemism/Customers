@@ -45,8 +45,16 @@ export default async function handler(req, res) {
 
     // Stripeキーの形式確認（sk_test_またはsk_live_で始まる必要がある）
     const secretKey = process.env.STRIPE_SECRET_KEY;
+    const keyPrefix = secretKey.substring(0, 7); // 最初の7文字を取得
+    console.log('Stripe Secret Key確認:', {
+      keyPrefix: keyPrefix,
+      keyLength: secretKey.length,
+      isTestKey: secretKey.startsWith('sk_test_'),
+      isLiveKey: secretKey.startsWith('sk_live_')
+    });
+
     if (!secretKey.startsWith('sk_test_') && !secretKey.startsWith('sk_live_')) {
-      console.error('STRIPE_SECRET_KEYの形式が正しくありません:', secretKey.substring(0, 10) + '...');
+      console.error('STRIPE_SECRET_KEYの形式が正しくありません:', keyPrefix + '...');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
