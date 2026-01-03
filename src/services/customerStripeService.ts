@@ -88,8 +88,16 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
-      // API Base URL（空の場合は相対パス）
+      // API Base URL（空の場合は相対パスを使用して同じデプロイメント内でアクセス）
+      // 注意: 相対パスを使用することで、同じデプロイメント内のAPIにアクセスできる
+      // VITE_API_BASE_URLが設定されている場合は使用、なければ空文字（相対パス）
+      // これにより、Preview環境とProduction環境の両方で動作する
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      
+      // デバッグ用ログ
+      if (import.meta.env.DEV) {
+        console.log('API_BASE_URL:', API_BASE_URL || '(相対パス)');
+      }
 
       console.log('APIリクエスト送信（運営側アカウント）:', {
         url: `${API_BASE_URL}/api/create-payment-intent`,
