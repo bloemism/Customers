@@ -203,6 +203,17 @@ export default async function handler(req, res) {
 
     let session;
     try {
+      // Stripe APIのタイムアウトとリトライ設定
+      const stripeConfig = {
+        timeout: 30000, // 30秒のタイムアウト
+        maxNetworkRetries: 3, // 最大3回リトライ
+      };
+
+      console.log('Stripe Checkout Session作成開始（リトライ設定付き）:', {
+        timeout: stripeConfig.timeout,
+        maxNetworkRetries: stripeConfig.maxNetworkRetries
+      });
+
       session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [lineItem],
@@ -212,6 +223,9 @@ export default async function handler(req, res) {
         payment_intent_data: {
           metadata: finalMetadata,
         },
+      }, {
+        timeout: stripeConfig.timeout,
+        maxNetworkRetries: stripeConfig.maxNetworkRetries,
       });
       // 注意: stripeAccountは指定しない（運営側のアカウントで決済）
     } catch (stripeError) {
@@ -221,16 +235,30 @@ export default async function handler(req, res) {
         code: stripeError.code,
         message: stripeError.message,
         statusCode: stripeError.statusCode,
-        raw: stripeError.raw
+        raw: stripeError.raw,
+        requestId: stripeError.requestId,
+        headers: stripeError.headers
       });
+
+      // 接続エラーの場合、より詳細なメッセージを返す
+      let errorMessage = stripeError.message || 'Stripe APIへの接続エラーが発生しました';
+      if (stripeError.message && stripeError.message.includes('connection')) {
+        errorMessage = 'Stripe APIへの接続に失敗しました。しばらく待ってから再度お試しください。';
+      } else if (stripeError.message && stripeError.message.includes('retried')) {
+        errorMessage = 'Stripe APIへの接続がタイムアウトしました。ネットワーク接続を確認してください。';
+      }
+
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(500).json({
-        error: `Stripe Checkout Session作成エラー: ${stripeError.message}`,
-        errorType: stripeError.type || 'Unknown',
-        errorCode: stripeError.code || 'unknown',
-        success: false
+        error: errorMessage,
+        errorType: stripeError.type || 'StripeAPIError',
+        errorCode: stripeError.code || 'connection_error',
+        requestId: stripeError.requestId || undefined,
+        success: false,
+        retryable: true, // リトライ可能なエラーであることを示す
+        help: 'しばらく待ってから再度お試しください。問題が続く場合は、ネットワーク接続を確認してください。'
       });
     }
 
