@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         price_data: {
           currency: currency,
           product: product_id,
-          unit_amount: amount, // 顧客が手動で入力した金額
+          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（JPYの場合は円単位）
         },
         quantity: 1,
       };
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
               created_at: new Date().toISOString()
             }
           },
-          unit_amount: amount, // 顧客が手動で入力した金額
+          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（JPYの場合は円単位）
         },
         quantity: 1,
       };
