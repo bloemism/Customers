@@ -868,34 +868,9 @@ const PaymentPage: React.FC = () => {
                 border: '1px solid #FECACA'
               }}
             >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#DC2626' }} />
-                  <span className="text-sm" style={{ color: '#DC2626' }}>
-                    {error.includes('登録ページ:') ? error.split('登録ページ:')[0] : error}
-                  </span>
-                </div>
-                {error.includes('登録ページ:') && scannedData?.store_id && (
-                  <a
-                    href={`/stripe-connect-onboarding?store_id=${encodeURIComponent(scannedData.store_id)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block px-4 py-2 rounded-sm text-sm font-medium transition-colors text-center"
-                    style={{
-                      backgroundColor: '#3D4A35',
-                      color: '#FAF8F5',
-                      border: '1px solid #2D3A25'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#2D3A25';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#3D4A35';
-                    }}
-                  >
-                    Stripe Connectに登録する
-                  </a>
-                )}
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#DC2626' }} />
+                <span className="text-sm" style={{ color: '#DC2626' }}>{error}</span>
               </div>
             </div>
           )}
