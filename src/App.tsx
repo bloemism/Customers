@@ -28,6 +28,7 @@ const PrivacyAndPaymentPage = React.lazy(() => import('./pages/PrivacyAndPayment
 const StripeTest = React.lazy(() => import('./pages/StripeTest'));
 const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
 const CashPaymentPage = React.lazy(() => import('./pages/CashPaymentPage'));
+const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
 const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen').then(module => ({ default: module.CustomerMenuScreen })));
 const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin').then(module => ({ default: module.CustomerLogin })));
 const CustomerSignUp = React.lazy(() => import('./pages/CustomerSignUp').then(module => ({ default: module.CustomerSignUp })));
