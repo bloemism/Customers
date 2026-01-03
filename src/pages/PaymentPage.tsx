@@ -252,31 +252,15 @@ const PaymentPage: React.FC = () => {
       let storeConnectAccountId = '';
       
       if (storeId) {
-        console.log('店舗IDでStripe Connectアカウントを検索:', storeId);
-        const { data: storeData, error: storeError } = await supabase
+        const { data: storeData } = await supabase
           .from('stores')
-          .select('stripe_account_id, stripe_connect_account_id')
+          .select('stripe_account_id')
           .eq('id', storeId)
           .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
         
-        if (storeError) {
-          console.error('店舗データ取得エラー:', storeError);
+        if (storeData?.stripe_account_id) {
+          storeConnectAccountId = storeData.stripe_account_id;
         }
-        
-        console.log('取得した店舗データ:', storeData);
-        
-        // stripe_account_id または stripe_connect_account_id をチェック
-        storeConnectAccountId = storeData?.stripe_account_id || storeData?.stripe_connect_account_id || '';
-        
-        if (!storeConnectAccountId) {
-          setError('この店舗はStripe Connectアカウントが設定されていません。店舗にStripe Connectの設定を依頼してください。');
-          setProcessing(false);
-          return;
-        }
-      } else {
-        setError('店舗IDが取得できませんでした');
-        setProcessing(false);
-        return;
       }
       
       // PaymentDataを正しい形式に変換
@@ -291,8 +275,9 @@ const PaymentPage: React.FC = () => {
       
       console.log('修正後のpaymentData:', paymentData);
       
-      if (!paymentData.store_connect_account_id) {
-        setError('Stripe ConnectアカウントIDが取得できませんでした');
+      // Stripe ConnectアカウントIDの確認
+      if (!storeConnectAccountId) {
+        setError('店舗のStripe Connectアカウントが設定されていません。店舗がStripe Connectに登録しているか確認してください。');
         setProcessing(false);
         return;
       }
@@ -301,6 +286,9 @@ const PaymentPage: React.FC = () => {
       
       if (!result.success) {
         setError(result.error || '決済処理に失敗しました');
+      } else if (result.payment_intent_id) {
+        // 成功時はStripe Checkoutにリダイレクトされる
+        console.log('決済処理成功:', result);
       }
     } catch (err) {
       setError('決済処理中にエラーが発生しました');

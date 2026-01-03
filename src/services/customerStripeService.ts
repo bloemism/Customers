@@ -87,13 +87,14 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
-      // API Base URL（空の場合は相対パス）
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
       // Stripe ConnectアカウントIDの確認
       if (!paymentData.store_connect_account_id) {
-        throw new Error('Stripe ConnectアカウントIDが設定されていません');
+        console.error('Stripe ConnectアカウントIDが設定されていません:', paymentData);
+        throw new Error('Stripe ConnectアカウントIDが設定されていません。店舗がStripe Connectに登録しているか確認してください。');
       }
+
+      // API Base URL（空の場合は相対パス）
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
       console.log('APIリクエスト送信:', {
         url: `${API_BASE_URL}/api/create-payment-intent`,
@@ -148,13 +149,28 @@ export class CustomerStripeService {
         throw new Error(result.error || result.message || `決済セッションの作成に失敗しました (${response.status})`);
       }
 
-      // Stripe Checkoutにリダイレクト
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: result.sessionId,
-      });
+      // Checkout SessionのURLが返された場合は直接リダイレクト
+      if (result.url) {
+        console.log('Stripe Checkout URLにリダイレクト:', result.url);
+        window.location.href = result.url;
+        return {
+          success: true,
+          payment_intent_id: result.payment_intent_id,
+          points_earned: Math.floor(finalAmount * 0.05) // 5%のポイント付与
+        };
+      }
 
-      if (error) {
-        throw new Error(`決済リダイレクトエラー: ${error.message}`);
+      // sessionIdが返された場合はredirectToCheckoutを使用
+      if (result.sessionId) {
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: result.sessionId,
+        });
+
+        if (error) {
+          throw new Error(`決済リダイレクトエラー: ${error.message}`);
+        }
+      } else {
+        throw new Error('Checkout SessionのURLまたはsessionIdが返されませんでした');
       }
 
       return {
