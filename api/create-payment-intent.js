@@ -29,16 +29,48 @@ export default async function handler(req, res) {
   // Stripeの初期化
   let stripe;
   try {
+    // 環境変数の存在確認
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('STRIPE_SECRET_KEYが設定されていません');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(500).json({ 
+        error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません',
+        details: 'Vercel Dashboardで環境変数STRIPE_SECRET_KEYを設定してください',
+        help: 'https://vercel.com/bloemisms-projects/customers/settings/environment-variables',
+        success: false
+      });
+    }
+
+    // Stripeキーの形式確認（sk_test_またはsk_live_で始まる必要がある）
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey.startsWith('sk_test_') && !secretKey.startsWith('sk_live_')) {
+      console.error('STRIPE_SECRET_KEYの形式が正しくありません:', secretKey.substring(0, 10) + '...');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(500).json({ 
+        error: 'Stripe設定エラー: STRIPE_SECRET_KEYの形式が正しくありません',
+        details: 'STRIPE_SECRET_KEYはsk_test_またはsk_live_で始まる必要があります',
+        help: 'Stripe Dashboardから正しいSecret Keyを取得してください: https://dashboard.stripe.com/apikeys',
+        success: false
+      });
+    }
+
     stripe = getStripe();
     console.log('Stripe初期化成功');
   } catch (initError) {
     console.error('Stripe初期化エラー:', initError);
+    console.error('エラースタック:', initError.stack);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(500).json({ 
       error: 'Stripe設定エラー: Stripeの初期化に失敗しました',
       details: initError.message || 'STRIPE_SECRET_KEYが設定されているか確認してください',
+      errorType: initError.name || 'Unknown',
+      help: 'Vercel Dashboardで環境変数を確認してください: https://vercel.com/bloemisms-projects/customers/settings/environment-variables',
       success: false
     });
   }
