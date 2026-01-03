@@ -18,27 +18,46 @@ export default async function handler(req, res) {
   }
 
   try {
+    // リクエストボディをログ出力（デバッグ用）
+    console.log('リクエストボディ:', JSON.stringify(req.body, null, 2));
+
     const { 
       amount,                    // 顧客が手動で入力した決済金額（必須）
       currency = 'jpy', 
       product_id,                // 事前に作成した商品ID（オプション）
       product_name,              // 商品名（product_idがない場合に使用）
-      metadata                   // メタデータ（store_id, customer_id等を含む）
+      metadata,                  // メタデータ（store_id, customer_id等を含む）
+      store_id,                  // 店舗ID（直接指定も可能）
+      store_name,                // 店舗名（直接指定も可能）
+      customer_id,               // 顧客ID（直接指定も可能）
+      points_to_use,             // 使用ポイント（直接指定も可能）
+      items                      // 商品情報（直接指定も可能）
     } = req.body;
 
     // 環境変数のチェック
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEYが設定されていません');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(500).json({ error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません' });
     }
 
     // 必須パラメータのチェック
     if (!amount || amount <= 0) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(400).json({ error: '決済金額（amount）は必須で、0より大きい値である必要があります' });
     }
 
-    if (!metadata || !metadata.store_id) {
-      return res.status(400).json({ error: 'store_idがメタデータに含まれている必要があります' });
+    // store_idの取得（metadataまたは直接指定）
+    const finalStoreId = store_id || metadata?.store_id;
+    if (!finalStoreId) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(400).json({ error: 'store_idが必要です（metadataまたは直接指定）' });
     }
 
     // amountがセント単位か確認（JPYの場合は整数でOK）
@@ -52,6 +71,19 @@ export default async function handler(req, res) {
       product_name,
       metadata
     });
+
+    // メタデータを統合（直接指定された値を優先）
+    const finalMetadata = {
+      ...metadata,
+      store_id: finalStoreId,
+      store_name: store_name || metadata?.store_name || '不明な店舗',
+      customer_id: customer_id || metadata?.customer_id || '',
+      points_used: (points_to_use || metadata?.points_used || 0).toString(),
+      original_amount: amount.toString(),
+      items: items ? JSON.stringify(items) : (metadata?.items ? JSON.stringify(metadata.items) : '[]'),
+      created_via: '87app',
+      created_at: new Date().toISOString()
+    };
 
     // 商品情報を準備
     let lineItem = {};
@@ -71,13 +103,9 @@ export default async function handler(req, res) {
         price_data: {
           currency: currency,
           product_data: {
-            name: product_name || metadata?.store_name || '花屋でのお買い物',
+            name: product_name || finalMetadata.store_name || '花屋でのお買い物',
             description: metadata?.description || '87app経由での決済',
-            metadata: {
-              ...metadata,
-              created_via: '87app',
-              created_at: new Date().toISOString()
-            }
+            metadata: finalMetadata
           },
           unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（最小単位）
         },
@@ -101,13 +129,7 @@ export default async function handler(req, res) {
       success_url: `${baseUrl}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/dynamic-stripe-checkout?canceled=true`,
       payment_intent_data: {
-        metadata: {
-          ...metadata,
-          amount: amount.toString(),
-          currency: currency,
-          created_via: '87app',
-          store_id: metadata.store_id // 店舗IDを明示的に保存
-        },
+        metadata: finalMetadata,
       },
     });
     // 注意: stripeAccountは指定しない（運営側のアカウントで決済）
@@ -115,7 +137,7 @@ export default async function handler(req, res) {
     console.log('Checkout Session作成成功（運営側アカウント）:', {
       sessionId: session.id,
       url: session.url,
-      store_id: metadata.store_id
+      store_id: finalStoreId
     });
 
     // Checkout SessionのURLを返す
@@ -133,8 +155,15 @@ export default async function handler(req, res) {
       type: error.type,
       code: error.code,
       statusCode: error.statusCode,
-      raw: error.raw
+      raw: error.raw,
+      stack: error.stack
     });
+    
+    // CORSヘッダーをエラーレスポンスにも追加
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
     res.status(500).json({ 
       error: error.message || 'Internal server error',
       errorType: error.type || 'Unknown',

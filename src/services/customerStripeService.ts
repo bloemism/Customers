@@ -120,12 +120,20 @@ export class CustomerStripeService {
         body: JSON.stringify({
           amount: finalAmount,
           currency: 'jpy',
+          // 直接指定（metadataと併用可能）
+          store_id: paymentData.store_id,
+          store_name: paymentData.store_name,
+          customer_id: customerData.user_id,
+          points_to_use: paymentData.points_to_use || 0,
+          items: paymentData.items || [],
+          // メタデータ（後方互換性のため）
           metadata: {
             store_id: paymentData.store_id, // 店舗ID（送金処理で使用）
             store_name: paymentData.store_name,
             customer_id: customerData.user_id,
             points_used: (paymentData.points_to_use || 0).toString(),
             original_amount: (paymentData.amount || 0).toString(),
+            items: paymentData.items || [],
           },
         }),
       });
