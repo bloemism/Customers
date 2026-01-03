@@ -152,17 +152,48 @@ export default async function handler(req, res) {
       || 'http://localhost:5173';
 
     // Checkout Sessionを作成（運営側のStripeアカウントで）
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [lineItem],
-      mode: 'payment',
-      success_url: `${baseUrl}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/dynamic-stripe-checkout?canceled=true`,
-      payment_intent_data: {
-        metadata: finalMetadata,
-      },
+    console.log('Checkout Session作成開始:', {
+      baseUrl,
+      amountInSmallestUnit,
+      finalStoreId,
+      finalMetadata: {
+        ...finalMetadata,
+        items: finalMetadata.items ? 'items included' : 'no items'
+      }
     });
-    // 注意: stripeAccountは指定しない（運営側のアカウントで決済）
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [lineItem],
+        mode: 'payment',
+        success_url: `${baseUrl}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/dynamic-stripe-checkout?canceled=true`,
+        payment_intent_data: {
+          metadata: finalMetadata,
+        },
+      });
+      // 注意: stripeAccountは指定しない（運営側のアカウントで決済）
+    } catch (stripeError) {
+      console.error('Stripe Checkout Session作成エラー:', stripeError);
+      console.error('Stripeエラー詳細:', {
+        type: stripeError.type,
+        code: stripeError.code,
+        message: stripeError.message,
+        statusCode: stripeError.statusCode,
+        raw: stripeError.raw
+      });
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(500).json({
+        error: `Stripe Checkout Session作成エラー: ${stripeError.message}`,
+        errorType: stripeError.type || 'Unknown',
+        errorCode: stripeError.code || 'unknown',
+        success: false
+      });
+    }
 
     console.log('Checkout Session作成成功（運営側アカウント）:', {
       sessionId: session.id,
