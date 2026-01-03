@@ -5,7 +5,12 @@ function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY environment variable is not set');
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
+  // Stripeインスタンスにデフォルトのタイムアウトとリトライ設定を追加
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    timeout: 30000, // 30秒のタイムアウト
+    maxNetworkRetries: 3, // 最大3回リトライ
+    apiVersion: '2024-12-18.acacia', // 最新のAPIバージョンを使用
+  });
 }
 
 export default async function handler(req, res) {
