@@ -78,6 +78,11 @@ async function handlePaymentSucceeded(paymentIntent) {
     return;
   }
 
+  if (!storeId) {
+    console.error('store_idがmetadataに含まれていません');
+    return;
+  }
+
   try {
     // 1. 顧客の現在のポイントを取得
     const { data: customerData, error: fetchError } = await supabase
@@ -173,6 +178,36 @@ async function handlePaymentSucceeded(paymentIntent) {
         console.error('ポイント使用履歴記録エラー:', pointUsedError);
       } else {
         console.log('ポイント使用履歴記録成功:', pointsUsed);
+      }
+    }
+
+    // 6. 店舗への送金処理（Destination Charges方式）
+    // 決済成功後、自動的に店舗の銀行口座に送金
+    if (storeId) {
+      try {
+        const { transferToStore } = await import('./transfer-to-store.js');
+        const transferResult = await transferToStore(paymentIntent.id, storeId);
+        
+        if (transferResult.success) {
+          console.log('店舗への送金処理成功:', transferResult.transferInfo);
+          
+          // 送金履歴のステータスを更新
+          if (transferResult.transaction) {
+            await supabase
+              .from('payment_transactions')
+              .update({
+                status: 'succeeded',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', transferResult.transaction.id);
+          }
+        } else {
+          console.error('店舗への送金処理失敗:', transferResult.error);
+          // 送金失敗時も決済は成功として記録（後で手動送金可能）
+        }
+      } catch (transferError) {
+        console.error('送金処理エラー:', transferError);
+        // 送金エラーは記録するが、決済成功処理は続行
       }
     }
 

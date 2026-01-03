@@ -87,23 +87,18 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
-      // Stripe ConnectアカウントIDの確認
-      if (!paymentData.store_connect_account_id) {
-        console.error('Stripe ConnectアカウントIDが設定されていません:', paymentData);
-        throw new Error('Stripe ConnectアカウントIDが設定されていません。店舗がStripe Connectに登録しているか確認してください。');
-      }
-
       // API Base URL（空の場合は相対パス）
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-      console.log('APIリクエスト送信:', {
+      console.log('APIリクエスト送信（運営側アカウント）:', {
         url: `${API_BASE_URL}/api/create-payment-intent`,
         amount: finalAmount,
-        stripeAccount: paymentData.store_connect_account_id,
+        store_id: paymentData.store_id,
         API_BASE_URL
       });
 
-      // Stripe Payment Intentを作成
+      // Stripe Payment Intentを作成（運営側のアカウントで決済）
+      // 注意: Destination Charges方式では、stripeAccountとtransfer_dataは不要
       const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
         method: 'POST',
         headers: {
@@ -112,12 +107,8 @@ export class CustomerStripeService {
         body: JSON.stringify({
           amount: finalAmount,
           currency: 'jpy',
-          application_fee_amount: Math.floor(finalAmount * 0.03), // 3%のプラットフォーム手数料
-          stripeAccount: paymentData.store_connect_account_id, // Stripe ConnectアカウントID（必須）
-          transfer_data: {
-            destination: paymentData.store_connect_account_id,
-          },
           metadata: {
+            store_id: paymentData.store_id, // 店舗ID（送金処理で使用）
             store_name: paymentData.store_name,
             customer_id: customerData.user_id,
             points_used: (paymentData.points_to_use || 0).toString(),

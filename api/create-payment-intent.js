@@ -23,10 +23,7 @@ export default async function handler(req, res) {
       currency = 'jpy', 
       product_id,                // 事前に作成した商品ID（オプション）
       product_name,              // 商品名（product_idがない場合に使用）
-      application_fee_amount,     // アプリケーション手数料（オプション）
-      transfer_data,             // Stripe Connectへの送金情報（必須: stripeAccountを含む）
-      metadata,                  // メタデータ
-      stripeAccount              // Stripe ConnectアカウントID（必須: acct_1SR7PwHiuauiyvI5）
+      metadata                   // メタデータ（store_id, customer_id等を含む）
     } = req.body;
 
     // 環境変数のチェック
@@ -40,32 +37,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '決済金額（amount）は必須で、0より大きい値である必要があります' });
     }
 
-    if (!stripeAccount) {
-      console.error('stripeAccountが提供されていません:', req.body);
-      return res.status(400).json({ error: 'Stripe ConnectアカウントID（stripeAccount）は必須です' });
-    }
-
-    if (!transfer_data || !transfer_data.destination) {
-      console.error('transfer_data.destinationが提供されていません:', req.body);
-      return res.status(400).json({ error: 'transfer_data.destination（Stripe ConnectアカウントID）は必須です' });
+    if (!metadata || !metadata.store_id) {
+      return res.status(400).json({ error: 'store_idがメタデータに含まれている必要があります' });
     }
 
     // amountがセント単位か確認（JPYの場合は整数でOK）
     const amountInSmallestUnit = Math.round(amount);
 
-    // amountがセント単位か確認（JPYの場合は整数でOK）
-    const amountInSmallestUnit = Math.round(amount);
-
-    console.log('Stripe Connect決済Intent作成開始:', {
+    console.log('Stripe決済Intent作成開始（運営側アカウント）:', {
       amount,
       amountInSmallestUnit,
       currency,
       product_id,
       product_name,
-      application_fee_amount,
-      transfer_data,
-      metadata,
-      stripeAccount
+      metadata
     });
 
     // 商品情報を準備
@@ -108,7 +93,7 @@ export default async function handler(req, res) {
       || (req.headers.host ? `https://${req.headers.host}` : null)
       || 'http://localhost:5173';
 
-    // Checkout Sessionを作成（Stripe Connectアカウントで）
+    // Checkout Sessionを作成（運営側のStripeアカウントで）
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [lineItem],
@@ -116,23 +101,21 @@ export default async function handler(req, res) {
       success_url: `${baseUrl}/payment-complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/dynamic-stripe-checkout?canceled=true`,
       payment_intent_data: {
-        application_fee_amount: application_fee_amount,
-        transfer_data: transfer_data,
         metadata: {
           ...metadata,
           amount: amount.toString(),
           currency: currency,
-          created_via: '87app'
+          created_via: '87app',
+          store_id: metadata.store_id // 店舗IDを明示的に保存
         },
       },
-    }, {
-      stripeAccount: stripeAccount // Stripe Connectアカウントで作成
     });
+    // 注意: stripeAccountは指定しない（運営側のアカウントで決済）
 
-    console.log('Checkout Session作成成功:', {
+    console.log('Checkout Session作成成功（運営側アカウント）:', {
       sessionId: session.id,
       url: session.url,
-      stripeAccount
+      store_id: metadata.store_id
     });
 
     // Checkout SessionのURLを返す

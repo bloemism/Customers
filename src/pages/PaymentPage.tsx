@@ -247,60 +247,17 @@ const PaymentPage: React.FC = () => {
       // PaymentDataの構造を確認・修正
       console.log('決済前のscannedData:', scannedData);
       
-      // 店舗のStripe ConnectアカウントIDを取得
-      const storeId = scannedData.store_id;
-      let storeConnectAccountId = '';
-      
-      console.log('店舗ID:', storeId, '型:', typeof storeId);
-      
-      if (storeId) {
-        // storesテーブルから取得を試みる
-        // storesテーブルのidとcredit_cardsテーブルのstore_idは同じ値
-        const { data: storeData, error: storeError } = await supabase
-          .from('stores')
-          .select('id, stripe_account_id')
-          .eq('id', storeId)
-          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
-        
-        console.log('storesテーブルからの取得結果:', { storeData, storeError });
-        
-        if (storeData?.stripe_account_id) {
-          storeConnectAccountId = storeData.stripe_account_id;
-          console.log('stripe_account_id取得成功:', storeConnectAccountId);
-        } else {
-          console.warn('storesテーブルにstripe_account_idがありません:', storeData);
-          
-          // credit_cardsテーブルでstore_idが存在するか確認（デバッグ用）
-          const { data: creditCardData } = await supabase
-            .from('credit_cards')
-            .select('store_id')
-            .eq('store_id', storeId)
-            .limit(1)
-            .maybeSingle();
-          
-          console.log('credit_cardsテーブルからの取得結果:', creditCardData);
-          console.log('credit_cardsテーブルのstore_idとstoresテーブルのidは同じ値:', creditCardData?.store_id === storeId);
-        }
-      }
-      
       // PaymentDataを正しい形式に変換
+      // 注意: Destination Charges方式では、Stripe ConnectアカウントIDは不要
       const paymentData: PaymentData = {
         store_id: scannedData.store_id,
         store_name: scannedData.store_name || '不明な店舗',
         amount: scannedData.amount || 0,
         points_to_use: scannedData.points_to_use || 0,
-        items: scannedData.items || [],
-        store_connect_account_id: storeConnectAccountId
+        items: scannedData.items || []
       };
       
       console.log('修正後のpaymentData:', paymentData);
-      
-      // Stripe ConnectアカウントIDの確認
-      if (!storeConnectAccountId) {
-        setError('この店舗はStripe Connectアカウントが設定されていません。店舗オーナーが店舗アプリでStripe Connectに登録する必要があります。店舗にご連絡ください。');
-        setProcessing(false);
-        return;
-      }
       
       const result = await CustomerStripeService.processPayment(paymentData);
       
@@ -868,9 +825,34 @@ const PaymentPage: React.FC = () => {
                 border: '1px solid #FECACA'
               }}
             >
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#DC2626' }} />
-                <span className="text-sm" style={{ color: '#DC2626' }}>{error}</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: '#DC2626' }} />
+                  <span className="text-sm" style={{ color: '#DC2626' }}>
+                    {error.includes('登録ページ:') ? error.split('登録ページ:')[0] : error}
+                  </span>
+                </div>
+                {error.includes('登録ページ:') && scannedData?.store_id && (
+                  <a
+                    href={`/stripe-connect-onboarding?store_id=${encodeURIComponent(scannedData.store_id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-4 py-2 rounded-sm text-sm font-medium transition-colors text-center"
+                    style={{
+                      backgroundColor: '#3D4A35',
+                      color: '#FAF8F5',
+                      border: '1px solid #2D3A25'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2D3A25';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#3D4A35';
+                    }}
+                  >
+                    Stripe Connectに登録する
+                  </a>
+                )}
               </div>
             </div>
           )}
