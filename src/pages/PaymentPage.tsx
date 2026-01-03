@@ -297,10 +297,8 @@ const PaymentPage: React.FC = () => {
       
       // Stripe ConnectアカウントIDの確認
       if (!storeConnectAccountId) {
-        const onboardingUrl = `/stripe-connect-onboarding?store_id=${encodeURIComponent(storeId || '')}`;
-        setError(`店舗のStripe Connectアカウントが設定されていません。店舗がStripe Connectに登録する必要があります。登録ページ: ${onboardingUrl}`);
+        setError('この店舗はStripe Connectアカウントが設定されていません。店舗オーナーが店舗アプリでStripe Connectに登録する必要があります。店舗にご連絡ください。');
         setProcessing(false);
-        // オンボーディングページへのリンクを表示するために、エラー表示部分でリンクを追加
         return;
       }
       
