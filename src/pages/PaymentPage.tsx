@@ -251,15 +251,35 @@ const PaymentPage: React.FC = () => {
       const storeId = scannedData.store_id;
       let storeConnectAccountId = '';
       
+      console.log('店舗ID:', storeId, '型:', typeof storeId);
+      
       if (storeId) {
-        const { data: storeData } = await supabase
+        // storesテーブルから取得を試みる
+        // storesテーブルのidとcredit_cardsテーブルのstore_idは同じ値
+        const { data: storeData, error: storeError } = await supabase
           .from('stores')
-          .select('stripe_account_id')
+          .select('id, stripe_account_id')
           .eq('id', storeId)
           .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
         
+        console.log('storesテーブルからの取得結果:', { storeData, storeError });
+        
         if (storeData?.stripe_account_id) {
           storeConnectAccountId = storeData.stripe_account_id;
+          console.log('stripe_account_id取得成功:', storeConnectAccountId);
+        } else {
+          console.warn('storesテーブルにstripe_account_idがありません:', storeData);
+          
+          // credit_cardsテーブルでstore_idが存在するか確認（デバッグ用）
+          const { data: creditCardData } = await supabase
+            .from('credit_cards')
+            .select('store_id')
+            .eq('store_id', storeId)
+            .limit(1)
+            .maybeSingle();
+          
+          console.log('credit_cardsテーブルからの取得結果:', creditCardData);
+          console.log('credit_cardsテーブルのstore_idとstoresテーブルのidは同じ値:', creditCardData?.store_id === storeId);
         }
       }
       
