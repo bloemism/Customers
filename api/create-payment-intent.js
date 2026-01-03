@@ -29,22 +29,29 @@ export default async function handler(req, res) {
       stripeAccount              // Stripe ConnectアカウントID（必須: acct_1SR7PwHiuauiyvI5）
     } = req.body;
 
+    // 環境変数のチェック
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('STRIPE_SECRET_KEYが設定されていません');
+      return res.status(500).json({ error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません' });
+    }
+
     // 必須パラメータのチェック
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: '決済金額（amount）は必須で、0より大きい値である必要があります' });
     }
 
     if (!stripeAccount) {
+      console.error('stripeAccountが提供されていません:', req.body);
       return res.status(400).json({ error: 'Stripe ConnectアカウントID（stripeAccount）は必須です' });
     }
 
     if (!transfer_data || !transfer_data.destination) {
+      console.error('transfer_data.destinationが提供されていません:', req.body);
       return res.status(400).json({ error: 'transfer_data.destination（Stripe ConnectアカウントID）は必須です' });
     }
 
-    // amountがセント単位か確認（JPYの場合はそのまま、他の通貨の場合はセント単位）
-    // ただし、JPYの場合は最小単位が1円なので、そのまま使用
-    const amountInSmallestUnit = currency === 'jpy' ? amount : amount;
+    // amountがセント単位か確認（JPYの場合は整数でOK）
+    const amountInSmallestUnit = Math.round(amount);
 
     console.log('Stripe Connect決済Intent作成開始:', {
       amount,
@@ -65,7 +72,7 @@ export default async function handler(req, res) {
         price_data: {
           currency: currency,
           product: product_id,
-          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（JPYの場合は円単位）
+          unit_amount: amount, // 顧客が手動で入力した金額
         },
         quantity: 1,
       };
@@ -83,7 +90,7 @@ export default async function handler(req, res) {
               created_at: new Date().toISOString()
             }
           },
-          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（JPYの場合は円単位）
+          unit_amount: amount, // 顧客が手動で入力した金額
         },
         quantity: 1,
       };
@@ -143,8 +150,8 @@ export default async function handler(req, res) {
     });
     res.status(500).json({ 
       error: error.message || 'Internal server error',
-      errorType: error.type,
-      errorCode: error.code,
+      errorType: error.type || 'Unknown',
+      errorCode: error.code || 'unknown',
       success: false,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
