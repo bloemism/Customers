@@ -123,9 +123,10 @@ export const DynamicStripeCheckout: React.FC = () => {
       });
 
       // 手数料計算（3%のプラットフォーム手数料）
+      // JPYの場合、Stripeは最小単位（1円）で指定するため、そのまま送信
       const platformFeeRate = 0.03;
-      const applicationFeeAmount = Math.round(paymentData.finalAmount * 100 * platformFeeRate);
-      const amountInCents = Math.round(paymentData.finalAmount * 100);
+      const applicationFeeAmount = Math.round(paymentData.finalAmount * platformFeeRate);
+      const amount = Math.round(paymentData.finalAmount); // JPYの場合はそのまま
 
       // Stripe Connect決済Intent作成
       const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
