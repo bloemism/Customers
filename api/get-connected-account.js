@@ -28,6 +28,10 @@ export default async function handler(req, res) {
     const { storeId } = req.query;
 
     if (!storeId) {
+      // エラーレスポンスにもCORSヘッダーを設定
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(400).json({ error: 'storeIdが必要です' });
     }
 
@@ -46,6 +50,10 @@ export default async function handler(req, res) {
     }
 
     if (!storeData) {
+      // エラーレスポンスにもCORSヘッダーを設定
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(404).json({ error: '店舗が見つかりません' });
     }
 
@@ -106,6 +114,10 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Connected Account情報取得エラー:', error);
+    // エラーレスポンスにもCORSヘッダーを設定
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.status(500).json({
       success: false,
       error: error.message || 'アカウント情報の取得に失敗しました',

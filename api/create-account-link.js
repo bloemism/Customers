@@ -57,6 +57,10 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('オンボーディングリンク作成エラー:', error);
+    // エラーレスポンスにもCORSヘッダーを設定
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.status(500).json({
       success: false,
       error: error.message || 'オンボーディングリンクの作成に失敗しました',
