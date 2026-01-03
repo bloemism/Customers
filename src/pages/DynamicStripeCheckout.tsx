@@ -72,7 +72,7 @@ export const DynamicStripeCheckout: React.FC = () => {
           .from('stores')
           .select('stripe_account_id, stripe_charges_enabled, stripe_onboarding_completed')
           .eq('id', paymentData.storeData.storeId)
-          .single();
+          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
 
         if (error) {
           console.error('店舗情報取得エラー:', error);
@@ -134,7 +134,7 @@ export const DynamicStripeCheckout: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: amountInCents, // 円をセントに変換
+          amount: amount, // JPYの場合はそのまま（最小単位：1円）
           currency: 'jpy',
           stripeAccount: storeAccountId, // Stripe ConnectアカウントID
           application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（3%）
