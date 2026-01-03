@@ -90,6 +90,18 @@ export class CustomerStripeService {
       // API Base URL（空の場合は相対パス）
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+      // Stripe ConnectアカウントIDの確認
+      if (!paymentData.store_connect_account_id) {
+        throw new Error('Stripe ConnectアカウントIDが設定されていません');
+      }
+
+      console.log('APIリクエスト送信:', {
+        url: `${API_BASE_URL}/api/create-payment-intent`,
+        amount: finalAmount,
+        stripeAccount: paymentData.store_connect_account_id,
+        API_BASE_URL
+      });
+
       // Stripe Payment Intentを作成
       const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
         method: 'POST',
@@ -115,12 +127,25 @@ export class CustomerStripeService {
 
       const text = await response.text();
       if (!text) {
-        throw new Error('空のレスポンスが返されました');
+        console.error('空のレスポンス:', response.status, response.statusText);
+        throw new Error(`空のレスポンスが返されました (${response.status})`);
       }
-      const result = JSON.parse(text);
+      
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSONパースエラー:', parseError, 'レスポンステキスト:', text);
+        throw new Error(`レスポンスの解析に失敗しました: ${text.substring(0, 100)}`);
+      }
 
       if (!response.ok) {
-        throw new Error(result.error || '決済セッションの作成に失敗しました');
+        console.error('APIエラーレスポンス:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: result
+        });
+        throw new Error(result.error || result.message || `決済セッションの作成に失敗しました (${response.status})`);
       }
 
       // Stripe Checkoutにリダイレクト

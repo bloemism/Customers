@@ -72,7 +72,7 @@ export const DynamicStripeCheckout: React.FC = () => {
           .from('stores')
           .select('stripe_account_id, stripe_charges_enabled, stripe_onboarding_completed')
           .eq('id', paymentData.storeData.storeId)
-          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
+          .single();
 
         if (error) {
           console.error('店舗情報取得エラー:', error);
@@ -123,10 +123,9 @@ export const DynamicStripeCheckout: React.FC = () => {
       });
 
       // 手数料計算（3%のプラットフォーム手数料）
-      // JPYの場合、Stripeは最小単位（1円）で指定するため、そのまま送信
       const platformFeeRate = 0.03;
-      const applicationFeeAmount = Math.round(paymentData.finalAmount * platformFeeRate);
-      const amount = Math.round(paymentData.finalAmount); // JPYの場合はそのまま
+      const applicationFeeAmount = Math.round(paymentData.finalAmount * 100 * platformFeeRate);
+      const amountInCents = Math.round(paymentData.finalAmount * 100);
 
       // Stripe Connect決済Intent作成
       const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
@@ -135,7 +134,7 @@ export const DynamicStripeCheckout: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: amount, // JPYの場合はそのまま（最小単位：1円）
+          amount: amountInCents, // 円をセントに変換
           currency: 'jpy',
           stripeAccount: storeAccountId, // Stripe ConnectアカウントID
           application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（3%）
