@@ -238,6 +238,11 @@ function App() {
                   </CustomerProvider>
                 </SimpleAuthGuard>
               } />
+              <Route path="/stripe-connect-onboarding" element={
+                <SimpleAuthGuard>
+                  <StripeConnectOnboarding />
+                </SimpleAuthGuard>
+              } />
 
               
               {/* レガシールート */}
