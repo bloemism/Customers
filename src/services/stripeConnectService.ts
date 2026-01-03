@@ -1,7 +1,11 @@
 import { supabase } from '../lib/supabase';
 
 // API Base URL（空の場合は相対パス）
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
+let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
+  API_BASE_URL = ''; // 相対パスを使用
+}
 
 export interface ConnectedAccountInfo {
   id: string;

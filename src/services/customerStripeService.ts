@@ -92,12 +92,16 @@ export class CustomerStripeService {
       // 注意: 相対パスを使用することで、同じデプロイメント内のAPIにアクセスできる
       // VITE_API_BASE_URLが設定されている場合は使用、なければ空文字（相対パス）
       // これにより、Preview環境とProduction環境の両方で動作する
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      
+      // 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
+      // これにより、Preview環境からPreview環境のAPI、Production環境からProduction環境のAPIにアクセスできる
+      if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
+        API_BASE_URL = ''; // 相対パスを使用
+      }
       
       // デバッグ用ログ
-      if (import.meta.env.DEV) {
-        console.log('API_BASE_URL:', API_BASE_URL || '(相対パス)');
-      }
+      console.log('API_BASE_URL:', API_BASE_URL || '(相対パス)', '現在のオリジン:', window.location.origin);
 
       console.log('APIリクエスト送信（運営側アカウント）:', {
         url: `${API_BASE_URL}/api/create-payment-intent`,
