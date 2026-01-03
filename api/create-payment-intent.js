@@ -34,15 +34,29 @@ export default async function handler(req, res) {
   // Stripeの初期化
   let stripe;
   try {
+    // デバッグ: 環境変数の確認
+    console.log('環境変数確認:', {
+      STRIPE_SECRET_KEY_exists: !!process.env.STRIPE_SECRET_KEY,
+      STRIPE_SECRET_KEY_length: process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 0,
+      STRIPE_SECRET_KEY_prefix: process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 10) + '...' : 'undefined',
+      all_env_keys: Object.keys(process.env).filter(key => key.includes('STRIPE')).join(', ')
+    });
+
     // 環境変数の存在確認
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEYが設定されていません');
+      console.error('利用可能な環境変数（STRIPE関連）:', Object.keys(process.env).filter(key => key.includes('STRIPE')));
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(500).json({ 
         error: 'Stripe設定エラー: STRIPE_SECRET_KEYが設定されていません',
         details: 'Vercel Dashboardで環境変数STRIPE_SECRET_KEYを設定してください',
+        debug: {
+          available_stripe_env_vars: Object.keys(process.env).filter(key => key.includes('STRIPE')),
+          node_env: process.env.NODE_ENV,
+          vercel_env: process.env.VERCEL_ENV
+        },
         help: 'https://vercel.com/bloemisms-projects/customers/settings/environment-variables',
         success: false
       });
