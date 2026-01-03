@@ -53,8 +53,12 @@ export default async function handler(req, res) {
     // amountがセント単位か確認（JPYの場合は整数でOK）
     const amountInSmallestUnit = Math.round(amount);
 
+    // amountがセント単位か確認（JPYの場合は整数でOK）
+    const amountInSmallestUnit = Math.round(amount);
+
     console.log('Stripe Connect決済Intent作成開始:', {
       amount,
+      amountInSmallestUnit,
       currency,
       product_id,
       product_name,
@@ -72,7 +76,7 @@ export default async function handler(req, res) {
         price_data: {
           currency: currency,
           product: product_id,
-          unit_amount: amount, // 顧客が手動で入力した金額
+          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（最小単位）
         },
         quantity: 1,
       };
@@ -90,7 +94,7 @@ export default async function handler(req, res) {
               created_at: new Date().toISOString()
             }
           },
-          unit_amount: amount, // 顧客が手動で入力した金額
+          unit_amount: amountInSmallestUnit, // 顧客が手動で入力した金額（最小単位）
         },
         quantity: 1,
       };
