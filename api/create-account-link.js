@@ -1,7 +1,15 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Stripeインスタンスを取得する関数（エラーハンドリング付き）
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2024-12-18.acacia',
+  });
+}
 
 // Supabaseクライアントの作成
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
@@ -33,12 +41,15 @@ export default async function handler(req, res) {
 
     console.log('オンボーディングリンク再生成開始:', { storeId, accountId });
 
+    const stripe = getStripe();
+
     // ベースURLを取得（環境変数またはデフォルト値）
-    // 本番環境ではVercelのURLを自動検出
+    // 本番環境のStripeキーを使用している場合、HTTPSが必要
+    // ローカル環境でも本番環境のURLを使用する（Stripe Connectの要件）
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || process.env.VITE_BASE_URL
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-      || (req.headers.host ? `https://${req.headers.host}` : null)
-      || 'http://localhost:5173';
+      || 'https://customers-three-rust.vercel.app';
 
     // 1. Stripe Account Linkを作成
     const accountLink = await stripe.accountLinks.create({

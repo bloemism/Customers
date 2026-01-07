@@ -1,7 +1,15 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Stripeインスタンスを取得する関数（エラーハンドリング付き）
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2024-12-18.acacia',
+  });
+}
 
 // Supabaseクライアントの作成
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
@@ -46,11 +54,23 @@ export default async function handler(req, res) {
       country
     });
 
-    // 1. Stripe Connected Accountを作成
+    // 1. Stripe Connected Accountを作成（Standardアカウントタイプ）
+    const stripe = getStripe();
     const account = await stripe.accounts.create({
-      type: 'express', // Express アカウント（簡単なオンボーディング）
+      type: 'standard', // Standard アカウント（完全な機能）
       country: country,
       email: email,
+      controller: {
+        fees: {
+          payer: 'application', // 手数料をapplication（運営側）が負担
+        },
+        losses: {
+          payments: 'application', // 返金などの損失をapplication（運営側）が負担
+        },
+        stripe_dashboard: {
+          type: 'express', // Expressダッシュボードタイプ
+        },
+      },
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
@@ -75,7 +95,7 @@ export default async function handler(req, res) {
       .update({
         stripe_account_id: account.id,
         stripe_account_status: 'created',
-        stripe_account_type: 'express',
+        stripe_account_type: 'standard',
         stripe_charges_enabled: account.charges_enabled,
         stripe_payouts_enabled: account.payouts_enabled,
         stripe_details_submitted: account.details_submitted,
@@ -94,9 +114,10 @@ export default async function handler(req, res) {
     // ベースURLを取得（環境変数またはデフォルト値）
     // 本番環境ではVercelのURLを自動検出
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || process.env.VITE_BASE_URL
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
       || (req.headers.host ? `https://${req.headers.host}` : null)
-      || 'http://localhost:5173';
+      || 'https://customers-three-rust.vercel.app';
 
     // 3. オンボーディングリンクを作成
     const accountLink = await stripe.accountLinks.create({

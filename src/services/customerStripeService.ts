@@ -88,20 +88,21 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
-      // API Base URL（空の場合は相対パスを使用して同じデプロイメント内でアクセス）
-      // 注意: 相対パスを使用することで、同じデプロイメント内のAPIにアクセスできる
-      // VITE_API_BASE_URLが設定されている場合は使用、なければ空文字（相対パス）
-      // これにより、Preview環境とProduction環境の両方で動作する
+      // API Base URL（ローカル環境ではローカルAPIサーバーを使用）
       let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
       
-      // 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
-      // これにより、Preview環境からPreview環境のAPI、Production環境からProduction環境のAPIにアクセスできる
-      if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
-        API_BASE_URL = ''; // 相対パスを使用
+      // ローカル環境（localhost）の場合は、ローカルAPIサーバーを使用
+      if (!API_BASE_URL) {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          API_BASE_URL = 'http://localhost:3000';
+        } else {
+          // 本番環境ではVercelのAPIエンドポイントを使用
+          API_BASE_URL = 'https://customers-three-rust.vercel.app';
+        }
       }
       
       // デバッグ用ログ
-      console.log('API_BASE_URL:', API_BASE_URL || '(相対パス)', '現在のオリジン:', window.location.origin);
+      console.log('API_BASE_URL:', API_BASE_URL, '現在のオリジン:', window.location.origin, 'ホスト名:', window.location.hostname);
 
       console.log('APIリクエスト送信（運営側アカウント）:', {
         url: `${API_BASE_URL}/api/create-payment-intent`,
@@ -138,10 +139,58 @@ export class CustomerStripeService {
         }),
       });
 
+      if (!response.ok) {
+        let errorData;
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          errorData = errorText ? JSON.parse(errorText) : { error: 'Unknown error' };
+        } catch (e) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}`, raw: errorText };
+        }
+        console.error('API エラーレスポンス:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          errorData,
+          errorText,
+          API_BASE_URL
+        });
+        
+        // 404エラーの場合、より詳細なメッセージを表示
+        if (response.status === 404) {
+          throw new Error(`APIエンドポイントが見つかりません (404)。URL: ${API_BASE_URL}/api/create-payment-intent。ローカル環境ではVercelのAPIエンドポイントを使用してください。`);
+        }
+        
+        // 500エラーの場合、より詳細なエラー情報を表示
+        if (response.status === 500) {
+          const errorMessage = errorData.error || errorData.message || 'Internal Server Error';
+          const errorDetails = errorData.details || errorData.debug || '';
+          const errorHelp = errorData.help || '';
+          
+          let fullErrorMessage = `サーバーエラー (500): ${errorMessage}`;
+          if (errorDetails) {
+            fullErrorMessage += `\n詳細: ${typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails)}`;
+          }
+          if (errorHelp) {
+            fullErrorMessage += `\nヘルプ: ${errorHelp}`;
+          }
+          
+          throw new Error(fullErrorMessage);
+        }
+        
+        throw new Error(errorData.error || errorData.message || `決済セッションの作成に失敗しました (${response.status})`);
+      }
+
       const text = await response.text();
       if (!text) {
-        console.error('空のレスポンス:', response.status, response.statusText);
-        throw new Error(`空のレスポンスが返されました (${response.status})`);
+        console.error('空のレスポンス:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          API_BASE_URL
+        });
+        throw new Error(`空のレスポンスが返されました (${response.status})。APIエンドポイントが正しく動作していない可能性があります。`);
       }
       
       let result;
@@ -150,15 +199,6 @@ export class CustomerStripeService {
       } catch (parseError) {
         console.error('JSONパースエラー:', parseError, 'レスポンステキスト:', text);
         throw new Error(`レスポンスの解析に失敗しました: ${text.substring(0, 100)}`);
-      }
-
-      if (!response.ok) {
-        console.error('APIエラーレスポンス:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: result
-        });
-        throw new Error(result.error || result.message || `決済セッションの作成に失敗しました (${response.status})`);
       }
 
       // Checkout SessionのURLが返された場合は直接リダイレクト

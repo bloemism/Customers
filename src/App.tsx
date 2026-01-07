@@ -29,6 +29,11 @@ const StripeTest = React.lazy(() => import('./pages/StripeTest'));
 const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
 const CashPaymentPage = React.lazy(() => import('./pages/CashPaymentPage'));
 const StripeConnectOnboarding = React.lazy(() => import('./pages/StripeConnectOnboarding').then(module => ({ default: module.StripeConnectOnboarding })));
+const StripeConnectReturn = React.lazy(() => import('./pages/StripeConnectReturn').then(module => ({ default: module.StripeConnectReturn })));
+const StripeConnectRefresh = React.lazy(() => import('./pages/StripeConnectRefresh').then(module => ({ default: module.default })));
+const StripeConnectPayment = React.lazy(() => import('./pages/StripeConnectPayment').then(module => ({ default: module.StripeConnectPayment })));
+const CreateAccountLink = React.lazy(() => import('./pages/CreateAccountLink').then(module => ({ default: module.default })));
+const StripeConnectPaymentComplete = React.lazy(() => import('./pages/StripeConnectPaymentComplete').then(module => ({ default: module.default })));
 const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen').then(module => ({ default: module.CustomerMenuScreen })));
 const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin').then(module => ({ default: module.CustomerLogin })));
 const CustomerSignUp = React.lazy(() => import('./pages/CustomerSignUp').then(module => ({ default: module.CustomerSignUp })));
@@ -243,6 +248,11 @@ function App() {
                   <StripeConnectOnboarding />
                 </SimpleAuthGuard>
               } />
+              <Route path="/stripe-connect-return" element={<StripeConnectReturn />} />
+              <Route path="/stripe-connect-refresh" element={<StripeConnectRefresh />} />
+              <Route path="/stripe-connect-payment" element={<StripeConnectPayment />} />
+              <Route path="/stripe-connect-payment-complete" element={<StripeConnectPaymentComplete />} />
+              <Route path="/create-account-link" element={<CreateAccountLink />} />
 
               
               {/* レガシールート */}

@@ -4,6 +4,23 @@ import { ArrowLeft, CreditCard, AlertCircle, Hash, Check } from 'lucide-react';
 import { CustomerStripeService, type PaymentData } from '../services/customerStripeService';
 import { useCustomer } from '../contexts/CustomerContext';
 import { supabase } from '../lib/supabase';
+import { loadStripe } from '@stripe/stripe-js';
+
+// API Base URL（ローカル環境ではローカルAPIサーバーを使用）
+const getApiBaseUrl = () => {
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  if (!apiBaseUrl) {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      apiBaseUrl = 'http://localhost:3000';
+    } else {
+      // 本番環境ではVercelのAPIエンドポイントを使用
+      apiBaseUrl = 'https://customers-three-rust.vercel.app';
+    }
+  }
+  return apiBaseUrl;
+};
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // 背景画像
 const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
@@ -16,27 +33,43 @@ const PaymentPage: React.FC = () => {
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  // 決済コード入力用の状態（3種類）
-  const [cashCode5, setCashCode5] = useState(''); // 現金用5桁コード
-  const [creditCode5, setCreditCode5] = useState(''); // クレジット決済用5桁コード
-  const [longDistanceCode6, setLongDistanceCode6] = useState(''); // 遠距離決済用6桁コード
+  // 決済コード入力用の状態（統合版：5桁または6桁を自動判定）
+  const [paymentCode, setPaymentCode] = useState(''); // 統合された決済コード（5桁または6桁）
   const [codeVerifying, setCodeVerifying] = useState(false);
   
   // 決済方法選択（クレジット/現金）
   const [selectedPaymentType, setSelectedPaymentType] = useState<'credit' | 'cash' | null>(null);
   const [paymentCodeData, setPaymentCodeData] = useState<any>(null);
-  const [activeCodeType, setActiveCodeType] = useState<'cash5' | 'credit5' | 'long6' | null>(null);
+  const [detectedCodeType, setDetectedCodeType] = useState<'cash5' | 'credit5' | 'long6' | null>(null);
+  
+  // Stripe Connect関連の状態
+  const [storeStripeAccountId, setStoreStripeAccountId] = useState<string | null>(null);
+  const [loadingStripeAccount, setLoadingStripeAccount] = useState(false);
+  
+  // テスト用のStripe ConnectアカウントID（フォールバック用）
+  const TEST_CONNECTED_ACCOUNT_ID = 'acct_1SmtPlHk8MTQ5wk4';
 
-  // 決済コード検証（3種類対応）
-  const verifyPaymentCode = async (code: string, codeType: 'cash5' | 'credit5' | 'long6') => {
-    if (!code || (codeType !== 'long6' && code.length !== 5) || (codeType === 'long6' && code.length !== 6)) {
-      setError('正しい桁数の決済コードを入力してください');
+  // 決済コード検証（統合版：5桁または6桁を自動判定）
+  const verifyPaymentCode = async (code: string) => {
+    if (!code || (code.length !== 5 && code.length !== 6)) {
+      setError('5桁または6桁の決済コードを入力してください');
       return;
     }
 
     setCodeVerifying(true);
     setError('');
-    setActiveCodeType(codeType);
+    
+    // コードタイプを自動判定
+    let codeType: 'cash5' | 'credit5' | 'long6';
+    if (code.length === 6) {
+      codeType = 'long6';
+    } else {
+      // 5桁の場合は、まずpayment_codesから検索を試みる（クレジット用）
+      // 見つからなければcash_payment_codesを試す（現金用）
+      codeType = 'credit5'; // デフォルトはクレジット用
+    }
+    
+    setDetectedCodeType(codeType);
 
     try {
       let data = null;
@@ -175,6 +208,13 @@ const PaymentPage: React.FC = () => {
 
       setScannedData(paymentInfo);
       setPaymentCodeData({ ...data, payment_data: paymentData });
+      setDetectedCodeType(codeType);
+      
+      // 店舗のStripe ConnectアカウントIDを取得
+      if (paymentInfo.store_id) {
+        await fetchStoreStripeAccount(paymentInfo.store_id);
+      }
+      
       setCodeVerifying(false);
     } catch (err) {
       setError('決済コードの検証中にエラーが発生しました');
@@ -182,9 +222,44 @@ const PaymentPage: React.FC = () => {
     }
   };
 
+  // 店舗のStripe ConnectアカウントIDを取得
+  const fetchStoreStripeAccount = async (storeId: string) => {
+    setLoadingStripeAccount(true);
+    try {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('stripe_account_id, stripe_charges_enabled, stripe_onboarding_completed')
+        .eq('id', storeId)
+        .single();
+
+      if (error) {
+        console.error('店舗情報取得エラー:', error);
+        return;
+      }
+
+      if (data?.stripe_account_id) {
+        setStoreStripeAccountId(data.stripe_account_id);
+        console.log('Stripe ConnectアカウントID取得:', data.stripe_account_id);
+        console.log('アカウント状態:', {
+          charges_enabled: data.stripe_charges_enabled,
+          onboarding_completed: data.stripe_onboarding_completed
+        });
+      } else {
+        console.warn('この店舗はStripe Connectアカウントが設定されていません。テスト用アカウントを使用します。');
+        // テスト環境では、フォールバックとしてテスト用アカウントIDを使用
+        setStoreStripeAccountId(TEST_CONNECTED_ACCOUNT_ID);
+        console.log('テスト用Stripe ConnectアカウントIDを使用:', TEST_CONNECTED_ACCOUNT_ID);
+      }
+    } catch (error) {
+      console.error('アカウント取得エラー:', error);
+    } finally {
+      setLoadingStripeAccount(false);
+    }
+  };
+
   // 現金決済処理
   const handleCashPayment = async () => {
-    if (!scannedData || !paymentCodeData || !activeCodeType) return;
+    if (!scannedData || !paymentCodeData || !detectedCodeType) return;
     
     setProcessing(true);
     setError('');
@@ -195,9 +270,7 @@ const PaymentPage: React.FC = () => {
       const feeAmount = Math.round(totalAmount * 0.03);
       
       // 使用したコードを取得
-      const usedCode = activeCodeType === 'cash5' ? cashCode5 : 
-                       activeCodeType === 'credit5' ? creditCode5 : 
-                       longDistanceCode6;
+      const usedCode = paymentCode;
 
       const { error: cashError } = await supabase
         .from('cash_payments')
@@ -224,10 +297,8 @@ const PaymentPage: React.FC = () => {
       setScannedData(null);
       setPaymentCodeData(null);
       setSelectedPaymentType(null);
-      setActiveCodeType(null);
-      setCashCode5('');
-      setCreditCode5('');
-      setLongDistanceCode6('');
+      setDetectedCodeType(null);
+      setPaymentCode('');
       
     } catch (err) {
       setError('現金決済処理中にエラーが発生しました');
@@ -236,40 +307,139 @@ const PaymentPage: React.FC = () => {
     }
   };
 
-  // クレジット決済処理
+  // クレジット決済処理（Stripe Connect使用）
   const handleCreditPayment = async () => {
     if (!scannedData) return;
+    
+    // Stripe ConnectアカウントIDがまだ取得されていない場合は再取得を試みる
+    if (!storeStripeAccountId && scannedData.store_id) {
+      await fetchStoreStripeAccount(scannedData.store_id);
+    }
+    
+    // アカウントIDが取得できない場合は、テスト用アカウントIDを使用
+    const connectedAccountId = storeStripeAccountId || TEST_CONNECTED_ACCOUNT_ID;
+    
+    if (!connectedAccountId) {
+      setError(`この店舗（${scannedData.store_name}）はStripe Connectアカウントが設定されていません。店舗オーナーに連絡してください。`);
+      return;
+    }
+    
+    console.log('使用するStripe ConnectアカウントID:', connectedAccountId);
     
     setProcessing(true);
     setError('');
 
     try {
-      // PaymentDataの構造を確認・修正
-      console.log('決済前のscannedData:', scannedData);
+      // 決済金額（日本円はそのまま送信）
+      const amountInSmallestUnit = Math.round(scannedData.amount || 0);
+      const platformFeeRate = 0.03; // 3%のプラットフォーム手数料
+      const applicationFeeAmount = Math.round(amountInSmallestUnit * platformFeeRate);
       
-      // PaymentDataを正しい形式に変換
-      // 注意: Destination Charges方式では、Stripe ConnectアカウントIDは不要
-      const paymentData: PaymentData = {
-        store_id: scannedData.store_id,
-        store_name: scannedData.store_name || '不明な店舗',
-        amount: scannedData.amount || 0,
-        points_to_use: scannedData.points_to_use || 0,
-        items: scannedData.items || []
-      };
+      // 商品名を構築（品目、色、数、単価を含む）
+      let productName = 'お買い物';
+      if (scannedData.items && scannedData.items.length > 0) {
+        const itemDescriptions = scannedData.items.map((item: any) => {
+          const name = item.name || item.item_name || '商品';
+          const color = item.color ? `（${item.color}）` : '';
+          const quantity = item.quantity || 1;
+          const unitPrice = item.unit_price || item.price || 0;
+          return `${name}${color} x${quantity} @¥${unitPrice.toLocaleString()}`;
+        });
+        productName = itemDescriptions.join(', ');
+        // Stripeの制限（500文字）に合わせて切り詰め
+        if (productName.length > 500) {
+          productName = productName.substring(0, 497) + '...';
+        }
+      }
       
-      console.log('修正後のpaymentData:', paymentData);
+      console.log('Stripe Checkoutに送信する情報:', {
+        amount: amountInSmallestUnit,
+        product_name: productName,
+        store_name: scannedData.store_name,
+        items_count: scannedData.items?.length || 0
+      });
+
+      console.log('Stripe Connect決済開始:', {
+        amount: amountInSmallestUnit,
+        connected_account_id: connectedAccountId,
+        application_fee_amount: applicationFeeAmount,
+        product_name: productName,
+        is_test_account: connectedAccountId === TEST_CONNECTED_ACCOUNT_ID
+      });
+
+      // Stripe Connect決済Intent作成
+      const API_BASE_URL = getApiBaseUrl();
+      const response = await fetch(`${API_BASE_URL}/api/create-connect-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amountInSmallestUnit, // 日本円（JPY）はそのまま円単位で送信
+          currency: 'jpy',
+          connected_account_id: connectedAccountId,
+          application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（円単位）
+          product_name: productName,
+          items: scannedData.items || [], // 品目情報を送信
+          metadata: {
+            payment_type: 'stripe_connect_standard',
+            connected_account_id: connectedAccountId,
+            store_id: scannedData.store_id,
+            store_name: scannedData.store_name || '',
+            payment_code: scannedData.code || '',
+            points_used: scannedData.points_to_use?.toString() || '0',
+            platform_fee_rate: platformFeeRate.toString(),
+            total_amount: amountInSmallestUnit.toString(),
+            is_test_account: (connectedAccountId === TEST_CONNECTED_ACCOUNT_ID).toString(),
+            items: JSON.stringify(scannedData.items || []), // 品目情報をJSON文字列として保存
+            customer_id: customer?.id || '', // 顧客IDを追加
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          const text = await response.text();
+          errorData = text ? JSON.parse(text) : { error: 'Unknown error' };
+        } catch (e) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        let errorMessage = errorData.error || `Payment Intentの作成に失敗しました (${response.status})`;
+        
+        if (errorData.charges_enabled === false) {
+          errorMessage += '\n\n⚠️ 連結アカウントで決済が有効になっていません。';
+          if (errorData.details_submitted === false) {
+            errorMessage += '\nオンボーディングを完了する必要があります。';
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const text = await response.text();
+      if (!text) {
+        throw new Error(`空のレスポンスが返されました (${response.status})`);
+      }
       
-      const result = await CustomerStripeService.processPayment(paymentData);
+      const result = JSON.parse(text);
+      console.log('Stripe Connect決済Intent作成成功:', result);
+
+      // checkout_urlまたはurlのいずれかを使用
+      const checkoutUrl = result.checkout_url || result.url;
       
-      if (!result.success) {
-        setError(result.error || '決済処理に失敗しました');
-      } else if (result.payment_intent_id) {
-        // 成功時はStripe Checkoutにリダイレクトされる
-        console.log('決済処理成功:', result);
+      if (result.success && checkoutUrl) {
+        console.log('Stripe Checkoutにリダイレクト:', checkoutUrl);
+        // Stripe Checkoutにリダイレクト
+        window.location.href = checkoutUrl;
+      } else {
+        console.error('決済URLが取得できませんでした:', result);
+        throw new Error('決済URLの取得に失敗しました');
       }
     } catch (err) {
-      setError('決済処理中にエラーが発生しました');
-    } finally {
+      console.error('決済処理エラー:', err);
+      setError(err instanceof Error ? err.message : '決済処理中にエラーが発生しました');
       setProcessing(false);
     }
   };
@@ -397,82 +567,27 @@ const PaymentPage: React.FC = () => {
                   店舗から伝えられた決済コードを入力してください
                 </p>
 
-                {/* 3種類の決済コード入力フィールド（縦並び） */}
-                <div className="space-y-4 max-w-md mx-auto">
-                  {/* 現金用5桁コード */}
+                {/* 統合された決済コード入力フィールド（5桁または6桁を自動判定） */}
+                <div className="max-w-md mx-auto">
                   <div>
                     <label className="block text-sm mb-2 text-left" style={{ color: '#2D2A26', fontWeight: 600 }}>
-                      現金用5桁コード
+                      決済コード
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        maxLength={5}
-                        value={cashCode5}
+                        maxLength={6}
+                        value={paymentCode}
                         onChange={(e) => {
                           const value = e.target.value.replace(/[^0-9]/g, '');
-                          if (value.length <= 5) {
-                            setCashCode5(value);
+                          if (value.length <= 6) {
+                            setPaymentCode(value);
                             setError('');
                           }
                         }}
-                        placeholder="00000"
-                        className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-center text-xl sm:text-2xl tracking-[0.3em] rounded-sm transition-all duration-200"
-                        style={{
-                          fontFamily: "'Cormorant Garamond', serif",
-                          backgroundColor: '#FDFCFA',
-                          border: '2px solid #E0D6C8',
-                          color: '#3D4A35',
-                          fontWeight: 600
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#5C6B4A';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = '#E0D6C8';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      />
-                  <button
-                        onClick={() => verifyPaymentCode(cashCode5, 'cash5')}
-                        disabled={codeVerifying || cashCode5.length !== 5}
-                        className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300 disabled:opacity-50 whitespace-nowrap"
-                        style={{ 
-                          backgroundColor: '#5C6B4A',
-                          color: '#FAF8F5'
-                        }}
-                      >
-                        {codeVerifying && activeCodeType === 'cash5' ? '確認中...' : '確認'}
-                  </button>
-                </div>
-                    <p className="text-xs mt-1 text-left" style={{ color: '#3D3A36', fontWeight: 500 }}>
-                      店舗決済（5分間有効）
-                    </p>
-                  </div>
-
-                  {/* クレジット決済用5桁コード */}
-                  <div>
-                    <label className="block text-sm mb-2 text-left" style={{ color: '#2D2A26', fontWeight: 600 }}>
-                      クレジット決済用5桁コード
-                    </label>
-                    <div className="flex gap-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                        maxLength={5}
-                        value={creditCode5}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
-                          if (value.length <= 5) {
-                            setCreditCode5(value);
-                          setError('');
-                        }
-                      }}
-                        placeholder="00000"
+                        placeholder={paymentCode.length <= 5 ? "00000" : "000000"}
                         className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-center text-xl sm:text-2xl tracking-[0.3em] rounded-sm transition-all duration-200"
                         style={{
                           fontFamily: "'Cormorant Garamond', serif",
@@ -491,75 +606,21 @@ const PaymentPage: React.FC = () => {
                         }}
                       />
                       <button
-                        onClick={() => verifyPaymentCode(creditCode5, 'credit5')}
-                        disabled={codeVerifying || creditCode5.length !== 5}
+                        onClick={() => verifyPaymentCode(paymentCode)}
+                        disabled={codeVerifying || (paymentCode.length !== 5 && paymentCode.length !== 6)}
                         className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300 disabled:opacity-50 whitespace-nowrap"
                         style={{ 
                           backgroundColor: '#5C6B4A',
                           color: '#FAF8F5'
                         }}
                       >
-                        {codeVerifying && activeCodeType === 'credit5' ? '確認中...' : '確認'}
+                        {codeVerifying ? '確認中...' : '確認'}
                       </button>
                     </div>
                     <p className="text-xs mt-1 text-left" style={{ color: '#3D3A36', fontWeight: 500 }}>
-                      店舗決済（5分間有効）
+                      {paymentCode.length === 6 ? '遠距離決済（1ヶ月間有効）' : '店舗決済（5分間有効）'}
                     </p>
                   </div>
-                  
-                  {/* 遠距離決済用6桁コード */}
-                  <div>
-                    <label className="block text-sm mb-2 text-left" style={{ color: '#2D2A26', fontWeight: 600 }}>
-                      遠距離決済用6桁コード
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
-                        value={longDistanceCode6}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '');
-                          if (value.length <= 6) {
-                            setLongDistanceCode6(value);
-                            setError('');
-                          }
-                        }}
-                        placeholder="000000"
-                        className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-center text-xl sm:text-2xl tracking-[0.3em] rounded-sm transition-all duration-200"
-                        style={{
-                          fontFamily: "'Cormorant Garamond', serif",
-                          backgroundColor: '#FDFCFA',
-                          border: '2px solid #E0D6C8',
-                          color: '#3D4A35',
-                          fontWeight: 600
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#5C6B4A';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = '#E0D6C8';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      />
-                        <button
-                        onClick={() => verifyPaymentCode(longDistanceCode6, 'long6')}
-                        disabled={codeVerifying || longDistanceCode6.length !== 6}
-                        className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300 disabled:opacity-50 whitespace-nowrap"
-                        style={{ 
-                          backgroundColor: '#5C6B4A',
-                          color: '#FAF8F5'
-                        }}
-                      >
-                        {codeVerifying && activeCodeType === 'long6' ? '確認中...' : '確認'}
-                        </button>
-                    </div>
-                    <p className="text-xs mt-1 text-left" style={{ color: '#3D3A36', fontWeight: 500 }}>
-                      遠距離決済（1ヶ月間有効）
-                    </p>
-              </div>
                 </div>
               </div>
             </div>
@@ -722,12 +783,9 @@ const PaymentPage: React.FC = () => {
                   {/* 現金決済 */}
                   <button
                     onClick={() => {
-                      const usedCode = activeCodeType === 'cash5' ? cashCode5 : 
-                                       activeCodeType === 'credit5' ? creditCode5 : 
-                                       longDistanceCode6;
                       navigate('/cash-payment', { 
                         state: { 
-                          paymentCode: usedCode, 
+                          paymentCode: paymentCode, 
                           paymentCodeData: paymentCodeData || null,
                           scannedData 
                         } 
