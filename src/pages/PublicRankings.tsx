@@ -264,24 +264,25 @@ const PublicRankings: React.FC = () => {
                         ))}
                       </select>
                     </div>
-                  <div className="space-y-3">
-                    {rankings.regionalProducts.map((product, index) => (
-                      <div key={product.flower_category} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center">
-                          <div className="flex items-center justify-center w-8 h-8 bg-yellow-500 text-white rounded-full text-sm font-bold mr-3">
-                            {index + 1}
+                    <div className="space-y-3">
+                      {rankings.regionalProducts.map((product, index) => (
+                        <div key={product.flower_category} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            <div className="flex items-center justify-center w-8 h-8 bg-yellow-500 text-white rounded-full text-sm font-bold mr-3">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">{product.flower_category}</h3>
+                              <p className="text-sm text-gray-500">販売回数: {product.popularity_count}回</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">{product.flower_category}</h3>
-                            <p className="text-sm text-gray-500">販売回数: {product.popularity_count}回</p>
+                          <div className="text-right">
+                            <p className="font-medium text-gray-900">¥{product.average_price?.toLocaleString()}</p>
+                            <p className="text-sm text-gray-500">平均価格</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">¥{product.average_price?.toLocaleString()}</p>
-                          <p className="text-sm text-gray-500">平均価格</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
