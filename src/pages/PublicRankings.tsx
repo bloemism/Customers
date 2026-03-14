@@ -126,16 +126,21 @@ const PublicRankings: React.FC = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200 mr-4"
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
               >
                 <ArrowLeft className="h-6 w-6" />
               </button>
-              <div className="flex items-center">
-                <Trophy className="h-8 w-8 text-yellow-500 mr-3" />
-                <h1 className="text-2xl font-bold text-gray-900">人気ランキング</h1>
+              <div 
+                className="px-5 py-4 rounded-lg"
+                style={{ backgroundColor: 'rgba(92, 107, 74, 0.95)', color: '#FFFFFF' }}
+              >
+                <h1 className="text-lg font-bold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
+                  <Trophy className="h-5 w-5 text-yellow-300" />
+                  人気ランキング
+                </h1>
               </div>
             </div>
             <button
@@ -196,7 +201,19 @@ const PublicRankings: React.FC = () => {
             {/* 地域別統計 */}
             {selectedTab === 'regional' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div 
+                    className="px-5 py-4"
+                    style={{ backgroundColor: 'rgba(92, 107, 74, 0.95)', color: '#FFFFFF' }}
+                  >
+                    <h2 className="font-bold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
+                      🗾 地域別加盟店
+                    </h2>
+                    <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>
+                      全国 {rankings.regional.reduce((sum, r) => sum + (r.store_count || 0), 0)} 店舗の分布
+                    </p>
+                  </div>
+                  <div className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                     <MapPin className="h-5 w-5 mr-2 text-blue-500" />
                     地域別統計（直近30日）
@@ -217,6 +234,7 @@ const PublicRankings: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -224,22 +242,28 @@ const PublicRankings: React.FC = () => {
             {/* 人気商品 */}
             {selectedTab === 'products' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                      <Flower className="h-5 w-5 mr-2 text-pink-500" />
-                      人気商品ランキング
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div 
+                    className="px-5 py-4"
+                    style={{ backgroundColor: 'rgba(92, 107, 74, 0.95)', color: '#FFFFFF' }}
+                  >
+                    <h2 className="font-bold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
+                      🌸 人気のお花ランキング
                     </h2>
-                    <select
-                      value={selectedPrefecture}
-                      onChange={(e) => handlePrefectureChange(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {prefectures.map(pref => (
-                        <option key={pref} value={pref}>{pref}</option>
-                      ))}
-                    </select>
+                    <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>購入データに基づく人気ランキング</p>
                   </div>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <select
+                        value={selectedPrefecture}
+                        onChange={(e) => handlePrefectureChange(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {prefectures.map(pref => (
+                          <option key={pref} value={pref}>{pref}</option>
+                        ))}
+                      </select>
+                    </div>
                   <div className="space-y-3">
                     {rankings.regionalProducts.map((product, index) => (
                       <div key={product.flower_category} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

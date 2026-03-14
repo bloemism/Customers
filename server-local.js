@@ -22,6 +22,13 @@ import createAccountLink from './api/create-account-link.js';
 import getConnectedAccountStatus from './api/get-connected-account-status.js';
 import getCheckoutSession from './api/get-checkout-session.js';
 import getPaymentIntent from './api/get-payment-intent.js';
+import createConnectedAccount from './api/create-connected-account.js';
+import getConnectedAccount from './api/get-connected-account.js';
+import paymentStatus from './api/payment-status.js';
+import createProduct from './api/create-product.js';
+import createSubscription from './api/create-subscription.js';
+import transferToStore from './api/transfer-to-store.js';
+import stripeWebhook from './api/stripe-webhook.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,8 +39,17 @@ app.use(cors({
   credentials: true
 }));
 
-// JSONパーサー
-app.use(express.json());
+// JSONパーサー（stripe-webhook以外のエンドポイント用）
+app.use((req, res, next) => {
+  // stripe-webhookはraw bodyが必要なため、JSONパーサーをスキップ
+  if (req.path === '/api/stripe-webhook') {
+    return next();
+  }
+  express.json()(req, res, next);
+});
+
+// raw bodyパーサー（stripe-webhook用）
+app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }));
 
 // Vercelのサーバーレス関数形式に合わせたリクエスト/レスポンスオブジェクトを作成
 function createVercelReqRes(req, res) {
@@ -143,6 +159,133 @@ app.all('/api/get-payment-intent', async (req, res) => {
     await getPaymentIntent(vercelReq, vercelRes);
   } catch (error) {
     console.error('Error in get-payment-intent:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/create-connected-account', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/create-connected-account`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await createConnectedAccount(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in create-connected-account:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/get-connected-account', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/get-connected-account`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await getConnectedAccount(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in get-connected-account:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/payment-status', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/payment-status`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await paymentStatus(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in payment-status:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/create-product', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/create-product`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await createProduct(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in create-product:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/create-subscription', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/create-subscription`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await createSubscription(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in create-subscription:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+app.all('/api/transfer-to-store', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/transfer-to-store`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await transferToStore(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in transfer-to-store:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false
+    });
+  }
+});
+
+// stripe-webhookはraw bodyが必要なため、特別な処理
+app.post('/api/stripe-webhook', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] POST /api/stripe-webhook`);
+  try {
+    // raw bodyをそのまま渡す
+    const vercelReq = {
+      method: req.method,
+      headers: req.headers,
+      body: req.body, // raw body
+      query: req.query,
+      url: req.url,
+      path: req.path
+    };
+    
+    const vercelRes = {
+      status: (code) => {
+        res.status(code);
+        return vercelRes;
+      },
+      json: (data) => {
+        res.json(data);
+      },
+      send: (data) => {
+        res.send(data);
+      },
+      setHeader: (name, value) => {
+        res.setHeader(name, value);
+      },
+      end: () => {
+        res.end();
+      }
+    };
+    
+    await stripeWebhook(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in stripe-webhook:', error);
     res.status(500).json({
       error: error.message || 'Internal server error',
       success: false
