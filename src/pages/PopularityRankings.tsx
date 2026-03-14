@@ -9,83 +9,48 @@ import {
   BarChart3,
   RefreshCw,
   ShoppingCart,
-  Flower
+  Flower,
+  DollarSign
 } from 'lucide-react';
-import { PublicRankingService } from '../services/publicRankingService';
-import type { 
-  RegionalStatistics, 
-  ProductPopularity, 
-  PointsUsageStats, 
-  SeasonalTrends, 
-  PaymentMethodTrends 
-} from '../services/publicRankingService';
+import { supabase } from '../lib/supabase';
+
+type RankingData = {
+  rank: number;
+  name: string;
+  value: number;
+  store_address: string;
+  store_name: string;
+  change: 'up' | 'down' | 'stable';
+};
 
 const PopularityRankings: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  // const [selectedTab, setSelectedTab] = useState<'regional' | 'products' | 'points' | 'seasonal' | 'payment'>('regional');
-  // const [selectedPrefecture, setSelectedPrefecture] = useState<string>('東京都');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedRegion, setSelectedRegion] = useState('all');
   
   const [rankings, setRankings] = useState<{
-    regional: RegionalStatistics[];
-    products: ProductPopularity[];
-    points: PointsUsageStats[];
-    seasonal: SeasonalTrends[];
-    payment: PaymentMethodTrends[];
-    regionalProducts: ProductPopularity[];
+    pointsUsed: RankingData[];
+    remainingPoints: RankingData[];
+    averageSales: RankingData[];
+    totalSales: RankingData[];
+    purchaseCount: RankingData[];
+    regionalRankings: { [key: string]: RankingData[] };
+    popularFlowers: RankingData[];
   }>({
-    regional: [],
-    products: [],
-    points: [],
-    seasonal: [],
-    payment: [],
-    regionalProducts: []
+    pointsUsed: [],
+    remainingPoints: [],
+    averageSales: [],
+    totalSales: [],
+    purchaseCount: [],
+    regionalRankings: {},
+    popularFlowers: []
   });
 
   const [error, setError] = useState<string | null>(null);
-
-  // データ取得関数
-  const loadRankings = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const [regional, products, points, seasonal, payment] = await Promise.all([
-        PublicRankingService.getRegionalStatistics(),
-        PublicRankingService.getProductPopularity(),
-        PublicRankingService.getPointsUsageStats(),
-        PublicRankingService.getSeasonalTrends(),
-        PublicRankingService.getPaymentMethodTrends()
-      ]);
-
-      setRankings(prev => ({
-        ...prev,
-        regional,
-        products,
-        points,
-        seasonal,
-        payment
-      }));
-    } catch (err) {
-      console.error('ランキングデータ取得エラー:', err);
-      setError('データの取得に失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 地域別商品ランキング取得
-  // const loadRegionalProducts = async (prefecture: string) => {
-  //   try {
-  //     const regionalProducts = await PublicRankingService.getRegionalProductRanking(prefecture);
-  //     setRankings(prev => ({
-  //       ...prev,
-  //       regionalProducts
-  //     }));
-  //   } catch (err) {
-  //     console.error('地域別商品ランキング取得エラー:', err);
-  //   }
-  // };
 
   // 月を変更
   const changeMonth = (direction: 'prev' | 'next') => {
@@ -256,10 +221,10 @@ const PopularityRankings: React.FC = () => {
     }));
   };
 
-  // 月が変更されたらランキングを再読み込み
+  // 初回および月変更時にランキングを読み込み
   useEffect(() => {
     loadRankings();
-  }, []);
+  }, [selectedMonth]);
 
   // ランキングカードコンポーネント
   const RankingCard = ({ title, icon: Icon, data, valueFormatter, color }: {

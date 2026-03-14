@@ -66,12 +66,11 @@ export const getCustomerLessonSchedules = async (customerId: string): Promise<Le
       return [];
     }
 
-    // 登録しているスクールのスケジュールを取得
+    // 登録しているスクールのスケジュールを取得（過去・未来とも反映）
     const { data: schedulesData, error: schedulesError } = await supabase
       .from('new_lesson_schedules')
       .select('*')
       .in('lesson_school_id', schoolIds)
-      .gte('date', new Date().toISOString().split('T')[0]) // 今日以降のスケジュールのみ
       .order('date', { ascending: true })
       .order('start_time', { ascending: true });
 
@@ -156,6 +155,178 @@ export const registerCustomerToSchool = async (
       success: false, 
       error: error.message || 'スクール登録に失敗しました' 
     };
+  }
+};
+
+// 顧客が参加登録済みのスケジュールID一覧を取得
+export const getCustomerParticipationScheduleIds = async (customerId: string): Promise<string[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_participations')
+      .select('schedule_id')
+      .eq('customer_id', customerId)
+      .eq('status', 'confirmed');
+
+    if (error) {
+      console.error('参加済み取得エラー:', error);
+      return [];
+    }
+    return data?.map(row => row.schedule_id) || [];
+  } catch (e) {
+    console.error('参加済み取得例外:', e);
+    return [];
+  }
+};
+
+// レッスンスケジュールに参加申込（顧客が「参加する」で登録）
+export const participateInSchedule = async (
+  scheduleId: string,
+  customerId: string,
+  customerName: string,
+  customerEmail: string,
+  customerPhone?: string,
+  scheduleTitle?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data: existing } = await supabase
+      .from('customer_participations')
+      .select('id')
+      .eq('schedule_id', scheduleId)
+      .eq('customer_id', customerId)
+      .eq('status', 'confirmed')
+      .maybeSingle();
+
+    if (existing) {
+      return { success: false, error: '既にこのレッスンに参加登録済みです' };
+    }
+
+    const { error } = await supabase
+      .from('customer_participations')
+      .insert({
+        schedule_id: scheduleId,
+        customer_id: customerId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone || null,
+        status: 'confirmed'
+      });
+
+    if (error) {
+      console.error('レッスン参加登録エラー:', error);
+      throw error;
+    }
+
+    const notifRow: Record<string, unknown> = {
+      customer_id: customerId,
+      notification_type: 'lesson_participation',
+      is_enabled: true
+    };
+    if (typeof scheduleTitle === 'string') {
+      notifRow.title = 'レッスン参加申し込み';
+      notifRow.message = `「${scheduleTitle}」に参加を申し込みました。`;
+      notifRow.related_schedule_id = scheduleId;
+    }
+    const { error: notifErr } = await supabase.from('customer_notifications').insert(notifRow);
+    if (notifErr) console.warn('customer_notifications 参加連携:', notifErr.message);
+
+    const { error: rpcError } = await supabase.rpc('add_lesson_points_on_participation', {
+      p_schedule_id: scheduleId,
+      p_customer_id: customerId,
+      p_customer_name: customerName,
+      p_customer_email: customerEmail
+    });
+    if (rpcError) {
+      console.warn('レッスンポイント付与RPC:', rpcError.message);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('レッスン参加登録例外:', error);
+    return {
+      success: false,
+      error: error.message || '参加登録に失敗しました'
+    };
+  }
+};
+
+// レッスン参加を取り消す（参加済み→取り消し。レッスン日を過ぎる前のみ可能）
+export const cancelParticipationInSchedule = async (
+  scheduleId: string,
+  customerId: string,
+  scheduleTitle?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data: participation, error: findErr } = await supabase
+      .from('customer_participations')
+      .select('id')
+      .eq('schedule_id', scheduleId)
+      .eq('customer_id', customerId)
+      .eq('status', 'confirmed')
+      .maybeSingle();
+
+    if (findErr || !participation) {
+      return { success: false, error: '参加記録が見つかりません' };
+    }
+
+    const { error: updateErr } = await supabase
+      .from('customer_participations')
+      .update({ status: 'cancelled' })
+      .eq('id', participation.id);
+
+    if (updateErr) {
+      console.error('参加取り消しエラー:', updateErr);
+      return { success: false, error: updateErr.message || '取り消しに失敗しました' };
+    }
+
+    const notifRow: Record<string, unknown> = {
+      customer_id: customerId,
+      notification_type: 'lesson_cancellation',
+      is_enabled: true
+    };
+    if (typeof scheduleTitle === 'string') {
+      notifRow.title = 'レッスン参加取り消し';
+      notifRow.message = `「${scheduleTitle}」の参加を取り消しました。`;
+      notifRow.related_schedule_id = scheduleId;
+    }
+    const { error: notifErr } = await supabase.from('customer_notifications').insert(notifRow);
+    if (notifErr) console.warn('customer_notifications 取り消し連携:', notifErr.message);
+
+    const { error: rpcError } = await supabase.rpc('remove_lesson_points_on_cancel', {
+      p_schedule_id: scheduleId,
+      p_customer_id: customerId
+    });
+    if (rpcError) {
+      console.warn('レッスンポイント減算RPC:', rpcError.message);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('参加取り消し例外:', error);
+    return {
+      success: false,
+      error: error?.message || '取り消しに失敗しました'
+    };
+  }
+};
+
+// レッスンXP（ポイント合計・レベル）を取得（バー表示用）
+export const getCustomerLessonPointTotals = async (customerId: string): Promise<{ total_points: number; current_level: number }> => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_point_totals')
+      .select('total_points, current_level')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return { total_points: 0, current_level: 1 };
+    }
+    return {
+      total_points: Number(data.total_points ?? 0),
+      current_level: Number(data.current_level ?? 1)
+    };
+  } catch {
+    return { total_points: 0, current_level: 1 };
   }
 };
 

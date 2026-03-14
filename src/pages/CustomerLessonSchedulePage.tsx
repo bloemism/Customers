@@ -10,14 +10,17 @@ import {
   ArrowLeft,
   X
 } from 'lucide-react';
-import { getCustomerLessonSchedules, getCustomerRegisteredSchoolsWithDetails } from '../services/customerLessonService';
+import { getCustomerLessonSchedules, getCustomerRegisteredSchoolsWithDetails, getCustomerParticipationScheduleIds, participateInSchedule, cancelParticipationInSchedule, getCustomerLessonPointTotals } from '../services/customerLessonService';
 import type { LessonSchedule, LessonSchool } from '../types/lesson';
 import LessonCalendar from '../components/LessonCalendar';
+import LessonXPBar from '../components/LessonXPBar';
 import type { CalendarLessonSchedule } from '../types/lesson';
+
+const LESSON_POINTS_PER_SESSION = 10;
 
 const CustomerLessonSchedulePage: React.FC = () => {
   const navigate = useNavigate();
-  const { customer } = useCustomerAuth();
+  const { customer, loading: authLoading } = useCustomerAuth();
   
   const [schedules, setSchedules] = useState<LessonSchedule[]>([]);
   const [registeredSchools, setRegisteredSchools] = useState<LessonSchool[]>([]);
@@ -26,25 +29,37 @@ const CustomerLessonSchedulePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [participatingScheduleId, setParticipatingScheduleId] = useState<string | null>(null);
+  const [cancellingScheduleId, setCancellingScheduleId] = useState<string | null>(null);
+  const [participatedIds, setParticipatedIds] = useState<Set<string>>(new Set());
+  const [lessonXP, setLessonXP] = useState<{ total_points: number; current_level: number }>({ total_points: 0, current_level: 1 });
 
   useEffect(() => {
+    if (authLoading) return;
     if (customer?.id) {
       loadData();
+    } else {
+      // 認証完了で顧客データがない場合はローディング終了（空のスケジュール表示）
+      setLoading(false);
     }
-  }, [customer]);
+  }, [customer, authLoading]);
 
   const loadData = async () => {
     if (!customer?.id) return;
 
     try {
       setLoading(true);
-      const [schedulesData, schoolsData] = await Promise.all([
+      const [schedulesData, schoolsData, participationIds, xp] = await Promise.all([
         getCustomerLessonSchedules(customer.id),
-        getCustomerRegisteredSchoolsWithDetails(customer.id)
+        getCustomerRegisteredSchoolsWithDetails(customer.id),
+        getCustomerParticipationScheduleIds(customer.id),
+        getCustomerLessonPointTotals(customer.id)
       ]);
       
       setSchedules(schedulesData);
       setRegisteredSchools(schoolsData);
+      setParticipatedIds(new Set(participationIds));
+      setLessonXP(xp);
     } catch (error) {
       console.error('データ読み込みエラー:', error);
       setMessage('データの読み込みに失敗しました');
@@ -62,6 +77,62 @@ const CustomerLessonSchedulePage: React.FC = () => {
   const handleDateClick = (date: string) => {
     setSelectedDate(date);
     setSelectedSchedule(null);
+  };
+
+  const handleParticipate = async (schedule: LessonSchedule) => {
+    if (!customer?.id || !customer.name || !customer.email) {
+      setMessage('プロフィール（名前・メール）を登録してください');
+      setMessageType('error');
+      return;
+    }
+    setParticipatingScheduleId(schedule.id);
+    setMessage('');
+    const result = await participateInSchedule(
+      schedule.id,
+      customer.id,
+      customer.name,
+      customer.email,
+      customer.phone || undefined,
+      schedule.title
+    );
+    setParticipatingScheduleId(null);
+    if (result.success) {
+      setMessage(`「${schedule.title}」に参加登録しました。レッスン参加で${LESSON_POINTS_PER_SESSION}pt獲得できます。`);
+      setMessageType('success');
+      setParticipatedIds(prev => new Set(prev).add(schedule.id));
+      loadData();
+    } else {
+      setMessage(result.error || '参加登録に失敗しました');
+      setMessageType('error');
+    }
+  };
+
+  const handleCancelParticipation = async (schedule: LessonSchedule) => {
+    if (!customer?.id) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (schedule.date < today) {
+      setMessage('レッスン日を過ぎているため取り消しできません');
+      setMessageType('error');
+      return;
+    }
+    if (!window.confirm(`「${schedule.title}」の参加を取り消しますか？`)) return;
+    setCancellingScheduleId(schedule.id);
+    setMessage('');
+    const result = await cancelParticipationInSchedule(schedule.id, customer.id, schedule.title);
+    setCancellingScheduleId(null);
+    if (result.success) {
+      setMessage('参加を取り消しました。店舗に通知が送信されました。');
+      setMessageType('success');
+      setParticipatedIds(prev => {
+        const next = new Set(prev);
+        next.delete(schedule.id);
+        return next;
+      });
+      loadData();
+    } else {
+      setMessage(result.error || '取り消しに失敗しました');
+      setMessageType('error');
+    }
   };
 
   const getRandomColor = (id: string) => {
@@ -201,6 +272,15 @@ const CustomerLessonSchedulePage: React.FC = () => {
           </div>
         ) : (
           <>
+            {/* レッスン経験値バー（参加で+10pt・取り消しで-10pt・レッスン日過ぎたら固定） */}
+            <div className="mb-4">
+              <LessonXPBar
+                totalPoints={lessonXP.total_points}
+                currentLevel={lessonXP.current_level}
+                lessonsAttended={Math.floor(lessonXP.total_points / 10)}
+              />
+            </div>
+
             {/* カレンダー */}
             <div 
               className="mb-4 sm:mb-6 rounded-sm p-3 sm:p-4 md:p-6"
@@ -288,11 +368,56 @@ const CustomerLessonSchedulePage: React.FC = () => {
                             <span style={{ color: '#3D3A36', fontWeight: 500 }}>
                               {schedule.current_participants}/{schedule.max_participants}名
                             </span>
+                            <span style={{ color: '#C4856C', fontWeight: 500 }}>
+                              参加で{LESSON_POINTS_PER_SESSION}pt
+                            </span>
                           </div>
                           {schedule.description && (
                             <p className="text-xs mt-2" style={{ color: '#8A857E' }}>
                               {schedule.description}
                             </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {schedule.date < new Date().toISOString().slice(0, 10) ? (
+                            <span className="text-xs px-3 py-1 rounded-sm" style={{ backgroundColor: '#F5F0E8', color: '#8A857E' }}>
+                              このレッスンは終了しました
+                            </span>
+                          ) : participatedIds.has(schedule.id) ? (
+                            <>
+                              <span className="text-xs px-3 py-1 rounded-sm" style={{ backgroundColor: '#E8EDE4', color: '#5C6B4A' }}>
+                                参加済み
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleCancelParticipation(schedule); }}
+                                disabled={cancellingScheduleId === schedule.id}
+                                className="text-xs px-4 py-2 rounded-sm font-medium transition-colors"
+                                style={{
+                                  backgroundColor: '#DC2626',
+                                  color: '#fff'
+                                }}
+                              >
+                                {cancellingScheduleId === schedule.id ? '取り消し中...' : '取り消し'}
+                              </button>
+                            </>
+                          ) : schedule.current_participants >= schedule.max_participants ? (
+                            <span className="text-xs px-3 py-1 rounded-sm" style={{ backgroundColor: '#F5F0E8', color: '#8A857E' }}>
+                              満員
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleParticipate(schedule); }}
+                              disabled={participatingScheduleId === schedule.id}
+                              className="text-xs px-4 py-2 rounded-sm font-medium transition-colors"
+                              style={{
+                                backgroundColor: '#5C6B4A',
+                                color: '#fff'
+                              }}
+                            >
+                              {participatingScheduleId === schedule.id ? '登録中...' : '参加する'}
+                            </button>
                           )}
                         </div>
                       </div>

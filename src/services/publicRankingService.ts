@@ -143,6 +143,34 @@ export class PublicRankingService {
     }
   }
 
+  /** 県別ポイントランキング（月別 or 合計）。regional_point_ranking_view / monthly_regional_points_view があれば利用 */
+  static async getMonthlyRegionalPointsRanking(monthKey: string): Promise<{ prefecture: string; total_points: number }[]> {
+    try {
+      if (monthKey !== 'all') {
+        const [y, m] = monthKey.split('-').map(Number);
+        const { data: monthly, error: err2 } = await supabase
+          .from('monthly_regional_points_view')
+          .select('prefecture, total_points')
+          .eq('year', y)
+          .eq('month', m)
+          .order('total_points', { ascending: false });
+        if (!err2 && monthly?.length) return monthly as { prefecture: string; total_points: number }[];
+      }
+      const { data, error } = await supabase
+        .from('regional_point_ranking_view')
+        .select('prefecture, total_points')
+        .order('total_points', { ascending: false });
+      if (error) {
+        console.warn('県別ポイントランキング取得:', error.message);
+        return [];
+      }
+      return (data || []) as { prefecture: string; total_points: number }[];
+    } catch (e) {
+      console.warn('県別ポイントランキング:', e);
+      return [];
+    }
+  }
+
   // 地域別品目人気ランキングを取得
   static async getRegionalProductRanking(prefecture: string): Promise<ProductPopularity[]> {
     try {

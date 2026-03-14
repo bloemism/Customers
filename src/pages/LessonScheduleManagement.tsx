@@ -44,7 +44,7 @@ type MessageType = 'success' | 'error';
 
 const LessonScheduleManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useSimpleAuth();
+  const { user, loading: authLoading } = useSimpleAuth();
   
   const [lessonSchedules, setLessonSchedules] = useState<LessonSchedule[]>([]);
   const [lessonSchools, setLessonSchools] = useState<LessonSchool[]>([]);
@@ -118,6 +118,7 @@ const LessonScheduleManagement: React.FC = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     if (user) {
       Promise.all([
         loadLessonSchoolsData(),
@@ -127,8 +128,10 @@ const LessonScheduleManagement: React.FC = () => {
       ]).finally(() => {
         setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,14 +485,14 @@ const LessonScheduleManagement: React.FC = () => {
     color: '#2D2A26'
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
         style={{ backgroundColor: '#FAF8F5' }}
       >
         <div className="text-center">
-          <div 
+          <div
             className="w-10 h-10 border-2 rounded-full animate-spin mx-auto"
             style={{ borderColor: '#E0D6C8', borderTopColor: '#5C6B4A' }}
           />

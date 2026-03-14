@@ -143,26 +143,51 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
 
   const getPointHistory = async (): Promise<PointHistory[]> => {
     try {
-      if (!customer || !customer.id) {
+      if (!customer) {
         console.error('顧客データが存在しません');
         return [];
       }
+      const userId = customer.user_id;
+      const customerId = (customer as { id?: string }).id;
+      const idForQuery = userId || customerId;
+      if (!idForQuery) return [];
 
-      console.log('ポイント履歴取得開始:', customer.id);
+      console.log('ポイント履歴取得開始:', idForQuery);
 
-      const { data, error } = await supabase
+      let data: Record<string, unknown>[] | null = null;
+
+      const { data: byUser, error: errUser } = await supabase
         .from('point_history')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('user_id', userId ?? idForQuery)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('ポイント履歴取得エラー:', error);
-        throw error;
+      if (!errUser && byUser?.length) {
+        data = byUser;
+      } else if (customerId) {
+        const { data: byCustomer } = await supabase
+          .from('point_history')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false });
+        data = byCustomer;
       }
 
-      console.log('ポイント履歴取得成功:', data?.length || 0, '件');
-      return data || [];
+      const list = (data || []).map((row: Record<string, unknown>) => {
+        const pts = Number(row.points_change ?? row.points ?? 0);
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          customer_id: row.customer_id,
+          points: pts,
+          reason: String(row.description ?? row.reason ?? ''),
+          type: (row.transaction_type === 'use' || row.transaction_type === 'spent' || pts < 0 ? 'used' : 'earned') as 'earned' | 'used',
+          created_at: row.created_at as string | undefined
+        };
+      });
+
+      console.log('ポイント履歴取得成功:', list.length, '件');
+      return list;
     } catch (err) {
       console.error('ポイント履歴取得エラー:', err);
       return [];
@@ -171,26 +196,39 @@ export const CustomerProvider: React.FC<CustomerProviderProps> = ({ children }) 
 
   const getPaymentHistory = async (): Promise<CustomerPayment[]> => {
     try {
-      if (!customer || !customer.id) {
+      if (!customer) {
         console.error('顧客データが存在しません');
         return [];
       }
+      const customerId = (customer as { id?: string }).id;
+      const userId = customer.user_id;
+      const idForQuery = customerId || userId;
+      if (!idForQuery) return [];
 
-      console.log('決済履歴取得開始:', customer.id);
+      console.log('決済履歴取得開始:', idForQuery);
 
       const { data, error } = await supabase
         .from('customer_payments')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('customer_id', customerId ?? idForQuery)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('決済履歴取得エラー:', error);
-        throw error;
+        const { data: altData, error: altErr } = await supabase
+          .from('customer_payments')
+          .select('*')
+          .eq('user_id', userId ?? idForQuery)
+          .order('created_at', { ascending: false });
+        if (altErr) {
+          console.error('決済履歴取得エラー:', error);
+          return [];
+        }
+        console.log('決済履歴取得成功:', altData?.length || 0, '件');
+        return (altData || []) as CustomerPayment[];
       }
 
       console.log('決済履歴取得成功:', data?.length || 0, '件');
-      return data || [];
+      return (data || []) as CustomerPayment[];
     } catch (err) {
       console.error('決済履歴取得エラー:', err);
       return [];
