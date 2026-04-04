@@ -55,7 +55,62 @@ npm run build
 
    例: リポジトリ名が `dbw-landing` なら `VITE_BASE_PATH=/dbw-landing/`。
 
-4. リポジトリ **Settings → Pages** で **Source** を **GitHub Actions** に変更する（本リポジトリに含まれる `.github/workflows/pages.yml` が `main` へ push されるたびにビルド・公開します）。
+4. リポジトリ **Settings → Pages** で **Source** を **GitHub Actions** にする。
+5. **Actions** タブ → **New workflow** → **set up a workflow yourself** を選び、下記 YAML を貼り付けて `main` にコミットする（ブラウザからのコミットなら PAT の `workflow` 権限は不要）。
+
+### Personal Access Token で push するときの注意
+
+`.github/workflows/*.yml` を **git push で送る**には、クラシック PAT に **`workflow`** スコープが必要です。権限を付けたくない場合は、**このリポジトリにはワークフローファイルを含めず**、上記のとおり GitHub 上でワークフローを新規作成して貼り付けてください。
+
+### GitHub Pages 用ワークフロー（貼り付け用）
+
+ファイル名例: `.github/workflows/pages.yml`
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+```
 
 カスタムドメインでルート配信する場合は `vite.config.ts` の `base` を `'/'` にし、ビルド時は `VITE_BASE_PATH` を指定しなくてよいです。
 
