@@ -1,0 +1,527 @@
+/* DBW 企業LP — Botanism マーク由来のティールをポイントに使用 */
+
+.company-lp {
+  --dbw-teal: #4db9b9;
+  --dbw-teal-muted: rgba(77, 185, 185, 0.14);
+  --dbw-teal-hover: #3da8a8;
+  --dbw-paper: #f7f8f7;
+  --dbw-paper-warm: #f4f6f4;
+  --dbw-ink: #2a312e;
+  --dbw-ink-soft: #5a635e;
+  --dbw-white: #ffffff;
+  color: var(--dbw-ink);
+  background: var(--dbw-paper);
+  font-family: 'Noto Serif JP', serif;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.company-lp__deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.company-lp__deco-circle--1 {
+  width: min(42vw, 320px);
+  height: min(42vw, 320px);
+  background: var(--dbw-teal-muted);
+  top: 18%;
+  right: -8%;
+  animation: company-float 14s ease-in-out infinite;
+}
+
+.company-lp__deco-circle--2 {
+  width: min(28vw, 200px);
+  height: min(28vw, 200px);
+  border: 1px solid rgba(77, 185, 185, 0.35);
+  bottom: 12%;
+  left: -6%;
+  animation: company-float 18s ease-in-out infinite reverse;
+}
+
+@keyframes company-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-6px, 10px);
+  }
+}
+
+.company-lp__inner {
+  position: relative;
+  z-index: 1;
+}
+
+.company-lp #mission {
+  scroll-margin-top: 5.5rem;
+}
+
+/* ----- Hero ----- */
+.company-hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 6rem 1.25rem 4rem;
+}
+
+.company-hero__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.company-hero__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 28, 26, 0.25) 0%,
+    rgba(20, 28, 26, 0.55) 45%,
+    rgba(20, 28, 26, 0.72) 100%
+  );
+}
+
+.company-hero__content {
+  position: relative;
+  z-index: 2;
+  max-width: 42rem;
+  text-align: center;
+  width: 100%;
+}
+
+.company-hero__role {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: clamp(0.7rem, 1.8vw, 0.8rem);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.company-hero__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3.5rem, 14vw, 6.5rem);
+  font-weight: 500;
+  color: var(--dbw-white);
+  line-height: 1;
+  margin: 0 0 1.25rem;
+  letter-spacing: 0.08em;
+}
+
+.company-hero__lead {
+  font-size: clamp(0.95rem, 2.4vw, 1.05rem);
+  font-weight: 400;
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.94);
+  margin: 0 auto 2rem;
+  max-width: 28em;
+}
+
+.company-hero-line {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: company-hero-in 1s ease forwards;
+}
+
+.company-hero-line:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.company-hero-line:nth-child(2) {
+  animation-delay: 0.35s;
+}
+.company-hero-line:nth-child(3) {
+  animation-delay: 0.58s;
+}
+
+@keyframes company-hero-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.company-hero__scroll {
+  display: inline-block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  animation: company-hero-in 1s ease 0.85s forwards;
+  opacity: 0;
+}
+
+/* ----- Header ----- */
+.company-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(247, 248, 247, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(77, 185, 185, 0.12);
+}
+
+.company-header--on-hero {
+  background: rgba(20, 28, 26, 0.35);
+  backdrop-filter: blur(12px);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.company-header__brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--dbw-ink);
+  text-decoration: none;
+}
+
+.company-header--on-hero .company-header__brand {
+  color: var(--dbw-white);
+}
+
+.company-header__nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.company-header__link {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  text-decoration: none;
+  padding: 0.4rem 0.65rem;
+  border-radius: 2px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.company-header__link:hover {
+  color: var(--dbw-teal-hover);
+  background: var(--dbw-teal-muted);
+}
+
+.company-header--on-hero .company-header__link {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.company-header--on-hero .company-header__link:hover {
+  color: var(--dbw-white);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ----- Sections ----- */
+.company-section {
+  padding: clamp(3.5rem, 10vw, 6rem) 1.25rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.company-section--tight {
+  padding-top: clamp(2.5rem, 6vw, 3.5rem);
+  padding-bottom: clamp(2.5rem, 6vw, 3.5rem);
+}
+
+.company-section__label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  margin-bottom: 0.75rem;
+}
+
+.company-section__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  margin: 0 0 1rem;
+  color: var(--dbw-ink);
+}
+
+.company-section__body {
+  font-size: 0.98rem;
+  line-height: 2;
+  color: var(--dbw-ink-soft);
+  margin: 0;
+  max-width: 36em;
+}
+
+.company-section__body--spaced {
+  margin-top: 1rem;
+}
+
+.company-brand-sub {
+  font-size: 0.95rem;
+  color: var(--dbw-ink-soft);
+  margin: -0.2rem 0 0.85rem;
+  letter-spacing: 0.06em;
+}
+
+.company-subheading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--dbw-ink);
+  margin: 1.75rem 0 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.company-split--anchor {
+  scroll-margin-top: 5.5rem;
+}
+
+.company-timeline {
+  list-style: none;
+  padding: 0 0 0 1rem;
+  margin: 0.5rem 0 0;
+  max-width: 40em;
+  border-left: 2px solid rgba(77, 185, 185, 0.4);
+}
+
+.company-timeline li {
+  position: relative;
+  padding: 0 0 1rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1.85;
+  color: var(--dbw-ink-soft);
+}
+
+.company-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.company-timeline__when {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.company-bullets {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2em;
+  max-width: 40em;
+  color: var(--dbw-ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.95;
+}
+
+.company-bullets li {
+  margin-bottom: 0.7rem;
+}
+
+.company-bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.company-section__divider {
+  width: 3rem;
+  height: 2px;
+  background: var(--dbw-teal);
+  margin: 1.25rem 0 1.5rem;
+  opacity: 0.85;
+}
+
+/* Split layout */
+.company-split {
+  display: grid;
+  gap: clamp(1.75rem, 4vw, 3rem);
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .company-split {
+    grid-template-columns: 1fr 1fr;
+  }
+  .company-split--reverse .company-split__visual {
+    order: 2;
+  }
+  .company-split--reverse .company-split__text {
+    order: 1;
+  }
+}
+
+.company-split__visual {
+  position: relative;
+}
+
+.company-split__img {
+  width: 100%;
+  display: block;
+  border-radius: 2px;
+  object-fit: cover;
+  aspect-ratio: 4 / 5;
+  box-shadow: 0 20px 50px rgba(42, 49, 46, 0.12);
+}
+
+.company-split__img--wide {
+  aspect-ratio: 16 / 10;
+}
+
+@media (min-width: 768px) {
+  .company-split__img {
+    aspect-ratio: 3 / 4;
+  }
+  .company-split__img--wide {
+    aspect-ratio: 5 / 4;
+  }
+}
+
+/* Botanism block */
+.company-botanism {
+  background: linear-gradient(165deg, var(--dbw-paper-warm) 0%, rgba(77, 185, 185, 0.08) 48%, var(--dbw-paper) 100%);
+  border-top: 1px solid rgba(77, 185, 185, 0.15);
+  border-bottom: 1px solid rgba(77, 185, 185, 0.12);
+  padding: clamp(2.5rem, 7vw, 4rem) 0;
+  border-radius: 2px;
+}
+
+.company-botanism__mark {
+  width: clamp(5.5rem, 22vw, 7.5rem);
+  height: auto;
+  display: block;
+  margin-bottom: 1.25rem;
+  border-radius: 4px;
+  box-shadow: 0 12px 32px rgba(42, 49, 46, 0.1);
+}
+
+.company-botanism__name {
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  margin-bottom: 0.5rem;
+}
+
+/* Reveal on scroll */
+.company-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.75s ease,
+    transform 0.75s ease;
+}
+
+.company-reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Footer */
+.company-footer {
+  padding: 2.5rem 1.25rem 3rem;
+  text-align: center;
+  border-top: 1px solid rgba(77, 185, 185, 0.12);
+  background: var(--dbw-white);
+}
+
+.company-footer__wordmark {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.15em;
+  color: var(--dbw-ink);
+  margin: 0 0 0.35rem;
+}
+
+.company-footer__sub {
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  margin: 0 0 1.25rem;
+}
+
+.company-footer__copy {
+  font-size: 0.75rem;
+  color: var(--dbw-ink-soft);
+  margin: 0;
+}
+
+.company-footer__mark {
+  width: 3rem;
+  height: auto;
+  margin: 1.25rem auto 0;
+  opacity: 0.9;
+}
+
+.company-inline-link {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dbw-teal);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(77, 185, 185, 0.45);
+  padding-bottom: 2px;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+
+.company-inline-link:hover {
+  color: var(--dbw-teal-hover);
+  border-bottom-color: var(--dbw-teal-hover);
+}
+
+/* SNS（Instagram / YouTube） */
+.company-social {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.85rem 0 1.1rem;
+  padding: 0;
+}
+
+.company-social__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 50%;
+  color: var(--dbw-teal);
+  background: var(--dbw-white);
+  border: 1px solid rgba(77, 185, 185, 0.45);
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+.company-social__link:hover {
+  color: var(--dbw-white);
+  background: var(--dbw-teal);
+  border-color: var(--dbw-teal);
+  transform: translateY(-2px);
+}
+
+.company-social__icon {
+  flex-shrink: 0;
+}
