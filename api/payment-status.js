@@ -1,6 +1,11 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 export default async function handler(req, res) {
   // CORS設定
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
     console.log('決済状態確認開始:', payment_intent_id);
 
     // Payment Intentを取得
-    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    const paymentIntent = await getStripe().paymentIntents.retrieve(payment_intent_id);
 
     console.log('決済状態:', paymentIntent.status);
 

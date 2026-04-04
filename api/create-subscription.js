@@ -1,7 +1,12 @@
 // api/create-subscription.js
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,7 +18,7 @@ export default async function handler(req, res) {
 
     // 顧客を作成または取得
     let customer;
-    const existingCustomers = await stripe.customers.list({
+    const existingCustomers = await getStripe().customers.list({
       email: customerEmail,
       limit: 1,
     });
@@ -21,7 +26,7 @@ export default async function handler(req, res) {
     if (existingCustomers.data.length > 0) {
       customer = existingCustomers.data[0];
     } else {
-      customer = await stripe.customers.create({
+      customer = await getStripe().customers.create({
         email: customerEmail,
         metadata: {
           source: '87app'
@@ -30,7 +35,7 @@ export default async function handler(req, res) {
     }
 
     // Checkout Sessionを作成
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
       line_items: [

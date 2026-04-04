@@ -1,7 +1,12 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 // Supabaseクライアントの作成
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
@@ -71,7 +76,7 @@ export default async function handler(req, res) {
     }
 
     // 3. Stripeからアカウント情報を取得
-    const account = await stripe.accounts.retrieve(storeData.stripe_account_id);
+    const account = await getStripe().accounts.retrieve(storeData.stripe_account_id);
 
     console.log('Stripe Account情報取得成功:', account.id);
 

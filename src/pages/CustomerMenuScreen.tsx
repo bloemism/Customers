@@ -15,7 +15,8 @@ import {
   Receipt,
   History,
   Shield,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 
 // 花屋の内観画像（ユーザー提供のイメージ）
@@ -426,6 +427,74 @@ export const CustomerMenuScreen: React.FC = () => {
               </div>
             )}
           </div>
+        </section>
+
+        {/* AI Flower Concierge — 目立つ CTA */}
+        <section className="px-0">
+          <button
+            type="button"
+            onClick={() => navigate('/customer-flower-concierge')}
+            className="w-full text-left rounded-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5C6B4A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF8F5]"
+            style={{
+              boxShadow: '0 8px 28px rgba(61, 74, 53, 0.25)',
+            }}
+            aria-label="AI flower concierge を開く"
+          >
+            <div
+              className="relative px-5 py-6 sm:px-7 sm:py-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6"
+              style={{
+                background:
+                  'linear-gradient(135deg, #2A3326 0%, #3D4A35 38%, #4A5A42 100%)',
+              }}
+            >
+              <div
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 mx-auto sm:mx-0"
+                style={{
+                  backgroundColor: 'rgba(250,248,245,0.18)',
+                  border: '1px solid rgba(250,248,245,0.35)',
+                }}
+              >
+                <Sparkles className="w-7 h-7 sm:w-8 sm:h-8" style={{ color: '#FFFCF7' }} />
+              </div>
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <p
+                  className="text-[10px] sm:text-xs tracking-[0.35em] mb-1"
+                  style={{ color: '#F0EDE6', fontWeight: 700 }}
+                >
+                  AI ASSISTANT
+                </p>
+                <h2
+                  className="text-lg sm:text-2xl mb-2"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', 'Noto Serif JP', serif",
+                    color: '#FFFCF7',
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  AI flower concierge
+                </h2>
+                <p
+                  className="text-xs sm:text-sm leading-relaxed font-medium"
+                  style={{ color: '#F5F2EC' }}
+                >
+                  花に関する問い合わせやアドバイス。コンシェルジュがサポートします。
+                </p>
+                <p
+                  className="text-[10px] sm:text-xs mt-2 leading-relaxed font-medium"
+                  style={{ color: '#EBE6DC' }}
+                >
+                  会話は保存されません。大切な内容はメモにコピーすることをおすすめします。
+                </p>
+              </div>
+              <ChevronRight
+                className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 hidden sm:block"
+                style={{ color: '#FFFCF7' }}
+                aria-hidden
+              />
+            </div>
+          </button>
         </section>
 
         {/* メインメニュー */}

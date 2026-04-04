@@ -1,7 +1,12 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 // Supabaseクライアントの作成
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
@@ -58,7 +63,7 @@ export default async function handler(req, res) {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);

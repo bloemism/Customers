@@ -32,6 +32,10 @@ interface ImportMetaEnv {
   readonly VITE_STRIPE_PUBLISHABLE_KEY?: string
   readonly VITE_APP_NAME: string
   readonly VITE_APP_VERSION: string
+  /** @deprecated 使わないでください（キーがバンドルに入る）。ローカルは GEMINI_API_KEY + npm run dev */
+  readonly VITE_GEMINI_API_KEY?: string
+  readonly VITE_GEMINI_MODEL?: string
+  readonly VITE_API_BASE_URL?: string
 }
 
 interface ImportMeta {

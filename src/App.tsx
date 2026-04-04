@@ -45,6 +45,7 @@ const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage
 const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
 const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
 const CustomerLessonSchedulePage = React.lazy(() => import('./pages/CustomerLessonSchedulePage'));
+const FlowerConciergePage = React.lazy(() => import('./pages/FlowerConciergePage'));
 
 
 // 認証ページ
@@ -172,6 +173,11 @@ function App() {
               <Route path="/customer-menu" element={
               <CustomerAuthGuard>
                   <CustomerMenuScreen />
+                </CustomerAuthGuard>
+              } />
+              <Route path="/customer-flower-concierge" element={
+                <CustomerAuthGuard>
+                  <FlowerConciergePage />
                 </CustomerAuthGuard>
               } />
               <Route path="/customer-profile" element={

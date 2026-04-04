@@ -1,7 +1,12 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 // Supabaseクライアントの作成
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
@@ -21,7 +26,7 @@ export async function transferToStore(paymentIntentId, storeId) {
     console.log('店舗への送金処理開始:', { paymentIntentId, storeId });
 
     // 1. Payment Intentから決済情報を取得
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
     
     if (paymentIntent.status !== 'succeeded') {
       throw new Error(`決済が完了していません: ${paymentIntent.status}`);

@@ -3,7 +3,12 @@
 // 価格は決済時に顧客が手動で入力するため、商品のみを作成します
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY が設定されていません');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -36,7 +41,7 @@ export default async function handler(req, res) {
 
     // 商品（Product）を作成（価格は含めない）
     // 価格は決済時に顧客が手動で入力するため、price_dataで動的に設定します
-    const product = await stripe.products.create({
+    const product = await getStripe().products.create({
       name: name,
       description: description,
       images: images.length > 0 ? images : undefined,

@@ -12,8 +12,9 @@ import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
 
-// 環境変数の読み込み（.envファイルから）
+// 環境変数: .env のあと .env.local で上書き（GEMINI_API_KEY はここにだけ書く運用向け）
 config();
+config({ path: '.env.local', override: true });
 
 // APIハンドラーのインポート（必要なもののみ）
 import createConnectPaymentIntent from './api/create-connect-payment-intent.js';
@@ -29,6 +30,7 @@ import createProduct from './api/create-product.js';
 import createSubscription from './api/create-subscription.js';
 import transferToStore from './api/transfer-to-store.js';
 import stripeWebhook from './api/stripe-webhook.js';
+import geminiConcierge from './api/gemini-concierge.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,12 +42,13 @@ app.use(cors({
 }));
 
 // JSONパーサー（stripe-webhook以外のエンドポイント用）
+// gemini-concierge は画像付きで JSON が大きくなる（既定 100kb だと PayloadTooLarge → 500）
 app.use((req, res, next) => {
   // stripe-webhookはraw bodyが必要なため、JSONパーサーをスキップ
   if (req.path === '/api/stripe-webhook') {
     return next();
   }
-  express.json()(req, res, next);
+  express.json({ limit: '32mb' })(req, res, next);
 });
 
 // raw bodyパーサー（stripe-webhook用）
@@ -73,6 +76,7 @@ function createVercelReqRes(req, res) {
     setHeader: (name, value) => {
       res.setHeader(name, value);
     },
+    getHeader: (name) => res.getHeader(name),
     end: () => {
       res.end();
     }
@@ -250,6 +254,29 @@ app.all('/api/transfer-to-store', async (req, res) => {
   }
 });
 
+// ヘルスは Vercel ラッパーを経由しない（Express 5 + cors との相性で 500 になるのを避ける）
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.all('/api/gemini-concierge', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/gemini-concierge`);
+  try {
+    const { vercelReq, vercelRes } = createVercelReqRes(req, res);
+    await geminiConcierge(vercelReq, vercelRes);
+  } catch (error) {
+    console.error('Error in gemini-concierge:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      success: false,
+    });
+  }
+});
+
 // stripe-webhookはraw bodyが必要なため、特別な処理
 app.post('/api/stripe-webhook', async (req, res) => {
   console.log(`[${new Date().toISOString()}] POST /api/stripe-webhook`);
@@ -296,6 +323,20 @@ app.post('/api/stripe-webhook', async (req, res) => {
 // ヘルスチェック
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// /api で未捕捉エラー → HTML ではなく JSON（Vite プロキシ経由でもフロントがパースできる）
+app.use((err, req, res, next) => {
+  const isApi = typeof req.path === 'string' && req.path.startsWith('/api');
+  if (isApi && !res.headersSent) {
+    console.error('[server-local API]', req.method, req.path, err);
+    res.status(500).json({
+      success: false,
+      error: err?.message || String(err),
+    });
+    return;
+  }
+  next(err);
 });
 
 // サーバー起動
