@@ -3,13 +3,16 @@
  * 本プロジェクト（dbw-lp）は 87app とは別リポジトリ・別デプロイを想定。
  *
  * 画像実体: public/company/
+ * GitHub Pages（/DBW/ など）では先頭を import.meta.env.BASE_URL に合わせる（絶対 /company/... だと 404 になる）。
  */
+const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
 export const dbwLandingImages = {
-  hero: '/company/hero-landscape.png',
-  botanismField: '/company/botanism-field.png',
-  greenhouse: '/company/greenhouse-aisle.png',
-  fieldRows: '/company/field-rows.png',
-  botanismMark: '/company/botanism-mark.png',
+  hero: asset('company/hero-landscape.png'),
+  botanismField: asset('company/botanism-field.png'),
+  greenhouse: asset('company/greenhouse-aisle.png'),
+  fieldRows: asset('company/field-rows.png'),
+  botanismMark: asset('company/botanism-mark.png'),
 } as const;
 
 export const dbwLandingMeta = {
