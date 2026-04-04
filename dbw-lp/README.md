@@ -89,7 +89,9 @@ npm run build
 
 ### Personal Access Token で push するときの注意
 
-`.github/workflows/*.yml` を **git push で送る**には、クラシック PAT に **`workflow`** スコープが必要です。権限を付けたくない場合は、**このリポジトリにはワークフローファイルを含めず**、上記のとおり GitHub 上でワークフローを新規作成して貼り付けてください。
+`.github/workflows/pages.yml` は **リポジトリに含めておく**と、`main` への push で自動デプロイできます（このファイルを無くすと **その後はデプロイされません**）。
+
+`.github/workflows/*.yml` を **git push で送る・更新する**には、クラシック PAT に **`workflow`** スコープが必要です。SSH で `git push` する場合は通常そのまま送れます。PAT に `workflow` を付けたくない場合は、GitHub 上でワークフローを編集して保存し、**手元の `pages.yml` と内容を揃える**か、あとから `workflow` 付き PAT で一度だけ push してください。
 
 ### GitHub Pages 用ワークフロー（貼り付け用）
 
