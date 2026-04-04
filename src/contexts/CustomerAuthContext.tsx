@@ -149,6 +149,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
               .from('customers')
               .insert({
                 id: authUser.user.id,
+                user_id: authUser.user.id,
                 email: authUser.user.email!,
                 name: authUser.user.user_metadata?.name || '未設定',
                 alphabet: null,
@@ -366,6 +367,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
         const { error: insertError } = await supabase
           .from('customers')
           .insert({
+            id: authUser.user.id,
             user_id: authUser.user.id,
             email: authUser.user.email!,
             name,

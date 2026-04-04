@@ -151,6 +151,8 @@ export const StripeConnectPayment: React.FC = () => {
           connected_account_id: CONNECTED_ACCOUNT_ID,
           application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（円単位）
           product_name: productName,
+          frontend_origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+          cancel_path: '/stripe-connect-payment',
           metadata: {
             payment_type: 'stripe_connect_standard',
             connected_account_id: CONNECTED_ACCOUNT_ID,
@@ -218,13 +220,11 @@ export const StripeConnectPayment: React.FC = () => {
       const result = JSON.parse(text);
       console.log('Stripe Connect決済Intent作成成功:', result);
 
-      // Checkout SessionのURLを取得
-      if (result.url) {
-        // Checkout Session URLが直接返された場合
-        window.location.href = result.url;
-      } else if (result.sessionId) {
-        // Session IDのみ返された場合、Stripe Checkout URLを構築
-        const checkoutUrl = `https://checkout.stripe.com/c/pay/${result.sessionId}`;
+      const checkoutUrl =
+        result.url ||
+        result.checkout_url ||
+        (result.sessionId ? `https://checkout.stripe.com/c/pay/${result.sessionId}` : null);
+      if (checkoutUrl) {
         window.location.href = checkoutUrl;
       } else {
         throw new Error('Checkout URLが取得できませんでした');

@@ -75,14 +75,14 @@ export default defineConfig({
     exclude: ['express', 'cors']
   },
   server: {
-    port: 5174,
+    port: 5173,
     host: true,
     hmr: {
       overlay: false
     }
   },
   preview: {
-    port: 5174,
+    port: 5173,
     host: true
   },
   define: {

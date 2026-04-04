@@ -14,8 +14,12 @@ export interface ProductPopularity {
   flower_category: string;
   popularity_count: number;
   total_quantity_sold: number;
-  average_price: number;
+  /** 品目内: 按分売上合計 ÷ 本数（参考用） */
+  average_unit_gross: number | null;
+  /** 決済額+利用pt(1pt=1円)を明細比で按分した売上合計 */
   total_revenue: number;
+  /** 互換: 旧RPC列名 */
+  average_price?: number | null;
 }
 
 export interface PointsUsageStats {
@@ -69,7 +73,7 @@ export class PublicRankingService {
       const { data, error } = await supabase
         .from('product_popularity_ranking_view')
         .select('*')
-        .order('popularity_count', { ascending: false });
+        .order('total_revenue', { ascending: false });
 
       if (error) {
         console.error('品目人気ランキング取得エラー:', error);
@@ -143,28 +147,44 @@ export class PublicRankingService {
     }
   }
 
-  /** 県別ポイントランキング（月別 or 合計）。regional_point_ranking_view / monthly_regional_points_view があれば利用 */
+  /**
+   * 県別ポイントランキング（月別 or 合計）
+   * `regional_points_by_month_view`（popularity_rankings_monthly_views.sql）を使用
+   */
   static async getMonthlyRegionalPointsRanking(monthKey: string): Promise<{ prefecture: string; total_points: number }[]> {
     try {
       if (monthKey !== 'all') {
         const [y, m] = monthKey.split('-').map(Number);
-        const { data: monthly, error: err2 } = await supabase
-          .from('monthly_regional_points_view')
+        if (!y || !m) return [];
+        const { data: monthly, error } = await supabase
+          .from('regional_points_by_month_view')
           .select('prefecture, total_points')
           .eq('year', y)
           .eq('month', m)
           .order('total_points', { ascending: false });
-        if (!err2 && monthly?.length) return monthly as { prefecture: string; total_points: number }[];
+        if (error) {
+          console.warn('県別ポイント(月次):', error.message);
+          return [];
+        }
+        return (monthly || []).map((r) => ({
+          prefecture: String(r.prefecture),
+          total_points: Number(r.total_points ?? 0)
+        }));
       }
-      const { data, error } = await supabase
-        .from('regional_point_ranking_view')
-        .select('prefecture, total_points')
-        .order('total_points', { ascending: false });
+
+      const { data: rows, error } = await supabase.from('regional_points_by_month_view').select('prefecture, total_points');
       if (error) {
-        console.warn('県別ポイントランキング取得:', error.message);
+        console.warn('県別ポイント(合計):', error.message);
         return [];
       }
-      return (data || []) as { prefecture: string; total_points: number }[];
+      const map = new Map<string, number>();
+      for (const r of rows || []) {
+        const p = String(r.prefecture);
+        map.set(p, (map.get(p) || 0) + Number(r.total_points ?? 0));
+      }
+      return Array.from(map.entries())
+        .map(([prefecture, total_points]) => ({ prefecture, total_points }))
+        .sort((a, b) => b.total_points - a.total_points);
     } catch (e) {
       console.warn('県別ポイントランキング:', e);
       return [];
@@ -260,4 +280,239 @@ export class PublicRankingService {
       averageGrowth: Math.round(growth)
     };
   }
+}
+
+/** 暦月キー（人気ランキング3ヶ月比較用） */
+export type YearMonthKey = { year: number; month: number };
+
+export type MonthSliceLabel = '先々月' | '先月' | '今月';
+
+export type LabeledMonth = YearMonthKey & { label: MonthSliceLabel };
+
+/** アンカー月を「今月」として、その前2ヶ月と合わせた3区間 */
+export function getThreeLabeledMonths(anchorYear: number, anchorMonth: number): LabeledMonth[] {
+  const labels: MonthSliceLabel[] = ['先々月', '先月', '今月'];
+  return [-2, -1, 0].map((offset, i) => {
+    const d = new Date(anchorYear, anchorMonth - 1 + offset, 1);
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      label: labels[i]!
+    };
+  });
+}
+
+export type PaymentMonthlyKpiRow = {
+  year: number;
+  month: number;
+  payment_count: number;
+  total_revenue: number;
+  total_points_used: number;
+  unique_customers: number;
+  /** ranking_completed_payment_events 上の付与ポイント合計 */
+  total_points_earned?: number;
+  /** 利用＋付与（公開ランキングのポイント系と整合） */
+  total_points_activity?: number;
+  /** Σ(決済額+利用pt) 円相当（1pt=1円） */
+  total_gross_sales_yen?: number;
+};
+
+export type ProductPopularityMonthRow = {
+  year: number;
+  month: number;
+  flower_category: string;
+  /** 明細行数（レシート上の行） */
+  popularity_count: number;
+  total_quantity_sold: number;
+  average_unit_gross: number | null;
+  /** 按分後グロス売上（円） */
+  total_revenue: number;
+};
+
+/** flower_item_categories と一致し、月内で明細が2回以上被った商品名 × 月 */
+export type ProductPopularityByNameMonthRow = {
+  year: number;
+  month: number;
+  item_name: string;
+  popularity_count: number;
+  /** その月にその名前が出た店舗数（distinct store_id） */
+  store_count: number;
+  total_quantity_sold: number;
+  average_unit_gross: number | null;
+  total_revenue: number;
+};
+
+/** 店舗住所から都道府県別の月次販売 */
+export type RegionalSalesMonthRow = {
+  year: number;
+  month: number;
+  prefecture: string;
+  payment_count: number;
+  store_count: number;
+  total_revenue_cash: number;
+  total_revenue_gross: number;
+};
+
+export type RegionalPointsMonthRow = {
+  year: number;
+  month: number;
+  prefecture: string;
+  total_points: number;
+  payment_count: number;
+  total_revenue: number;
+};
+
+export type PointsUsageMonthRow = {
+  year: number;
+  month: number;
+  points_range: string;
+  usage_count: number;
+  average_payment_amount: number;
+  average_points_used: number;
+  points_usage_percentage: number | null;
+};
+
+export type SeasonalYearMonthRow = {
+  year: number;
+  month: number;
+  season: string;
+  payment_count: number;
+  average_payment_amount: number;
+  unique_customers: number;
+};
+
+export type CustomerRankingPublicSummaryRow = {
+  year: number;
+  month: number;
+  ranked_participant_count: number;
+  avg_points_among_ranked: number;
+  top_points_value: number;
+  top10_slots: number;
+};
+
+export type PopularityThreeMonthBundle = {
+  months: LabeledMonth[];
+  kpis: (PaymentMonthlyKpiRow | null)[];
+  products: ProductPopularityMonthRow[][];
+  /** マスタ名が被ったものだけの月次トップ（2明細以上） */
+  productsByName: ProductPopularityByNameMonthRow[][];
+  regionalTop: RegionalPointsMonthRow[][];
+  regionalSales: RegionalSalesMonthRow[][];
+  pointsUsage: PointsUsageMonthRow[][];
+  seasonal: (SeasonalYearMonthRow | null)[];
+  customerSummary: (CustomerRankingPublicSummaryRow | null)[];
+};
+
+const TOP_REGIONAL = 12;
+const TOP_REGIONAL_SALES = 12;
+const TOP_PRODUCTS = 15;
+const TOP_PRODUCT_NAMES = 25;
+
+/** `/popularity-rankings` 用: 3ヶ月分をまとめて取得（PII なしビューのみ） */
+export async function fetchPopularityThreeMonthData(
+  anchorYear: number,
+  anchorMonth: number
+): Promise<PopularityThreeMonthBundle> {
+  const months = getThreeLabeledMonths(anchorYear, anchorMonth);
+
+  const kpiResults = await Promise.all(
+    months.map((m) =>
+      supabase
+        .from('payment_monthly_kpis_view')
+        .select('*')
+        .eq('year', m.year)
+        .eq('month', m.month)
+        .maybeSingle()
+    )
+  );
+
+  const [productResults, productByNameResults] = await Promise.all([
+    Promise.all(
+      months.map((m) =>
+        supabase
+          .from('product_popularity_by_month_view')
+          .select('*')
+          .eq('year', m.year)
+          .eq('month', m.month)
+          .order('total_revenue', { ascending: false })
+          .limit(TOP_PRODUCTS)
+      )
+    ),
+    Promise.all(
+      months.map((m) =>
+        supabase
+          .from('product_popularity_overlap_by_name_month_view')
+          .select('*')
+          .eq('year', m.year)
+          .eq('month', m.month)
+          .order('total_revenue', { ascending: false })
+          .limit(TOP_PRODUCT_NAMES)
+      )
+    )
+  ]);
+
+  const [regionalResults, regionalSalesResults] = await Promise.all([
+    Promise.all(
+      months.map((m) =>
+        supabase
+          .from('regional_points_by_month_view')
+          .select('*')
+          .eq('year', m.year)
+          .eq('month', m.month)
+          .order('total_points', { ascending: false })
+          .limit(TOP_REGIONAL)
+      )
+    ),
+    Promise.all(
+      months.map((m) =>
+        supabase
+          .from('regional_sales_by_month_view')
+          .select('*')
+          .eq('year', m.year)
+          .eq('month', m.month)
+          .order('total_revenue_gross', { ascending: false })
+          .limit(TOP_REGIONAL_SALES)
+      )
+    )
+  ]);
+
+  const pointsUsageResults = await Promise.all(
+    months.map((m) =>
+      supabase
+        .from('points_usage_ranking_by_month_view')
+        .select('*')
+        .eq('year', m.year)
+        .eq('month', m.month)
+        .order('usage_count', { ascending: false })
+    )
+  );
+
+  const seasonalResults = await Promise.all(
+    months.map((m) =>
+      supabase
+        .from('seasonal_trends_by_year_month_view')
+        .select('*')
+        .eq('year', m.year)
+        .eq('month', m.month)
+        .maybeSingle()
+    )
+  );
+
+  const { data: summaryAll } = await supabase.rpc('get_customer_rankings_monthly_summary');
+  const summaryRows = (summaryAll as CustomerRankingPublicSummaryRow[] | null) ?? [];
+  const customerSummary = months.map(
+    (m) => summaryRows.find((r) => r.year === m.year && r.month === m.month) ?? null
+  );
+
+  return {
+    months,
+    kpis: kpiResults.map((r) => (r.data as PaymentMonthlyKpiRow | null) ?? null),
+    products: productResults.map((r) => (r.data as ProductPopularityMonthRow[]) || []),
+    productsByName: productByNameResults.map((r) => (r.data as ProductPopularityByNameMonthRow[]) || []),
+    regionalTop: regionalResults.map((r) => (r.data as RegionalPointsMonthRow[]) || []),
+    regionalSales: regionalSalesResults.map((r) => (r.data as RegionalSalesMonthRow[]) || []),
+    pointsUsage: pointsUsageResults.map((r) => (r.data as PointsUsageMonthRow[]) || []),
+    seasonal: seasonalResults.map((r) => (r.data as SeasonalYearMonthRow | null) ?? null),
+    customerSummary
+  };
 }

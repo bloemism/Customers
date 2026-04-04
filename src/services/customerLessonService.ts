@@ -178,65 +178,58 @@ export const getCustomerParticipationScheduleIds = async (customerId: string): P
   }
 };
 
-// レッスンスケジュールに参加申込（顧客が「参加する」で登録）
+type ParticipationRpcResult = {
+  success?: boolean;
+  error?: string;
+  action?: string;
+};
+
+function parseParticipationRpc(data: unknown): ParticipationRpcResult {
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as ParticipationRpcResult;
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  }
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as ParticipationRpcResult;
+  }
+  return {};
+}
+
+// レッスンスケジュールに参加申込（DB側 RPC で participations / notifications / lesson_points を一括更新）
 export const participateInSchedule = async (
   scheduleId: string,
-  customerId: string,
-  customerName: string,
-  customerEmail: string,
-  customerPhone?: string,
-  scheduleTitle?: string
+  _customerId: string,
+  _customerName: string,
+  _customerEmail: string,
+  _customerPhone?: string,
+  _scheduleTitle?: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const { data: existing } = await supabase
-      .from('customer_participations')
-      .select('id')
-      .eq('schedule_id', scheduleId)
-      .eq('customer_id', customerId)
-      .eq('status', 'confirmed')
-      .maybeSingle();
-
-    if (existing) {
-      return { success: false, error: '既にこのレッスンに参加登録済みです' };
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.user?.id) {
+      return { success: false, error: 'ログインが必要です' };
     }
 
-    const { error } = await supabase
-      .from('customer_participations')
-      .insert({
-        schedule_id: scheduleId,
-        customer_id: customerId,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone || null,
-        status: 'confirmed'
-      });
+    const { data, error } = await supabase.rpc('customer_lesson_participation_action', {
+      p_schedule_id: scheduleId,
+      p_action: 'join'
+    });
 
     if (error) {
-      console.error('レッスン参加登録エラー:', error);
-      throw error;
+      console.error('レッスン参加RPC:', error);
+      return { success: false, error: error.message || '参加登録に失敗しました' };
     }
 
-    const notifRow: Record<string, unknown> = {
-      customer_id: customerId,
-      notification_type: 'lesson_participation',
-      is_enabled: true
-    };
-    if (typeof scheduleTitle === 'string') {
-      notifRow.title = 'レッスン参加申し込み';
-      notifRow.message = `「${scheduleTitle}」に参加を申し込みました。`;
-      notifRow.related_schedule_id = scheduleId;
-    }
-    const { error: notifErr } = await supabase.from('customer_notifications').insert(notifRow);
-    if (notifErr) console.warn('customer_notifications 参加連携:', notifErr.message);
-
-    const { error: rpcError } = await supabase.rpc('add_lesson_points_on_participation', {
-      p_schedule_id: scheduleId,
-      p_customer_id: customerId,
-      p_customer_name: customerName,
-      p_customer_email: customerEmail
-    });
-    if (rpcError) {
-      console.warn('レッスンポイント付与RPC:', rpcError.message);
+    const parsed = parseParticipationRpc(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error || '参加登録に失敗しました' };
     }
 
     return { success: true };
@@ -249,54 +242,31 @@ export const participateInSchedule = async (
   }
 };
 
-// レッスン参加を取り消す（参加済み→取り消し。レッスン日を過ぎる前のみ可能）
+// レッスン参加を取り消す（RPC: participations を cancelled / notifications / lesson_points を一括）
 export const cancelParticipationInSchedule = async (
   scheduleId: string,
-  customerId: string,
-  scheduleTitle?: string
+  _customerId: string,
+  _scheduleTitle?: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const { data: participation, error: findErr } = await supabase
-      .from('customer_participations')
-      .select('id')
-      .eq('schedule_id', scheduleId)
-      .eq('customer_id', customerId)
-      .eq('status', 'confirmed')
-      .maybeSingle();
-
-    if (findErr || !participation) {
-      return { success: false, error: '参加記録が見つかりません' };
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.user?.id) {
+      return { success: false, error: 'ログインが必要です' };
     }
 
-    const { error: updateErr } = await supabase
-      .from('customer_participations')
-      .update({ status: 'cancelled' })
-      .eq('id', participation.id);
-
-    if (updateErr) {
-      console.error('参加取り消しエラー:', updateErr);
-      return { success: false, error: updateErr.message || '取り消しに失敗しました' };
-    }
-
-    const notifRow: Record<string, unknown> = {
-      customer_id: customerId,
-      notification_type: 'lesson_cancellation',
-      is_enabled: true
-    };
-    if (typeof scheduleTitle === 'string') {
-      notifRow.title = 'レッスン参加取り消し';
-      notifRow.message = `「${scheduleTitle}」の参加を取り消しました。`;
-      notifRow.related_schedule_id = scheduleId;
-    }
-    const { error: notifErr } = await supabase.from('customer_notifications').insert(notifRow);
-    if (notifErr) console.warn('customer_notifications 取り消し連携:', notifErr.message);
-
-    const { error: rpcError } = await supabase.rpc('remove_lesson_points_on_cancel', {
+    const { data, error } = await supabase.rpc('customer_lesson_participation_action', {
       p_schedule_id: scheduleId,
-      p_customer_id: customerId
+      p_action: 'cancel'
     });
-    if (rpcError) {
-      console.warn('レッスンポイント減算RPC:', rpcError.message);
+
+    if (error) {
+      console.error('レッスン取り消しRPC:', error);
+      return { success: false, error: error.message || '取り消しに失敗しました' };
+    }
+
+    const parsed = parseParticipationRpc(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error || '取り消しに失敗しました' };
     }
 
     return { success: true };

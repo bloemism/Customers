@@ -11,9 +11,14 @@
 
 ---
 
+## セキュリティ（重要）
+
+- **リモート URL に PAT（`ghp_...`）を埋め込まないでください。** 設定ファイル・ログ・画面共有から漏洩しやすいです。
+- **推奨**: 下の **方法2（SSH）**、または `gh auth login` 後の HTTPS（URL は `https://github.com/bloemism/Customers.git` のみ）。
+
 ## プッシュ方法
 
-### 方法1: GitHubパーソナルアクセストークン（推奨）
+### 方法1: GitHubパーソナルアクセストークン（URL には含めない）
 
 #### 1. トークンを作成
 
@@ -31,19 +36,19 @@
 
 5. **トークンをコピー**（`ghp_...`で始まる文字列）
 
-#### 2. プッシュ
+#### 2. プッシュ（トークンはプロンプトまたは Keychain にのみ）
 
 ```bash
-cd /Users/user/customers
-git push https://ghp_YOUR_TOKEN_HERE@github.com/bloemism/Customers.git main
+cd /Users/user/bloemtarot   # または作業ディレクトリ
+git remote set-url origin https://github.com/bloemism/Customers.git
+git push origin main
+# ユーザー名: GitHub のユーザー名、パスワード欄に PAT を入力（macOS は Keychain に保存可）
 ```
 
-**または**
+**または** [GitHub CLI](https://cli.github.com/) で一度ログインする:
 
 ```bash
-cd /Users/user/customers
-git remote set-url origin https://ghp_YOUR_TOKEN_HERE@github.com/bloemism/Customers.git
-git push origin main
+gh auth login
 ```
 
 ---

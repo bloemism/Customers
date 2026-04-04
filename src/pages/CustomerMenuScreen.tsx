@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
 import {
@@ -68,8 +68,18 @@ const levelConfig = {
 
 export const CustomerMenuScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { customer, signOut, refreshCustomer } = useCustomerAuth();
   const [activeCard, setActiveCard] = useState<string | null>(null);
+  const [paymentFlash, setPaymentFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    const notice = (location.state as { paymentNotice?: string } | null)?.paymentNotice;
+    if (notice) {
+      setPaymentFlash(notice);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const fetchCustomerData = async () => {
@@ -288,6 +298,25 @@ export const CustomerMenuScreen: React.FC = () => {
       </header>
 
       <main className="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {paymentFlash && (
+          <div
+            className="rounded-sm p-4 flex justify-between items-start gap-3"
+            style={{ backgroundColor: '#E8EDE4', border: '1px solid #D1DBC9' }}
+            role="status"
+          >
+            <p className="text-sm flex-1" style={{ color: '#2D2A26', fontWeight: 500 }}>
+              {paymentFlash}
+            </p>
+            <button
+              type="button"
+              className="text-xs shrink-0 px-2 py-1 rounded-sm border transition-colors"
+              style={{ borderColor: '#C5C0B8', color: '#3D3A36' }}
+              onClick={() => setPaymentFlash(null)}
+            >
+              閉じる
+            </button>
+          </div>
+        )}
         {/* プロフィールカード */}
         <section 
           className="rounded-sm overflow-hidden shadow-lg"

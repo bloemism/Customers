@@ -8,7 +8,7 @@ const CashPaymentPage: React.FC = () => {
   console.log('💴 CashPaymentPage コンポーネント開始');
   const navigate = useNavigate();
   const location = useLocation();
-  const { customer, loading: customerLoading, error: customerError } = useCustomer();
+  const { customer, loading: customerLoading, error: customerError, fetchCustomerData } = useCustomer();
   
   // location.stateから決済コードとデータを取得
   const [paymentCode, setPaymentCode] = useState(location.state?.paymentCode || '');
@@ -48,17 +48,79 @@ const CashPaymentPage: React.FC = () => {
       let data = null;
       let codeError = null;
 
-      // 5桁の場合はpayment_codes、6桁の場合はpayment_codes_2から検索
+      // 5桁: payment_codes → なければ cash_payment_codes + payment_codes の payment_data
       if (paymentCode.length === 5) {
         console.log('💴 CashPaymentPage - 5桁コード検証開始');
-        const result = await supabase
+        const pcResult = await supabase
           .from('payment_codes')
           .select('*, payment_data')
           .eq('code', paymentCode)
           .gt('expires_at', new Date().toISOString())
-          .single();
-        data = result.data;
-        codeError = result.error;
+          .maybeSingle();
+        data = pcResult.data;
+        codeError = pcResult.error;
+        let paymentData = data?.payment_data as any;
+        if (!paymentData) {
+          const cashResult = await supabase
+            .from('cash_payment_codes')
+            .select('*')
+            .eq('code', paymentCode)
+            .gt('expires_at', new Date().toISOString())
+            .is('used_at', null)
+            .maybeSingle();
+          if (cashResult.data) {
+            data = cashResult.data;
+            const paymentResult = await supabase
+              .from('payment_codes')
+              .select('*, payment_data')
+              .eq('code', paymentCode)
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle();
+            if (paymentResult.data?.payment_data) {
+              paymentData = paymentResult.data.payment_data;
+            } else {
+              codeError = { message: '決済情報が見つかりません' };
+            }
+          } else {
+            const fallbackPc = await supabase
+              .from('payment_codes')
+              .select('*, payment_data')
+              .eq('code', paymentCode)
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle();
+            if (fallbackPc.data?.payment_data) {
+              data = fallbackPc.data;
+              paymentData = fallbackPc.data.payment_data;
+            } else {
+              codeError = cashResult.error || pcResult.error || { message: 'コードが見つかりません' };
+            }
+          }
+        }
+        if (codeError && !paymentData) {
+          setError('無効な決済コードです。コードを確認してください。');
+          setCodeVerifying(false);
+          return;
+        }
+        if (paymentData) {
+          const pd = paymentData as any;
+          const subtotal = pd.subtotal || 0;
+          const pointsToUse = pd.pointsUsed || pd.points_used || pd.points_to_use || 0;
+          const afterPoints = Math.max(0, subtotal - pointsToUse);
+          const tax = Math.round(afterPoints * 0.1);
+          const calculatedAmount = afterPoints + tax;
+          const finalAmount = pd.totalAmount || pd.total_amount || pd.amount || calculatedAmount;
+          const paymentInfo = {
+            store_id: pd.storeId || pd.store_id || data?.store_id,
+            store_name: pd.storeName || pd.store_name || '不明な店舗',
+            amount: finalAmount,
+            points_to_use: pointsToUse,
+            items: pd.items || []
+          };
+          setScannedData(paymentInfo);
+          setPaymentCodeData({ ...data, payment_data: pd });
+          setCodeVerifying(false);
+          return;
+        }
       } else if (paymentCode.length === 6) {
         console.log('💴 CashPaymentPage - 6桁コード検証開始');
         const result = await supabase
@@ -104,9 +166,12 @@ const CashPaymentPage: React.FC = () => {
     }
   };
 
-  // 現金決済処理（売上の3%を記録）
+  // 現金決済（customer_payments に記録。cash_payment_codes は使用済み更新を試行）
   const handleCashPayment = async () => {
-    if (!scannedData || !paymentCodeData) return;
+    if (!scannedData || !paymentCodeData) {
+      setError('決済情報がありません。コードを再度確認してください。');
+      return;
+    }
     
     setProcessing(true);
     setError('');
@@ -114,48 +179,102 @@ const CashPaymentPage: React.FC = () => {
     try {
       const paymentData = paymentCodeData.payment_data as any;
       const totalAmount = scannedData.amount;
-      const feeAmount = Math.round(totalAmount * 0.03); // 3%手数料
+      const usedCode = paymentCode;
 
-      console.log('💴 CashPaymentPage - 現金決済記録開始:', {
-        payment_code: paymentCode,
-        store_id: paymentData.storeId,
-        customer_id: customer?.id,
-        total_amount: totalAmount,
-        fee_amount: feeAmount
-      });
+      const resolvedStoreId =
+        paymentData.storeId ||
+        paymentData.store_id ||
+        scannedData.store_id ||
+        paymentCodeData?.store_id;
 
-      // 現金決済記録をテーブルに保存（売上と手数料を記録）
-      const { error: cashError } = await supabase
-        .from('cash_payments')
-        .insert({
-          payment_code: paymentCode,
-          store_id: paymentData.storeId,
-          customer_id: customer?.id || null,
-          total_amount: totalAmount,
-          fee_amount: feeAmount, // 3%手数料
-          payment_data: paymentData,
-          payment_method: 'cash',
-          status: 'completed',
-          created_at: new Date().toISOString()
-        });
-
-      if (cashError) {
-        console.error('現金決済記録エラー:', cashError);
-        setError('現金決済の記録に失敗しました: ' + cashError.message);
+      if (!resolvedStoreId) {
+        setError('店舗IDが取得できません。決済コードを再入力するか店舗に連絡してください。');
         setProcessing(false);
         return;
       }
 
-      console.log('💴 CashPaymentPage - 現金決済記録成功');
+      const { data: { user } } = await supabase.auth.getUser();
+      let customerId = customer?.id;
+      if (!customerId && user) {
+        const { data: crow } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        customerId = crow?.id;
+      }
 
-      // 成功メッセージ
-      alert('現金決済が完了しました。店舗で直接お支払いください。\n\n決済金額: ¥' + totalAmount.toLocaleString() + '\n手数料（3%）: ¥' + feeAmount.toLocaleString());
-      
-      // ページをリセット
+      if (!customerId) {
+        setError(
+          '顧客プロフィールが登録されていないため、決済履歴に記録できません。メニューから会員情報を登録してからお試しください。'
+        );
+        setProcessing(false);
+        return;
+      }
+
+      if (!user?.id) {
+        setError('ログインセッションが無効です。再度ログインしてからお試しください。');
+        setProcessing(false);
+        return;
+      }
+
+      const pointsUsed = scannedData.points_to_use ?? 0;
+      const pointsEarned = Math.floor(totalAmount * 0.05);
+      const payment_data = {
+        ...paymentData,
+        items: paymentData.items ?? scannedData.items ?? [],
+        store_name: paymentData.storeName || paymentData.store_name || scannedData.store_name,
+        storeName: paymentData.storeName || paymentData.store_name,
+        paymentCode: usedCode,
+        totalAmount,
+        subtotal: paymentData.subtotal,
+        tax: paymentData.tax
+      };
+
+      const insertRow: Record<string, unknown> = {
+        store_id: String(resolvedStoreId),
+        amount: Math.round(totalAmount),
+        points_earned: pointsEarned,
+        points_used: pointsUsed,
+        payment_method: 'cash',
+        status: 'completed',
+        payment_code: usedCode,
+        payment_data,
+        created_at: new Date().toISOString(),
+        user_id: user.id
+      };
+      if (customerId) insertRow.customer_id = String(customerId);
+
+      const { error: cpError } = await supabase.from('customer_payments').insert(insertRow);
+
+      if (cpError) {
+        console.error('customer_payments（現金）:', cpError);
+        setError(
+          cpError.message ||
+            '決済履歴の保存に失敗しました（customer_payments の RLS またはカラムを確認してください）'
+        );
+        setProcessing(false);
+        return;
+      }
+
+      const { error: markErr } = await supabase
+        .from('cash_payment_codes')
+        .update({ used_at: new Date().toISOString() })
+        .eq('code', usedCode)
+        .is('used_at', null);
+      if (markErr) {
+        console.warn('cash_payment_codes 使用済み更新（無視可）:', markErr);
+      }
+
+      await fetchCustomerData();
       setScannedData(null);
       setPaymentCodeData(null);
       setPaymentCode('');
-      navigate('/customer-menu');
+      navigate('/customer-menu', {
+        state: {
+          paymentNotice: `現金決済を記録しました（¥${Math.round(totalAmount).toLocaleString()}）。店舗レジでお支払いください。`
+        }
+      });
       
     } catch (err) {
       console.error('現金決済エラー:', err);

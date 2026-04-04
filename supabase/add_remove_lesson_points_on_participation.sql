@@ -14,14 +14,19 @@ SET search_path = public
 AS $$
 DECLARE
   v_lesson_title TEXT;
+  v_lesson_date DATE;
   v_existing_id UUID;
 BEGIN
-  SELECT title INTO v_lesson_title
+  SELECT title, date INTO v_lesson_title, v_lesson_date
   FROM new_lesson_schedules
   WHERE id = p_schedule_id;
 
   IF v_lesson_title IS NULL THEN
     RETURN json_build_object('success', false, 'message', 'スケジュールが見つかりません');
+  END IF;
+
+  IF v_lesson_date < CURRENT_DATE THEN
+    RETURN json_build_object('success', false, 'message', 'レッスン期日後のためポイントは付与しません');
   END IF;
 
   -- 同一スケジュールで既にポイント付与済みなら重複付与しない
@@ -67,7 +72,16 @@ SET search_path = public
 AS $$
 DECLARE
   v_deleted_id UUID;
+  v_lesson_date DATE;
 BEGIN
+  SELECT date INTO v_lesson_date
+  FROM new_lesson_schedules
+  WHERE id = p_schedule_id;
+
+  IF v_lesson_date IS NOT NULL AND v_lesson_date < CURRENT_DATE THEN
+    RETURN json_build_object('success', true, 'message', 'レッスン期日後のためポイントは変更しません');
+  END IF;
+
   DELETE FROM customer_lesson_points
   WHERE schedule_id = p_schedule_id AND customer_id = p_customer_id
   RETURNING id INTO v_deleted_id;

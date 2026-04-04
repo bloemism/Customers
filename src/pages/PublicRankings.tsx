@@ -75,6 +75,14 @@ const PublicRankings: React.FC = () => {
     }
   };
 
+  /** ヘッダー「更新」: ポイントタブ表示中は県別ポイントも再取得 */
+  const handleRefreshAll = async () => {
+    await loadRankings();
+    if (selectedTab === 'points') {
+      await loadRegionalPoints();
+    }
+  };
+
   const loadRegionalProducts = async (prefecture: string) => {
     try {
       const regionalProducts = await PublicRankingService.getRegionalProductRanking(prefecture);
@@ -155,7 +163,8 @@ const PublicRankings: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={loadRankings}
+              type="button"
+              onClick={handleRefreshAll}
               disabled={loading}
               className="flex items-center px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               style={{ backgroundColor: COLORS.accent, color: '#fff' }}
@@ -256,7 +265,9 @@ const PublicRankings: React.FC = () => {
                 <div className="rounded-lg overflow-hidden" style={{ backgroundColor: COLORS.cardBg, border: `1px solid ${COLORS.border}` }}>
                   <div className="px-5 py-4" style={{ backgroundColor: COLORS.header, color: '#fff' }}>
                     <h2 className="font-bold flex items-center gap-2" style={{ color: '#fff' }}>🌸 人気のお花ランキング</h2>
-                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.9)' }}>購入データに基づく人気ランキング</p>
+                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                      直近30日・カテゴリ集計。売上は決済額＋利用pt（1pt=1円）を明細比で按分したグロスです。都道府県の絞り込みは未実装です。
+                    </p>
                   </div>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -287,12 +298,23 @@ const PublicRankings: React.FC = () => {
                               </div>
                               <div>
                                 <h3 className="font-medium" style={{ color: COLORS.text }}>{product.flower_category}</h3>
-                                <p className="text-sm" style={{ color: COLORS.textMuted }}>販売回数: {product.popularity_count}回</p>
+                                <p className="text-sm" style={{ color: COLORS.textMuted }}>
+                                  本数 {Number(product.total_quantity_sold ?? 0).toLocaleString()} · 明細行{' '}
+                                  {product.popularity_count} 行
+                                </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-medium" style={{ color: COLORS.text }}>¥{product.average_price?.toLocaleString()}</p>
-                              <p className="text-sm" style={{ color: COLORS.textMuted }}>平均価格</p>
+                              <p className="font-medium" style={{ color: COLORS.text }}>
+                                ¥{Number(product.total_revenue ?? 0).toLocaleString()}
+                              </p>
+                              <p className="text-sm" style={{ color: COLORS.textMuted }}>グロス売上（按分）</p>
+                              {(product.average_unit_gross != null || product.average_price != null) && (
+                                <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>
+                                  参考 平均単価 ¥
+                                  {Number(product.average_unit_gross ?? product.average_price ?? 0).toLocaleString()}
+                                </p>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -335,6 +357,12 @@ const PublicRankings: React.FC = () => {
                         <Gift className="h-12 w-12 mx-auto mb-4" style={{ color: COLORS.border }} />
                         <p className="font-medium">県別ポイントのデータがありません</p>
                         <p className="text-sm mt-2">ポイント利用データが追加されると表示されます</p>
+                        {pointMonthTab !== 'all' && (
+                          <p className="text-sm mt-3 max-w-md mx-auto" style={{ color: COLORS.text }}>
+                            先々月・先月・今月は<strong>端末の今日の日付</strong>の暦月です。サンプルが別年の月だけにある場合は
+                            <strong>「合計」</strong>タブで全期間を確認してください。
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">

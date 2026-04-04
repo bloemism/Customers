@@ -1,5 +1,57 @@
 import Stripe from 'stripe';
 
+/**
+ * 顧客アプリのオリジン（success/cancel URL 用）。API のホストと別ドメインのとき必須。
+ * オープンリダイレクト防止のためホストを制限する。
+ */
+function resolveCustomerAppBaseUrl(req) {
+  const fromBody = typeof req.body?.frontend_origin === 'string' ? req.body.frontend_origin.trim() : '';
+  const envFallback =
+    process.env.CUSTOMER_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.VITE_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    (req.headers.host ? `https://${req.headers.host}` : null) ||
+    'http://localhost:5173';
+
+  if (!fromBody) {
+    return String(envFallback).replace(/\/$/, '');
+  }
+
+  try {
+    const u = new URL(fromBody);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+      return String(envFallback).replace(/\/$/, '');
+    }
+    const h = u.hostname;
+    let envCustomerHost = '';
+    try {
+      if (process.env.CUSTOMER_APP_URL) {
+        envCustomerHost = new URL(process.env.CUSTOMER_APP_URL).hostname;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    const allowed =
+      h === 'localhost' ||
+      h === '127.0.0.1' ||
+      (envCustomerHost && h === envCustomerHost) ||
+      h.endsWith('.vercel.app') ||
+      (process.env.CUSTOMER_APP_ALLOWED_HOST_SUFFIX || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .some((suffix) => h === suffix || h.endsWith(`.${suffix}`));
+    if (!allowed) {
+      console.warn('frontend_origin ホストが許可リストに無いため env フォールバック:', h);
+      return String(envFallback).replace(/\/$/, '');
+    }
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return String(envFallback).replace(/\/$/, '');
+  }
+}
+
 // Stripeインスタンスを取得する関数（エラーハンドリング付き）
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -112,6 +164,8 @@ export default async function handler(req, res) {
       product_name,              // 商品名
       items,                     // 品目情報（オプション）
       metadata,                  // メタデータ
+      frontend_origin,           // 顧客アプリ origin（例 https://xxx.vercel.app）
+      cancel_path = '/store-payment', // キャンセル後のパス（同一オリジン内）
     } = req.body;
 
     // 必須パラメータのチェック
@@ -287,12 +341,34 @@ export default async function handler(req, res) {
       });
     }
 
-    // ベースURLを取得（環境変数またはデフォルト値）
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
-      || process.env.VITE_BASE_URL 
-      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-      || (req.headers.host ? `https://${req.headers.host}` : null)
-      || 'http://localhost:5173';
+    // 明細の合計が 0 や請求額と大きくずれるときは 1 ラインにまとめる（Stripe エラー防止）
+    const lineSum = lineItems.reduce(
+      (s, li) => s + (li.price_data?.unit_amount || 0) * (li.quantity || 1),
+      0
+    );
+    if (lineSum <= 0 || Math.abs(lineSum - amountInSmallestUnit) > 1) {
+      console.warn('line_items 合計と amount が不一致のため単一ラインにフォールバック:', {
+        lineSum,
+        amountInSmallestUnit,
+      });
+      lineItems = [
+        {
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: product_name || 'お買い物',
+              description: `合計金額: ¥${amountInSmallestUnit.toLocaleString()}`,
+            },
+            unit_amount: amountInSmallestUnit,
+          },
+          quantity: 1,
+        },
+      ];
+    }
+
+    const baseUrl = resolveCustomerAppBaseUrl(req);
+    const safeCancelPath =
+      typeof cancel_path === 'string' && cancel_path.startsWith('/') ? cancel_path : '/store-payment';
 
     // Checkout Sessionを作成（Stripe Connect Direct Chargesモデル）
     console.log('Checkout Session作成開始（Stripe Connect）:', {
@@ -325,28 +401,10 @@ export default async function handler(req, res) {
         connected_account_id,
         application_fee_amount: applicationFeeInSmallestUnit,
         amount: amountInSmallestUnit,
-        baseUrl
+        baseUrl,
+        cancel_path: safeCancelPath,
+        frontend_origin_received: !!frontend_origin,
       });
-      
-      // Stripe API呼び出しオプション
-      const requestOptions = {
-        timeout: stripeConfig.timeout,
-        maxNetworkRetries: stripeConfig.maxNetworkRetries,
-      };
-      
-      // Direct Chargesモデル: stripeAccountを指定してCheckout Sessionを作成
-      // 注意: stripeAccountは第2引数のオプションオブジェクトの最初のレベルに配置する必要がある
-      const sessionParams = {
-        payment_method_types: ['card'],
-        line_items: [lineItem],
-        mode: 'payment',
-        success_url: `${baseUrl}/stripe-connect-payment-complete?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/stripe-connect-payment?canceled=true`,
-        payment_intent_data: {
-          application_fee_amount: applicationFeeInSmallestUnit, // プラットフォーム手数料
-          metadata: finalMetadata,
-        },
-      };
       
       // Direct Chargesモデル: stripeAccountを指定してCheckout Sessionを作成
       // StandardアカウントでDirect Chargesを使用する場合、stripeAccountを第2引数に指定
@@ -415,7 +473,7 @@ export default async function handler(req, res) {
             line_items: lineItems,
             mode: 'payment',
             success_url: `${baseUrl}/stripe-connect-payment-complete?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${baseUrl}/stripe-connect-payment?canceled=true`,
+            cancel_url: `${baseUrl}${safeCancelPath}?canceled=true`,
             payment_intent_data: {
               application_fee_amount: applicationFeeInSmallestUnit, // プラットフォーム手数料
               metadata: finalMetadata,
@@ -487,6 +545,7 @@ export default async function handler(req, res) {
       success: true,
       sessionId: session.id,
       url: session.url, // Checkout SessionのURL
+      checkout_url: session.url,
       payment_intent_id: session.payment_intent,
       connected_account_id,
       application_fee_amount: applicationFeeInSmallestUnit,

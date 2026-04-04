@@ -1,203 +1,316 @@
 -- 顧客向け公開ランキングシステム
 -- プライバシーを保護しつつ、地域や品目のトレンドを提供
 -- 87app Flower Shop Management System
+--
+-- 前提: popularity_rankings_monthly_views.sql を先に実行し
+--       public.ranking_completed_payment_events と extract_prefecture_from_address を作成済みであること
 
 -- 1. 地域別統計ビュー（都道府県レベル）
 CREATE OR REPLACE VIEW regional_statistics_view AS
-SELECT 
-  CASE 
-    WHEN s.address LIKE '%東京都%' THEN '東京都'
-    WHEN s.address LIKE '%大阪府%' THEN '大阪府'
-    WHEN s.address LIKE '%愛知県%' THEN '愛知県'
-    WHEN s.address LIKE '%神奈川県%' THEN '神奈川県'
-    WHEN s.address LIKE '%埼玉県%' THEN '埼玉県'
-    WHEN s.address LIKE '%千葉県%' THEN '千葉県'
-    WHEN s.address LIKE '%兵庫県%' THEN '兵庫県'
-    WHEN s.address LIKE '%北海道%' THEN '北海道'
-    WHEN s.address LIKE '%福岡県%' THEN '福岡県'
-    WHEN s.address LIKE '%静岡県%' THEN '静岡県'
-    WHEN s.address LIKE '%茨城県%' THEN '茨城県'
-    WHEN s.address LIKE '%広島県%' THEN '広島県'
-    WHEN s.address LIKE '%京都府%' THEN '京都府'
-    WHEN s.address LIKE '%宮城県%' THEN '宮城県'
-    WHEN s.address LIKE '%新潟県%' THEN '新潟県'
-    WHEN s.address LIKE '%長野県%' THEN '長野県'
-    WHEN s.address LIKE '%岐阜県%' THEN '岐阜県'
-    WHEN s.address LIKE '%群馬県%' THEN '群馬県'
-    WHEN s.address LIKE '%栃木県%' THEN '栃木県'
-    WHEN s.address LIKE '%岡山県%' THEN '岡山県'
-    WHEN s.address LIKE '%福島県%' THEN '福島県'
-    WHEN s.address LIKE '%三重県%' THEN '三重県'
-    WHEN s.address LIKE '%熊本県%' THEN '熊本県'
-    WHEN s.address LIKE '%鹿児島県%' THEN '鹿児島県'
-    WHEN s.address LIKE '%沖縄県%' THEN '沖縄県'
-    ELSE 'その他'
-  END as prefecture,
-  COUNT(DISTINCT pr.store_id) as store_count,
-  COUNT(pr.id) as total_payments,
-  ROUND(AVG(pr.total), 0) as average_payment_amount,
-  ROUND(SUM(pr.total) / COUNT(DISTINCT pr.store_id), 0) as average_sales_per_store,
-  COUNT(DISTINCT pr.customer_id) as unique_customers,
-  ROUND(SUM(pr.points_to_use) / NULLIF(COUNT(pr.id), 0), 0) as average_points_used
-FROM payment_requests pr
-LEFT JOIN stores s ON pr.store_id = s.id
-WHERE pr.status = 'completed'
-  AND pr.created_at >= CURRENT_DATE - INTERVAL '30 days' -- 直近30日
-GROUP BY 
-  CASE 
-    WHEN s.address LIKE '%東京都%' THEN '東京都'
-    WHEN s.address LIKE '%大阪府%' THEN '大阪府'
-    WHEN s.address LIKE '%愛知県%' THEN '愛知県'
-    WHEN s.address LIKE '%神奈川県%' THEN '神奈川県'
-    WHEN s.address LIKE '%埼玉県%' THEN '埼玉県'
-    WHEN s.address LIKE '%千葉県%' THEN '千葉県'
-    WHEN s.address LIKE '%兵庫県%' THEN '兵庫県'
-    WHEN s.address LIKE '%北海道%' THEN '北海道'
-    WHEN s.address LIKE '%福岡県%' THEN '福岡県'
-    WHEN s.address LIKE '%静岡県%' THEN '静岡県'
-    WHEN s.address LIKE '%茨城県%' THEN '茨城県'
-    WHEN s.address LIKE '%広島県%' THEN '広島県'
-    WHEN s.address LIKE '%京都府%' THEN '京都府'
-    WHEN s.address LIKE '%宮城県%' THEN '宮城県'
-    WHEN s.address LIKE '%新潟県%' THEN '新潟県'
-    WHEN s.address LIKE '%長野県%' THEN '長野県'
-    WHEN s.address LIKE '%岐阜県%' THEN '岐阜県'
-    WHEN s.address LIKE '%群馬県%' THEN '群馬県'
-    WHEN s.address LIKE '%栃木県%' THEN '栃木県'
-    WHEN s.address LIKE '%岡山県%' THEN '岡山県'
-    WHEN s.address LIKE '%福島県%' THEN '福島県'
-    WHEN s.address LIKE '%三重県%' THEN '三重県'
-    WHEN s.address LIKE '%熊本県%' THEN '熊本県'
-    WHEN s.address LIKE '%鹿児島県%' THEN '鹿児島県'
-    WHEN s.address LIKE '%沖縄県%' THEN '沖縄県'
-    ELSE 'その他'
-  END
+SELECT
+  public.extract_prefecture_from_address(s.address) AS prefecture,
+  COUNT(DISTINCT e.store_id)::BIGINT AS store_count,
+  COUNT(*)::BIGINT AS total_payments,
+  ROUND(AVG(e.payment_total), 0) AS average_payment_amount,
+  ROUND(SUM(e.payment_total) / NULLIF(COUNT(DISTINCT e.store_id), 0), 0) AS average_sales_per_store,
+  COUNT(DISTINCT e.customer_id)::BIGINT AS unique_customers,
+  ROUND(
+    SUM(COALESCE(e.points_used, 0) + COALESCE(e.points_earned, 0))::NUMERIC / NULLIF(COUNT(*), 0),
+    0
+  ) AS average_points_used
+FROM public.ranking_completed_payment_events e
+LEFT JOIN public.stores s ON s.id::text = e.store_id
+WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY 1
 ORDER BY total_payments DESC;
 
--- 2. 品目別人気ランキングビュー（商品名は匿名化）
+-- 2. 品目別人気ランキングビュー（カテゴリ集約・売上は決済+利用ptを明細比で按分）
 CREATE OR REPLACE VIEW product_popularity_ranking_view AS
-SELECT 
-  CASE 
-    WHEN item_data->>'name' LIKE '%バラ%' OR item_data->>'name' LIKE '%ローズ%' THEN 'バラ'
-    WHEN item_data->>'name' LIKE '%チューリップ%' THEN 'チューリップ'
-    WHEN item_data->>'name' LIKE '%ひまわり%' THEN 'ひまわり'
-    WHEN item_data->>'name' LIKE '%ユリ%' OR item_data->>'name' LIKE '%リリー%' THEN 'ユリ'
-    WHEN item_data->>'name' LIKE '%カーネーション%' THEN 'カーネーション'
-    WHEN item_data->>'name' LIKE '%ガーベラ%' THEN 'ガーベラ'
-    WHEN item_data->>'name' LIKE '%花束%' THEN '花束'
-    WHEN item_data->>'name' LIKE '%アレンジ%' THEN 'アレンジメント'
-    WHEN item_data->>'name' LIKE '%鉢植え%' OR item_data->>'name' LIKE '%鉢%' THEN '鉢植え'
-    WHEN item_data->>'name' LIKE '%観葉%' THEN '観葉植物'
-    WHEN item_data->>'name' LIKE '%ブーケ%' THEN 'ブーケ'
-    WHEN item_data->>'name' LIKE '%コサージュ%' THEN 'コサージュ'
-    ELSE 'その他'
-  END as flower_category,
-  COUNT(*) as popularity_count,
-  SUM((item_data->>'quantity')::integer) as total_quantity_sold,
-  ROUND(AVG((item_data->>'price')::integer), 0) as average_price,
-  ROUND(SUM((item_data->>'price')::integer * (item_data->>'quantity')::integer), 0) as total_revenue
-FROM payment_requests pr,
-LATERAL jsonb_array_elements(pr.items) as item_data
-WHERE pr.status = 'completed'
-  AND pr.created_at >= CURRENT_DATE - INTERVAL '30 days' -- 直近30日
-GROUP BY 
-  CASE 
-    WHEN item_data->>'name' LIKE '%バラ%' OR item_data->>'name' LIKE '%ローズ%' THEN 'バラ'
-    WHEN item_data->>'name' LIKE '%チューリップ%' THEN 'チューリップ'
-    WHEN item_data->>'name' LIKE '%ひまわり%' THEN 'ひまわり'
-    WHEN item_data->>'name' LIKE '%ユリ%' OR item_data->>'name' LIKE '%リリー%' THEN 'ユリ'
-    WHEN item_data->>'name' LIKE '%カーネーション%' THEN 'カーネーション'
-    WHEN item_data->>'name' LIKE '%ガーベラ%' THEN 'ガーベラ'
-    WHEN item_data->>'name' LIKE '%花束%' THEN '花束'
-    WHEN item_data->>'name' LIKE '%アレンジ%' THEN 'アレンジメント'
-    WHEN item_data->>'name' LIKE '%鉢植え%' OR item_data->>'name' LIKE '%鉢%' THEN '鉢植え'
-    WHEN item_data->>'name' LIKE '%観葉%' THEN '観葉植物'
-    WHEN item_data->>'name' LIKE '%ブーケ%' THEN 'ブーケ'
-    WHEN item_data->>'name' LIKE '%コサージュ%' THEN 'コサージュ'
-    ELSE 'その他'
-  END
-ORDER BY popularity_count DESC;
+WITH event_lines AS (
+  SELECT
+    e.event_key,
+    e.payment_total,
+    e.points_used,
+    item_data,
+    public.ranking_line_item_revenue(item_data) AS line_rev,
+    public.ranking_line_item_quantity_for_ranking(item_data) AS line_qty,
+    CASE
+      WHEN item_data->>'name' LIKE '%バラ%' OR item_data->>'name' LIKE '%ローズ%' THEN 'バラ'
+      WHEN item_data->>'name' LIKE '%チューリップ%' THEN 'チューリップ'
+      WHEN item_data->>'name' LIKE '%ひまわり%' THEN 'ひまわり'
+      WHEN item_data->>'name' LIKE '%ユリ%' OR item_data->>'name' LIKE '%リリー%' THEN 'ユリ'
+      WHEN item_data->>'name' LIKE '%カーネーション%' THEN 'カーネーション'
+      WHEN item_data->>'name' LIKE '%ガーベラ%' THEN 'ガーベラ'
+      WHEN item_data->>'name' LIKE '%花束%' THEN '花束'
+      WHEN item_data->>'name' LIKE '%アレンジ%' THEN 'アレンジメント'
+      WHEN item_data->>'name' LIKE '%鉢植え%' OR item_data->>'name' LIKE '%鉢%' THEN '鉢植え'
+      WHEN item_data->>'name' LIKE '%観葉%' THEN '観葉植物'
+      WHEN item_data->>'name' LIKE '%ブーケ%' THEN 'ブーケ'
+      WHEN item_data->>'name' LIKE '%コサージュ%' THEN 'コサージュ'
+      ELSE 'その他'
+    END AS flower_category
+  FROM public.ranking_completed_payment_events e
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE WHEN jsonb_typeof(e.items) = 'array' THEN e.items ELSE '[]'::jsonb END
+  ) AS item_data
+  WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+),
+weighted AS (
+  SELECT
+    el.*,
+    SUM(el.line_rev) OVER (PARTITION BY el.event_key) AS event_line_rev_sum,
+    COUNT(*) OVER (PARTITION BY el.event_key) AS event_line_count
+  FROM event_lines el
+),
+allocated AS (
+  SELECT
+    w.*,
+    CASE
+      WHEN w.event_line_rev_sum > 0::numeric THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric)
+        * (w.line_rev / w.event_line_rev_sum)
+      WHEN w.event_line_count > 0 THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric) / w.event_line_count::numeric
+      ELSE 0::numeric
+    END AS line_gross_yen
+  FROM weighted w
+)
+SELECT
+  a.flower_category,
+  COUNT(*)::BIGINT AS popularity_count,
+  COALESCE(SUM(a.line_qty), 0)::BIGINT AS total_quantity_sold,
+  ROUND(COALESCE(SUM(a.line_gross_yen), 0), 0) AS total_revenue,
+  ROUND(
+    COALESCE(
+      SUM(a.line_gross_yen)::numeric / NULLIF(SUM(a.line_qty), 0)::numeric,
+      NULL
+    ),
+    0
+  ) AS average_unit_gross
+FROM allocated a
+GROUP BY a.flower_category
+ORDER BY total_revenue DESC, total_quantity_sold DESC;
 
--- 3. ポイント使用ランキングビュー
+-- 2b. 商品名（items.name / item_name の原文）別 — 直近30日（売上は決済+pt按分）
+CREATE OR REPLACE VIEW product_popularity_by_name_ranking_view AS
+WITH event_lines AS (
+  SELECT
+    e.event_key,
+    e.payment_total,
+    e.points_used,
+    item_data,
+    public.ranking_line_item_revenue(item_data) AS line_rev,
+    public.ranking_line_item_quantity_for_ranking(item_data) AS line_qty
+  FROM public.ranking_completed_payment_events e
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE WHEN jsonb_typeof(e.items) = 'array' THEN e.items ELSE '[]'::jsonb END
+  ) AS item_data
+  WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+),
+weighted AS (
+  SELECT
+    el.*,
+    SUM(el.line_rev) OVER (PARTITION BY el.event_key) AS event_line_rev_sum,
+    COUNT(*) OVER (PARTITION BY el.event_key) AS event_line_count
+  FROM event_lines el
+),
+allocated AS (
+  SELECT
+    w.*,
+    CASE
+      WHEN w.event_line_rev_sum > 0::numeric THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric)
+        * (w.line_rev / w.event_line_rev_sum)
+      WHEN w.event_line_count > 0 THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric) / w.event_line_count::numeric
+      ELSE 0::numeric
+    END AS line_gross_yen
+  FROM weighted w
+)
+SELECT
+  COALESCE(
+    NULLIF(TRIM(COALESCE(a.item_data->>'name', a.item_data->>'item_name', '')), ''),
+    '（名称なし）'
+  ) AS item_name,
+  COUNT(*)::BIGINT AS popularity_count,
+  COALESCE(SUM(a.line_qty), 0)::BIGINT AS total_quantity_sold,
+  ROUND(COALESCE(SUM(a.line_gross_yen), 0), 0) AS total_revenue,
+  ROUND(
+    COALESCE(
+      SUM(a.line_gross_yen)::numeric / NULLIF(SUM(a.line_qty), 0)::numeric,
+      NULL
+    ),
+    0
+  ) AS average_unit_gross
+FROM allocated a
+GROUP BY 1
+ORDER BY total_revenue DESC, total_quantity_sold DESC;
+
+-- 2c. マスタ名が一致し、直近30日で明細2行以上被った商品名のみ（売上は決済+pt按分）
+CREATE OR REPLACE VIEW product_popularity_overlap_by_name_ranking_view AS
+WITH flower_catalog_norm AS (
+  SELECT
+    LOWER(TRIM(BOTH FROM fic.name::text)) AS norm_name,
+    MAX(TRIM(BOTH FROM fic.name::text)) AS display_name
+  FROM public.flower_item_categories fic
+  WHERE fic.is_active = true
+    AND TRIM(BOTH FROM fic.name::text) <> ''
+  GROUP BY LOWER(TRIM(BOTH FROM fic.name::text))
+),
+event_lines AS (
+  SELECT
+    e.event_key,
+    e.store_id,
+    e.payment_total,
+    e.points_used,
+    item_data,
+    public.ranking_line_item_revenue(item_data) AS line_rev,
+    public.ranking_line_item_quantity_for_ranking(item_data) AS line_qty
+  FROM public.ranking_completed_payment_events e
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE WHEN jsonb_typeof(e.items) = 'array' THEN e.items ELSE '[]'::jsonb END
+  ) AS item_data
+  INNER JOIN flower_catalog_norm cn0
+    ON cn0.norm_name = LOWER(TRIM(BOTH FROM COALESCE(item_data->>'name', item_data->>'item_name', '')))
+  WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+    AND TRIM(BOTH FROM COALESCE(item_data->>'name', item_data->>'item_name', '')) <> ''
+),
+weighted AS (
+  SELECT
+    el.*,
+    SUM(el.line_rev) OVER (PARTITION BY el.event_key) AS event_line_rev_sum,
+    COUNT(*) OVER (PARTITION BY el.event_key) AS event_line_count
+  FROM event_lines el
+),
+allocated AS (
+  SELECT
+    w.*,
+    CASE
+      WHEN w.event_line_rev_sum > 0::numeric THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric)
+        * (w.line_rev / w.event_line_rev_sum)
+      WHEN w.event_line_count > 0 THEN
+        (w.payment_total::numeric + COALESCE(w.points_used, 0)::numeric) / w.event_line_count::numeric
+      ELSE 0::numeric
+    END AS line_gross_yen
+  FROM weighted w
+)
+SELECT
+  MAX(cn.display_name) AS item_name,
+  COUNT(*)::bigint AS popularity_count,
+  COUNT(DISTINCT a.store_id)::bigint AS store_count,
+  COALESCE(SUM(a.line_qty), 0)::bigint AS total_quantity_sold,
+  ROUND(COALESCE(SUM(a.line_gross_yen), 0), 0) AS total_revenue,
+  ROUND(
+    COALESCE(
+      SUM(a.line_gross_yen)::numeric / NULLIF(SUM(a.line_qty), 0)::numeric,
+      NULL
+    ),
+    0
+  ) AS average_unit_gross
+FROM allocated a
+INNER JOIN flower_catalog_norm cn
+  ON cn.norm_name = LOWER(TRIM(BOTH FROM COALESCE(a.item_data->>'name', a.item_data->>'item_name', '')))
+GROUP BY cn.norm_name
+HAVING COUNT(*) >= 2
+ORDER BY total_revenue DESC, total_quantity_sold DESC;
+
+-- 3. ポイント帯ランキング（利用＋付与の合算 = ranking_completed_payment_events）
 CREATE OR REPLACE VIEW points_usage_ranking_view AS
-SELECT 
-  CASE 
-    WHEN pr.points_to_use = 0 THEN 'ポイント未使用'
-    WHEN pr.points_to_use <= 100 THEN '1-100ポイント'
-    WHEN pr.points_to_use <= 500 THEN '101-500ポイント'
-    WHEN pr.points_to_use <= 1000 THEN '501-1000ポイント'
-    WHEN pr.points_to_use <= 2000 THEN '1001-2000ポイント'
+WITH ev AS (
+  SELECT
+    e.payment_total,
+    (COALESCE(e.points_used, 0) + COALESCE(e.points_earned, 0))::bigint AS points_activity
+  FROM public.ranking_completed_payment_events e
+  WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+)
+SELECT
+  CASE
+    WHEN ev.points_activity = 0 THEN 'ポイント未使用'
+    WHEN ev.points_activity <= 100 THEN '1-100ポイント'
+    WHEN ev.points_activity <= 500 THEN '101-500ポイント'
+    WHEN ev.points_activity <= 1000 THEN '501-1000ポイント'
+    WHEN ev.points_activity <= 2000 THEN '1001-2000ポイント'
     ELSE '2000ポイント以上'
-  END as points_range,
-  COUNT(*) as usage_count,
-  ROUND(AVG(pr.total), 0) as average_payment_amount,
-  ROUND(AVG(pr.points_to_use), 0) as average_points_used,
-  ROUND(SUM(pr.points_to_use) / NULLIF(SUM(pr.total), 0) * 100, 1) as points_usage_percentage
-FROM payment_requests pr
-WHERE pr.status = 'completed'
-  AND pr.created_at >= CURRENT_DATE - INTERVAL '30 days' -- 直近30日
-GROUP BY 
-  CASE 
-    WHEN pr.points_to_use = 0 THEN 'ポイント未使用'
-    WHEN pr.points_to_use <= 100 THEN '1-100ポイント'
-    WHEN pr.points_to_use <= 500 THEN '101-500ポイント'
-    WHEN pr.points_to_use <= 1000 THEN '501-1000ポイント'
-    WHEN pr.points_to_use <= 2000 THEN '1001-2000ポイント'
+  END AS points_range,
+  COUNT(*)::BIGINT AS usage_count,
+  ROUND(AVG(ev.payment_total), 0) AS average_payment_amount,
+  ROUND(AVG(ev.points_activity), 0) AS average_points_used,
+  ROUND(SUM(ev.points_activity)::NUMERIC / NULLIF(SUM(ev.payment_total), 0) * 100, 1) AS points_usage_percentage
+FROM ev
+GROUP BY
+  CASE
+    WHEN ev.points_activity = 0 THEN 'ポイント未使用'
+    WHEN ev.points_activity <= 100 THEN '1-100ポイント'
+    WHEN ev.points_activity <= 500 THEN '101-500ポイント'
+    WHEN ev.points_activity <= 1000 THEN '501-1000ポイント'
+    WHEN ev.points_activity <= 2000 THEN '1001-2000ポイント'
     ELSE '2000ポイント以上'
   END
 ORDER BY usage_count DESC;
 
 -- 4. 季節別トレンドビュー
 CREATE OR REPLACE VIEW seasonal_trends_view AS
-SELECT 
-  EXTRACT(MONTH FROM pr.created_at) as month,
-  CASE 
-    WHEN EXTRACT(MONTH FROM pr.created_at) IN (12, 1, 2) THEN '冬'
-    WHEN EXTRACT(MONTH FROM pr.created_at) IN (3, 4, 5) THEN '春'
-    WHEN EXTRACT(MONTH FROM pr.created_at) IN (6, 7, 8) THEN '夏'
-    WHEN EXTRACT(MONTH FROM pr.created_at) IN (9, 10, 11) THEN '秋'
-  END as season,
-  COUNT(*) as payment_count,
-  ROUND(AVG(pr.total), 0) as average_payment_amount,
-  COUNT(DISTINCT pr.customer_id) as unique_customers
-FROM payment_requests pr
-WHERE pr.status = 'completed'
-  AND pr.created_at >= CURRENT_DATE - INTERVAL '365 days' -- 直近1年
-GROUP BY EXTRACT(MONTH FROM pr.created_at)
+SELECT
+  EXTRACT(MONTH FROM e.created_at)::INTEGER AS month,
+  CASE
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (12, 1, 2) THEN '冬'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (3, 4, 5) THEN '春'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (6, 7, 8) THEN '夏'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (9, 10, 11) THEN '秋'
+  END AS season,
+  COUNT(*)::BIGINT AS payment_count,
+  ROUND(AVG(e.payment_total), 0) AS average_payment_amount,
+  COUNT(DISTINCT e.customer_id)::BIGINT AS unique_customers
+FROM public.ranking_completed_payment_events e
+WHERE e.created_at >= CURRENT_DATE - INTERVAL '365 days'
+GROUP BY
+  EXTRACT(MONTH FROM e.created_at),
+  CASE
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (12, 1, 2) THEN '冬'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (3, 4, 5) THEN '春'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (6, 7, 8) THEN '夏'
+    WHEN EXTRACT(MONTH FROM e.created_at) IN (9, 10, 11) THEN '秋'
+  END
 ORDER BY month;
 
 -- 5. 決済方法別トレンドビュー
 CREATE OR REPLACE VIEW payment_method_trends_view AS
-SELECT 
-  pr.payment_method,
-  COUNT(*) as usage_count,
-  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) as usage_percentage,
-  ROUND(AVG(pr.total), 0) as average_payment_amount,
-  ROUND(SUM(pr.total), 0) as total_amount
-FROM payment_requests pr
-WHERE pr.status = 'completed'
-  AND pr.created_at >= CURRENT_DATE - INTERVAL '30 days' -- 直近30日
-GROUP BY pr.payment_method
+SELECT
+  e.payment_method,
+  COUNT(*)::BIGINT AS usage_count,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS usage_percentage,
+  ROUND(AVG(e.payment_total), 0) AS average_payment_amount,
+  ROUND(SUM(e.payment_total), 0) AS total_amount
+FROM public.ranking_completed_payment_events e
+WHERE e.created_at >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY e.payment_method
 ORDER BY usage_count DESC;
 
--- 6. 地域別品目人気ランキング関数
+-- 6. 品目人気（カテゴリ別・直近30日）
+-- prefecture_param は互換のため残すが、現状は未使用（全件ビューから上位のみ）。
+-- 以前は flower_category != 'その他' で除外しており、トルコキキョウ等がすべて「その他」だと0件になっていた。
 CREATE OR REPLACE FUNCTION get_regional_product_ranking(prefecture_param text)
 RETURNS TABLE (
   flower_category text,
   popularity_count bigint,
-  average_price numeric,
+  total_quantity_sold bigint,
+  average_unit_gross numeric,
   total_revenue numeric
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     pprv.flower_category,
     pprv.popularity_count,
-    pprv.average_price,
+    pprv.total_quantity_sold,
+    pprv.average_unit_gross,
     pprv.total_revenue
   FROM product_popularity_ranking_view pprv
-  WHERE pprv.flower_category != 'その他'
-  ORDER BY pprv.popularity_count DESC
+  ORDER BY
+    CASE WHEN pprv.flower_category = 'その他' THEN 1 ELSE 0 END,
+    pprv.total_revenue DESC NULLS LAST,
+    pprv.total_quantity_sold DESC NULLS LAST
   LIMIT 10;
 END;
 $$ LANGUAGE plpgsql;
@@ -205,6 +318,8 @@ $$ LANGUAGE plpgsql;
 -- 7. 権限設定（公開ビューのみ）
 GRANT SELECT ON regional_statistics_view TO authenticated;
 GRANT SELECT ON product_popularity_ranking_view TO authenticated;
+GRANT SELECT ON product_popularity_by_name_ranking_view TO authenticated;
+GRANT SELECT ON product_popularity_overlap_by_name_ranking_view TO authenticated;
 GRANT SELECT ON points_usage_ranking_view TO authenticated;
 GRANT SELECT ON seasonal_trends_view TO authenticated;
 GRANT SELECT ON payment_method_trends_view TO authenticated;

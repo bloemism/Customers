@@ -13,6 +13,8 @@ export interface PaymentData {
   customer_id?: string;
   points_to_use: number;
   items?: any[];
+  /** 店舗決済で入力した決済コード（Stripe metadata 用） */
+  code?: string;
   // 注意: store_connect_account_idは削除（Destination Charges方式では不要）
 }
 
@@ -264,58 +266,28 @@ export class CustomerStripeService {
 
       const { amount, points_used, points_earned } = paymentStatus.data;
 
-      // 顧客データを更新
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({
-          points: supabase.sql`points - ${points_used} + ${points_earned}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('顧客データ更新エラー:', updateError);
-        // エラーが発生しても決済は成功とする
-      }
-
-      // 決済履歴を記録
-      const { error: historyError } = await supabase
-        .from('customer_payments')
-        .insert([
-          {
-            user_id: user.id,
-            store_id: paymentStatus.data.store_id,
-            amount: amount,
-            points_used: points_used,
-            payment_method: 'stripe_connect',
-            status: 'completed',
-            stripe_payment_intent_id: paymentIntentId,
-            created_at: new Date().toISOString()
-          }
-        ]);
+      // 正は customer_payments 1 行。point_history / customers は DB トリガー
+      // （supabase/customer_payment_ledger_trigger.sql）で反映
+      const payment_data = {
+        store_name: paymentStatus.data.store_name || ''
+      };
+      const { error: historyError } = await supabase.from('customer_payments').insert([
+        {
+          user_id: user.id,
+          store_id: paymentStatus.data.store_id || undefined,
+          amount,
+          points_earned,
+          points_used,
+          payment_method: 'stripe_connect',
+          status: 'completed',
+          stripe_payment_intent_id: paymentIntentId,
+          payment_data,
+          created_at: new Date().toISOString()
+        }
+      ]);
 
       if (historyError) {
         console.error('決済履歴記録エラー:', historyError);
-        // エラーが発生しても決済は成功とする
-      }
-
-      // ポイント履歴を記録
-      if (points_earned > 0) {
-        const { error: pointError } = await supabase
-          .from('point_history')
-          .insert([
-            {
-              user_id: user.id,
-              points: points_earned,
-              reason: `決済完了 - ${paymentStatus.data.store_name}`,
-              type: 'earned',
-              created_at: new Date().toISOString()
-            }
-          ]);
-
-        if (pointError) {
-          console.error('ポイント履歴記録エラー:', pointError);
-        }
       }
 
       return {

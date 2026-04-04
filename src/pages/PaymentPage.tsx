@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, CreditCard, AlertCircle, Hash, Check } from 'lucide-react';
-import { CustomerStripeService, type PaymentData } from '../services/customerStripeService';
+import type { PaymentData } from '../services/customerStripeService';
 import { useCustomer } from '../contexts/CustomerContext';
 import { supabase } from '../lib/supabase';
-import { loadStripe } from '@stripe/stripe-js';
-
 // API Base URL（ローカル環境ではローカルAPIサーバーを使用）
 const getApiBaseUrl = () => {
   let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -20,14 +18,13 @@ const getApiBaseUrl = () => {
   return apiBaseUrl;
 };
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
 // 背景画像
 const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
-  const { customer, loading: customerLoading, error: customerError } = useCustomer();
+  const location = useLocation();
+  const { customer, loading: customerLoading, error: customerError, fetchCustomerData } = useCustomer();
   
   const [scannedData, setScannedData] = useState<PaymentData | null>(null);
   const [error, setError] = useState('');
@@ -40,11 +37,18 @@ const PaymentPage: React.FC = () => {
   // 決済方法選択（クレジット/現金）
   const [selectedPaymentType, setSelectedPaymentType] = useState<'credit' | 'cash' | null>(null);
   const [paymentCodeData, setPaymentCodeData] = useState<any>(null);
-  const [detectedCodeType, setDetectedCodeType] = useState<'cash5' | 'credit5' | 'long6' | null>(null);
   
   // Stripe Connect関連の状態
   const [storeStripeAccountId, setStoreStripeAccountId] = useState<string | null>(null);
   const [loadingStripeAccount, setLoadingStripeAccount] = useState(false);
+  const [paymentBanner, setPaymentBanner] = useState<{ kind: 'success' | 'info'; message: string } | null>(null);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    if (sp.get('canceled') === 'true') {
+      setError('カード決済がキャンセルされました。必要であればもう一度お試しください。');
+    }
+  }, [location.search]);
   
   // テスト用のStripe ConnectアカウントID（フォールバック用）
   const TEST_CONNECTED_ACCOUNT_ID = 'acct_1SmtPlHk8MTQ5wk4';
@@ -59,79 +63,71 @@ const PaymentPage: React.FC = () => {
     setCodeVerifying(true);
     setError('');
     
-    // コードタイプを自動判定
+    // コードタイプを自動判定（5桁は検索結果で credit5 / cash5 を確定）
     let codeType: 'cash5' | 'credit5' | 'long6';
     if (code.length === 6) {
       codeType = 'long6';
     } else {
-      // 5桁の場合は、まずpayment_codesから検索を試みる（クレジット用）
-      // 見つからなければcash_payment_codesを試す（現金用）
-      codeType = 'credit5'; // デフォルトはクレジット用
+      codeType = 'credit5';
     }
-    
-    setDetectedCodeType(codeType);
 
     try {
       let data = null;
       let codeError = null;
       let paymentData = null;
 
-      // コードタイプに応じて適切なテーブルから検索
-      if (codeType === 'cash5') {
-        // 現金用5桁コード: cash_payment_codesテーブルから検索
-        // 403エラー回避のため、まずpayment_codesから検索を試みる
-        const cashResult = await supabase
-          .from('cash_payment_codes')
-          .select('*')
-          .eq('code', code)
-          .gt('expires_at', new Date().toISOString())
-          .is('used_at', null)
-          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（エラーを回避）
-        
-        if (cashResult.data) {
-          data = cashResult.data;
-          // cash_payment_codesにはpayment_dataがないので、payment_codesから取得を試みる
-          const paymentResult = await supabase
-            .from('payment_codes')
-            .select('*, payment_data')
-            .eq('code', code)
-            .gt('expires_at', new Date().toISOString())
-            .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
-          
-          if (paymentResult.data && paymentResult.data.payment_data) {
-            paymentData = paymentResult.data.payment_data;
-          } else {
-            // payment_codesにない場合は、cash_payment_codesの情報から構築
-            codeError = { message: '決済情報が見つかりません' };
-          }
-        } else {
-          // cash_payment_codesにない場合は、payment_codesから検索（フォールバック）
-          const paymentResult = await supabase
-            .from('payment_codes')
-            .select('*, payment_data')
-            .eq('code', code)
-            .gt('expires_at', new Date().toISOString())
-            .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
-          
-          if (paymentResult.data) {
-            data = paymentResult.data;
-            paymentData = paymentResult.data.payment_data;
-          } else {
-            codeError = paymentResult.error || { message: 'コードが見つかりません' };
-          }
-        }
-      } else if (codeType === 'credit5') {
-        // クレジット決済用5桁コード: payment_codesテーブルから検索
-        const result = await supabase
+      if (code.length === 5) {
+        // 5桁: まず payment_codes（店舗チェックアウトの標準）
+        const pcResult = await supabase
           .from('payment_codes')
           .select('*, payment_data')
           .eq('code', code)
           .gt('expires_at', new Date().toISOString())
-          .maybeSingle(); // single()の代わりにmaybeSingle()を使用（406エラー回避）
-        data = result.data;
-        codeError = result.error;
-        if (data) {
+          .maybeSingle();
+        data = pcResult.data;
+        codeError = pcResult.error;
+        if (data?.payment_data) {
           paymentData = data.payment_data;
+          codeType = 'credit5';
+        }
+        // 見つからない・payment_data なし → 現金用コード経路
+        if (!paymentData) {
+          const cashResult = await supabase
+            .from('cash_payment_codes')
+            .select('*')
+            .eq('code', code)
+            .gt('expires_at', new Date().toISOString())
+            .is('used_at', null)
+            .maybeSingle();
+          if (cashResult.data) {
+            data = cashResult.data;
+            const paymentResult = await supabase
+              .from('payment_codes')
+              .select('*, payment_data')
+              .eq('code', code)
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle();
+            if (paymentResult.data?.payment_data) {
+              paymentData = paymentResult.data.payment_data;
+              codeType = 'cash5';
+            } else {
+              codeError = { message: '決済情報が見つかりません' };
+            }
+          } else {
+            const fallbackPc = await supabase
+              .from('payment_codes')
+              .select('*, payment_data')
+              .eq('code', code)
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle();
+            if (fallbackPc.data?.payment_data) {
+              data = fallbackPc.data;
+              paymentData = fallbackPc.data.payment_data;
+              codeType = 'cash5';
+            } else {
+              codeError = cashResult.error || pcResult.error || { message: 'コードが見つかりません' };
+            }
+          }
         }
       } else if (codeType === 'long6') {
         // 遠距離決済用6桁コード: remote_invoice_codesテーブルから検索
@@ -201,14 +197,14 @@ const PaymentPage: React.FC = () => {
         store_name: paymentData.storeName || paymentData.store_name || '不明な店舗',
         amount: finalAmount,
         points_to_use: pointsToUse,
-        items: paymentData.items || []
+        items: paymentData.items || [],
+        code: paymentCode
       };
       
       console.log('設定するpaymentInfo:', paymentInfo);
 
       setScannedData(paymentInfo);
       setPaymentCodeData({ ...data, payment_data: paymentData });
-      setDetectedCodeType(codeType);
       
       // 店舗のStripe ConnectアカウントIDを取得
       if (paymentInfo.store_id) {
@@ -230,10 +226,11 @@ const PaymentPage: React.FC = () => {
         .from('stores')
         .select('stripe_account_id, stripe_charges_enabled, stripe_onboarding_completed')
         .eq('id', storeId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('店舗情報取得エラー:', error);
+        setStoreStripeAccountId(TEST_CONNECTED_ACCOUNT_ID);
         return;
       }
 
@@ -245,60 +242,140 @@ const PaymentPage: React.FC = () => {
           onboarding_completed: data.stripe_onboarding_completed
         });
       } else {
-        console.warn('この店舗はStripe Connectアカウントが設定されていません。テスト用アカウントを使用します。');
-        // テスト環境では、フォールバックとしてテスト用アカウントIDを使用
+        console.warn('店舗が見つからないか Connect 未設定です。テスト用アカウントで続行します。');
         setStoreStripeAccountId(TEST_CONNECTED_ACCOUNT_ID);
         console.log('テスト用Stripe ConnectアカウントIDを使用:', TEST_CONNECTED_ACCOUNT_ID);
       }
     } catch (error) {
       console.error('アカウント取得エラー:', error);
+      setStoreStripeAccountId(TEST_CONNECTED_ACCOUNT_ID);
     } finally {
       setLoadingStripeAccount(false);
     }
   };
 
-  // 現金決済処理
+  // 現金決済処理（customer_payments に記録。cash_payment_codes は使用済みに更新を試行）
   const handleCashPayment = async () => {
-    if (!scannedData || !paymentCodeData || !detectedCodeType) return;
+    if (!scannedData || !paymentCodeData) {
+      setError('決済情報がありません。コードを再度確認してください。');
+      return;
+    }
     
     setProcessing(true);
     setError('');
+    setPaymentBanner(null);
 
     try {
       const paymentData = paymentCodeData.payment_data as any;
       const totalAmount = scannedData.amount;
-      const feeAmount = Math.round(totalAmount * 0.03);
       
-      // 使用したコードを取得
       const usedCode = paymentCode;
 
-      const { error: cashError } = await supabase
-        .from('cash_payments')
-        .insert({
-          payment_code: usedCode,
-          store_id: paymentData.storeId,
-          customer_id: customer?.id || null,
-          total_amount: totalAmount,
-          fee_amount: feeAmount,
-          payment_data: paymentData,
-          payment_method: 'cash',
-          status: 'completed',
-          created_at: new Date().toISOString()
-        });
+      const resolvedStoreId =
+        paymentData.storeId ||
+        paymentData.store_id ||
+        scannedData.store_id ||
+        paymentCodeData?.store_id;
 
-      if (cashError) {
-        setError('現金決済の記録に失敗しました');
+      if (!resolvedStoreId) {
+        setError('店舗IDが取得できません。決済コードを再入力するか店舗に連絡してください。');
         setProcessing(false);
         return;
       }
 
-      alert('現金決済が完了しました。店舗で直接お支払いください。');
-      
+      const { data: { user } } = await supabase.auth.getUser();
+      let customerId = customer?.id;
+      if (!customerId && user) {
+        const { data: crow } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        customerId = crow?.id;
+      }
+
+      if (!customerId) {
+        setError(
+          '顧客プロフィールが登録されていないため、決済履歴に記録できません。メニューから会員情報を登録してからお試しください。'
+        );
+        setProcessing(false);
+        return;
+      }
+
+      if (!user?.id) {
+        setError('ログインセッションが無効です。再度ログインしてからお試しください。');
+        setProcessing(false);
+        return;
+      }
+
+      const pointsUsed = scannedData.points_to_use ?? 0;
+      const pointsEarned = Math.floor(totalAmount * 0.05);
+      const payment_data = {
+        ...paymentData,
+        items: paymentData.items ?? scannedData.items ?? [],
+        store_name: paymentData.storeName || paymentData.store_name || scannedData.store_name,
+        storeName: paymentData.storeName || paymentData.store_name,
+        paymentCode: usedCode,
+        totalAmount,
+        subtotal: paymentData.subtotal,
+        tax: paymentData.tax
+      };
+
+      const insertRow: Record<string, unknown> = {
+        store_id: String(resolvedStoreId),
+        amount: Math.round(totalAmount),
+        points_earned: pointsEarned,
+        points_used: pointsUsed,
+        payment_method: 'cash',
+        status: 'completed',
+        payment_code: usedCode,
+        payment_data,
+        created_at: new Date().toISOString(),
+        // RLS: customers_can_insert_own_payments は auth.uid()::text = user_id を要求
+        user_id: user.id
+      };
+      if (customerId) insertRow.customer_id = String(customerId);
+
+      const { error: cpError } = await supabase.from('customer_payments').insert(insertRow);
+
+      if (cpError) {
+        console.error('customer_payments（現金）:', cpError);
+        setError(
+          cpError.message ||
+            '決済履歴の保存に失敗しました（customer_payments の RLS またはカラムを確認してください）'
+        );
+        setProcessing(false);
+        return;
+      }
+
+      const { error: markErr } = await supabase
+        .from('cash_payment_codes')
+        .update({ used_at: new Date().toISOString() })
+        .eq('code', usedCode)
+        .is('used_at', null);
+      if (markErr) {
+        console.warn('cash_payment_codes 使用済み更新（無視可）:', markErr);
+      }
+
+      await fetchCustomerData();
+      setPaymentBanner({
+        kind: 'success',
+        message: `現金決済を記録しました（¥${Math.round(totalAmount).toLocaleString()}）。店舗レジでお支払いください。`
+      });
       setScannedData(null);
       setPaymentCodeData(null);
       setSelectedPaymentType(null);
-      setDetectedCodeType(null);
       setPaymentCode('');
+      setStoreStripeAccountId(null);
+
+      window.setTimeout(() => {
+        setPaymentBanner(null);
+        navigate('/customer-menu', {
+          state: {
+            paymentNotice: '現金決済を記録しました。店舗レジでお支払いください。'
+          }
+        });
+      }, 2200);
       
     } catch (err) {
       setError('現金決済処理中にエラーが発生しました');
@@ -381,6 +458,8 @@ const PaymentPage: React.FC = () => {
           application_fee_amount: applicationFeeAmount, // プラットフォーム手数料（円単位）
           product_name: productName,
           items: scannedData.items || [], // 品目情報を送信
+          frontend_origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+          cancel_path: '/store-payment',
           metadata: {
             payment_type: 'stripe_connect_standard',
             connected_account_id: connectedAccountId,
@@ -426,12 +505,13 @@ const PaymentPage: React.FC = () => {
       const result = JSON.parse(text);
       console.log('Stripe Connect決済Intent作成成功:', result);
 
-      // checkout_urlまたはurlのいずれかを使用
-      const checkoutUrl = result.checkout_url || result.url;
-      
+      const checkoutUrl =
+        result.url ||
+        result.checkout_url ||
+        (result.sessionId ? `https://checkout.stripe.com/c/pay/${result.sessionId}` : null);
+
       if (result.success && checkoutUrl) {
         console.log('Stripe Checkoutにリダイレクト:', checkoutUrl);
-        // Stripe Checkoutにリダイレクト
         window.location.href = checkoutUrl;
       } else {
         console.error('決済URLが取得できませんでした:', result);
@@ -534,6 +614,20 @@ const PaymentPage: React.FC = () => {
           <p className="text-sm" style={{ color: '#3D3A36', fontWeight: 500 }}>
             決済コードを入力してお支払い
           </p>
+          {paymentBanner && (
+            <div
+              className="mt-4 p-4 rounded-sm text-sm"
+              style={{
+                backgroundColor: paymentBanner.kind === 'success' ? '#E8EDE4' : '#EFF6FF',
+                border: `1px solid ${paymentBanner.kind === 'success' ? '#D1DBC9' : '#BFDBFE'}`,
+                color: '#2D2A26',
+                fontWeight: 500
+              }}
+              role="status"
+            >
+              {paymentBanner.message}
+            </div>
+          )}
         </div>
 
         {/* 決済コード入力カード */}
@@ -671,8 +765,8 @@ const PaymentPage: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {scannedData.items.map((item: any, index: number) => (
-                              <tr key={index} style={{ borderBottom: index < scannedData.items.length - 1 ? '1px solid #E0D6C8' : 'none' }}>
+                            {(scannedData.items ?? []).map((item: any, index: number, arr) => (
+                              <tr key={index} style={{ borderBottom: index < arr.length - 1 ? '1px solid #E0D6C8' : 'none' }}>
                                 <td className="py-2 px-2" style={{ color: '#2D2A26' }}>{item.name || item.item_name || '不明'}</td>
                                 <td className="text-center py-2 px-2" style={{ color: '#2D2A26' }}>{item.quantity || 0}</td>
                                 <td className="text-right py-2 px-2" style={{ color: '#2D2A26' }}>
@@ -780,27 +874,22 @@ const PaymentPage: React.FC = () => {
                     <p className="text-xs mt-1" style={{ opacity: 0.7 }}>Stripe決済</p>
                   </button>
                   
-                  {/* 現金決済 */}
+                  {/* 現金決済（クレジットと同じ画面で記録） */}
                   <button
-                    onClick={() => {
-                      navigate('/cash-payment', { 
-                        state: { 
-                          paymentCode: paymentCode, 
-                          paymentCodeData: paymentCodeData || null,
-                          scannedData 
-                        } 
-                      });
-                    }}
+                    type="button"
+                    onClick={() => setSelectedPaymentType('cash')}
                     className="p-4 sm:p-5 rounded-sm transition-all duration-300"
                     style={{
-                      backgroundColor: '#FDFCFA',
-                      border: '2px solid #E0D6C8',
-                      color: '#2D2A26'
+                      backgroundColor: selectedPaymentType === 'cash' ? '#5C6B4A' : '#FDFCFA',
+                      border: `2px solid ${selectedPaymentType === 'cash' ? '#5C6B4A' : '#E0D6C8'}`,
+                      color: selectedPaymentType === 'cash' ? '#FAF8F5' : '#2D2A26'
                     }}
                   >
                     <div className="text-2xl sm:text-3xl mb-2">💴</div>
                     <p className="text-xs sm:text-sm font-medium">現金</p>
-                    <p className="text-xs mt-1" style={{ color: '#8A857E' }}>店舗でお支払い</p>
+                    <p className="text-xs mt-1" style={{ opacity: selectedPaymentType === 'cash' ? 0.9 : 0.65 }}>
+                      店舗レジでお支払い
+                    </p>
                   </button>
                 </div>
               </div>
@@ -813,6 +902,16 @@ const PaymentPage: React.FC = () => {
                 >
                   <p className="text-sm" style={{ color: '#5C6B4A' }}>
                     Stripeの安全な決済システムでクレジットカードでお支払いいただけます。
+                  </p>
+                </div>
+              )}
+              {selectedPaymentType === 'cash' && (
+                <div 
+                  className="rounded-sm p-4"
+                  style={{ backgroundColor: '#E8EDE4', border: '1px solid #D1DBC9' }}
+                >
+                  <p className="text-sm" style={{ color: '#5C6B4A' }}>
+                    アプリでは決済記録のみ行います。実際のお支払いは店舗レジで現金にてお願いします。
                   </p>
                 </div>
               )}
@@ -841,10 +940,8 @@ const PaymentPage: React.FC = () => {
                     setScannedData(null);
                     setPaymentCodeData(null);
                     setSelectedPaymentType(null);
-                    setActiveCodeType(null);
-                    setCashCode5('');
-                    setCreditCode5('');
-                    setLongDistanceCode6('');
+                    setPaymentCode('');
+                    setStoreStripeAccountId(null);
                     setError('');
                   }}
                   className="flex-1 py-3 sm:py-4 rounded-sm text-xs sm:text-sm tracking-wide transition-all duration-300"

@@ -1,508 +1,732 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  TrendingUp, 
+import {
+  ArrowLeft,
+  BarChart3,
   Calendar,
+  Flower2,
   Gift,
   MapPin,
-  BarChart3,
   RefreshCw,
-  ShoppingCart,
-  Flower,
-  DollarSign
+  TrendingUp
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import {
+  fetchPopularityThreeMonthData,
+  getThreeLabeledMonths,
+  type PopularityThreeMonthBundle,
+  type ProductPopularityByNameMonthRow,
+  type ProductPopularityMonthRow,
+  type RegionalSalesMonthRow
+} from '../services/publicRankingService';
 
-type RankingData = {
-  rank: number;
-  name: string;
-  value: number;
-  store_address: string;
-  store_name: string;
-  change: 'up' | 'down' | 'stable';
+const COLORS = {
+  bg: '#FAF8F5',
+  header: '#5C6B4A',
+  text: '#2D2A26',
+  muted: '#8A857E',
+  border: '#E0D6C8',
+  card: 'rgba(255,255,255,0.95)',
+  accentSoft: '#E8EDE4'
 };
+
+function ymLabel(y: number, m: number): string {
+  return `${y}年${m}月`;
+}
+
+/** 3ヶ月分の品目名の和集合で行を作り、各月の数値を埋める（本数・明細行・按分グロス売上） */
+function buildProductPivot(
+  productCols: ProductPopularityMonthRow[][]
+): { category: string; cells: { lineCount: number; qty: number; revenue: number }[] }[] {
+  const catSet = new Set<string>();
+  productCols.forEach((col) => col.forEach((r) => catSet.add(r.flower_category)));
+  const categories = Array.from(catSet).filter((c) => c !== 'その他');
+  categories.sort((a, b) => a.localeCompare(b, 'ja'));
+  if (catSet.has('その他')) categories.push('その他');
+
+  return categories.map((category) => ({
+    category,
+    cells: productCols.map((col) => {
+      const row = col.find((r) => r.flower_category === category);
+      return {
+        lineCount: row ? Number(row.popularity_count) : 0,
+        qty: row ? Number(row.total_quantity_sold) : 0,
+        revenue: row ? Number(row.total_revenue) : 0
+      };
+    })
+  }));
+}
+
+/** マスタ一致かつ被り名の和集合で行を作る */
+function buildNamePivot(nameCols: ProductPopularityByNameMonthRow[][]) {
+  const nameSet = new Set<string>();
+  nameCols.forEach((col) => col.forEach((r) => nameSet.add(r.item_name)));
+  const names = Array.from(nameSet).sort((a, b) => a.localeCompare(b, 'ja'));
+  return names.map((item_name) => ({
+    item_name,
+    cells: nameCols.map((col) => {
+      const row = col.find((r) => r.item_name === item_name);
+      return {
+        count: row ? Number(row.popularity_count) : 0,
+        revenue: row ? Number(row.total_revenue) : 0,
+        qty: row ? Number(row.total_quantity_sold) : 0,
+        stores: row ? Number(row.store_count ?? 0) : 0
+      };
+    })
+  }));
+}
 
 const PopularityRankings: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const [anchor, setAnchor] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
   });
-  const [selectedRegion, setSelectedRegion] = useState('all');
-  
-  const [rankings, setRankings] = useState<{
-    pointsUsed: RankingData[];
-    remainingPoints: RankingData[];
-    averageSales: RankingData[];
-    totalSales: RankingData[];
-    purchaseCount: RankingData[];
-    regionalRankings: { [key: string]: RankingData[] };
-    popularFlowers: RankingData[];
-  }>({
-    pointsUsed: [],
-    remainingPoints: [],
-    averageSales: [],
-    totalSales: [],
-    purchaseCount: [],
-    regionalRankings: {},
-    popularFlowers: []
-  });
-
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bundle, setBundle] = useState<PopularityThreeMonthBundle | null>(null);
 
-  // 月を変更
-  const changeMonth = (direction: 'prev' | 'next') => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    let newYear = year;
-    let newMonth = month;
+  const labeledMonths = useMemo(
+    () => getThreeLabeledMonths(anchor.year, anchor.month),
+    [anchor.year, anchor.month]
+  );
 
-    if (direction === 'prev') {
-      if (month === 1) {
-        newMonth = 12;
-        newYear = year - 1;
-      } else {
-        newMonth = month - 1;
-      }
-    } else {
-      if (month === 12) {
-        newMonth = 1;
-        newYear = year + 1;
-      } else {
-        newMonth = month + 1;
-      }
-    }
-
-    setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
-  };
-
-  // ランキングデータを読み込み
-  const loadRankings = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      
-      console.log('ランキング読み込み開始:', { year, month });
-      
-      // ポイント使用ランキング
-      const { data: pointsUsedData, error: pointsError } = await supabase
-        .from('monthly_points_used_ranking')
-        .select('*')
-        .eq('year', year)
-        .eq('month', month)
-        .lte('rank', 10);
-
-      if (pointsError) {
-        console.error('ポイント使用ランキングエラー:', pointsError);
-      } else {
-        console.log('ポイント使用ランキングデータ:', pointsUsedData);
-      }
-
-      // 残ポイントランキング
-      const { data: remainingPointsData, error: remainingError } = await supabase
-        .from('current_points_ranking')
-        .select('*')
-        .lte('rank', 10);
-
-      if (remainingError) {
-        console.error('残ポイントランキングエラー:', remainingError);
-      } else {
-        console.log('残ポイントランキングデータ:', remainingPointsData);
-      }
-
-      // 平均売上ランキング
-      const { data: averageSalesData, error: avgError } = await supabase
-        .from('monthly_avg_sales_ranking')
-        .select('*')
-        .eq('year', year)
-        .eq('month', month)
-        .lte('rank', 10);
-
-      if (avgError) {
-        console.error('平均売上ランキングエラー:', avgError);
-      } else {
-        console.log('平均売上ランキングデータ:', averageSalesData);
-      }
-
-      // 総売上ランキング
-      const { data: totalSalesData, error: totalError } = await supabase
-        .from('monthly_sales_ranking')
-        .select('*')
-        .eq('year', year)
-        .eq('month', month)
-        .lte('rank', 10);
-
-      if (totalError) {
-        console.error('総売上ランキングエラー:', totalError);
-      } else {
-        console.log('総売上ランキングデータ:', totalSalesData);
-      }
-
-      // 購入回数ランキング
-      const { data: purchaseCountData, error: countError } = await supabase
-        .from('monthly_purchase_count_ranking')
-        .select('*')
-        .eq('year', year)
-        .eq('month', month)
-        .lte('rank', 10);
-
-      if (countError) {
-        console.error('購入回数ランキングエラー:', countError);
-      } else {
-        console.log('購入回数ランキングデータ:', purchaseCountData);
-      }
-
-      // 地域別ランキングを取得
-      const { data: regionData } = await supabase
-        .from('region_categories')
-        .select('*')
-        .order('display_order');
-
-      const regionalRankings: { [region: string]: RankingData[] } = {};
-      
-      if (regionData) {
-        for (const region of regionData) {
-          // 各地域の売上ランキング（サンプルデータ）
-          regionalRankings[region.name] = [
-            { rank: 1, name: 'サンプル店舗1', value: 150000, store_address: region.prefectures[0], store_name: `${region.name}店舗1`, change: 'up' as const },
-            { rank: 2, name: 'サンプル店舗2', value: 120000, store_address: region.prefectures[1], store_name: `${region.name}店舗2`, change: 'stable' as const },
-            { rank: 3, name: 'サンプル店舗3', value: 100000, store_address: region.prefectures[2], store_name: `${region.name}店舗3`, change: 'down' as const }
-          ];
-        }
-      }
-
-      // 人気の花ランキング（サンプルデータ）
-      const popularFlowers = [
-        { rank: 1, name: 'バラ', value: 250, store_address: '全国', store_name: '人気No.1', change: 'up' as const },
-        { rank: 2, name: 'チューリップ', value: 180, store_address: '全国', store_name: '人気No.2', change: 'up' as const },
-        { rank: 3, name: 'カーネーション', value: 150, store_address: '全国', store_name: '人気No.3', change: 'stable' as const },
-        { rank: 4, name: 'ひまわり', value: 120, store_address: '全国', store_name: '人気No.4', change: 'down' as const },
-        { rank: 5, name: 'ユリ', value: 100, store_address: '全国', store_name: '人気No.5', change: 'up' as const }
-      ];
-
-      // データを整形
-      setRankings({
-        pointsUsed: formatRankingDataFromView(pointsUsedData || [], 'total_points_used'),
-        remainingPoints: formatRankingDataFromView(remainingPointsData || [], 'total_points'),
-        averageSales: formatRankingDataFromView(averageSalesData || [], 'avg_sales'),
-        totalSales: formatRankingDataFromView(totalSalesData || [], 'total_sales'),
-        purchaseCount: formatRankingDataFromView(purchaseCountData || [], 'purchase_count'),
-        regionalRankings,
-        popularFlowers
-      });
-
-    } catch (error) {
-      console.error('ランキング読み込みエラー:', error);
-      setError('データの読み込み中にエラーが発生しました');
+      const data = await fetchPopularityThreeMonthData(anchor.year, anchor.month);
+      setBundle(data);
+    } catch (e) {
+      console.error(e);
+      setError('データの取得に失敗しました。しばらくしてから再度お試しください。');
+      setBundle(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [anchor.year, anchor.month]);
 
-  // 次の月を取得
-  function getNextMonth(monthStr: string): string {
-    const [year, month] = monthStr.split('-').map(Number);
-    if (month === 12) {
-      return `${year + 1}-01`;
-    }
-    return `${year}-${String(month + 1).padStart(2, '0')}`;
-  }
-
-  // ランキングデータを整形（ビュー用）
-  const formatRankingDataFromView = (data: unknown[], valueField: string): RankingData[] => {
-    return data.map((item: any) => ({
-      rank: item.rank || 1,
-      name: item.customer_name || '不明',
-      value: item[valueField] || 0,
-      store_address: item.customer_email || '不明',
-      store_name: item.customer_email || '不明',
-      change: 'stable' as const
-    }));
-  };
-
-  // 初回および月変更時にランキングを読み込み
   useEffect(() => {
-    loadRankings();
-  }, [selectedMonth]);
+    load();
+  }, [load]);
 
-  // ランキングカードコンポーネント
-  const RankingCard = ({ title, icon: Icon, data, valueFormatter, color }: {
-    title: string;
-    icon: React.ComponentType<any>;
-    data: RankingData[];
-    valueFormatter: (value: number) => string;
-    color: string;
-  }) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-          <Icon className={`w-5 h-5 mr-2 ${color}`} />
-          {title}
-        </h3>
-        <span className="text-sm text-gray-500">Top 10</span>
-      </div>
-      
-      {data.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p>データがありません</p>
-          <p className="text-sm mt-2">顧客データや購入履歴が追加されると、ここにランキングが表示されます</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {data.map((item) => (
-            <div key={item.rank} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  item.rank === 1 ? 'bg-yellow-500 text-white' :
-                  item.rank === 2 ? 'bg-gray-400 text-white' :
-                  item.rank === 3 ? 'bg-orange-500 text-white' :
-                  'bg-gray-200 text-gray-700'
-                }`}>
-                  {item.rank}
-                </div>
-                                 <div>
-                   <div className="font-medium text-gray-900">{item.name}</div>
-                   <div className="text-sm text-gray-500">{item.store_name} ({item.store_address})</div>
-                 </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-gray-900">{valueFormatter(item.value)}</div>
-                <div className="text-xs text-gray-500">#{item.rank}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+  const productPivot = useMemo(
+    () => (bundle ? buildProductPivot(bundle.products) : []),
+    [bundle]
   );
 
+  const namePivot = useMemo(
+    () => (bundle ? buildNamePivot(bundle.productsByName) : []),
+    [bundle]
+  );
+
+  const shiftAnchor = (delta: number) => {
+    const d = new Date(anchor.year, anchor.month - 1 + delta, 1);
+    setAnchor({ year: d.getFullYear(), month: d.getMonth() + 1 });
+  };
+
+  const hasAnyData =
+    bundle &&
+    (bundle.kpis.some((k) => k && (k.payment_count > 0 || k.total_revenue > 0)) ||
+      bundle.products.some((p) => p.length > 0) ||
+      bundle.productsByName.some((p) => p.length > 0) ||
+      bundle.regionalSales.some((p) => p.length > 0) ||
+      bundle.regionalTop.some((p) => p.length > 0) ||
+      bundle.pointsUsage.some((p) => p.length > 0));
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* デバッグ情報 */}
-      <div className="fixed top-4 right-4 bg-blue-100 border border-blue-300 rounded-lg p-3 text-sm z-50">
-        <div>ページ状態: 正常</div>
-        <div>選択月: {selectedMonth}</div>
-        <div>ローディング: {loading ? 'はい' : 'いいえ'}</div>
-      </div>
-      {/* ヘッダー */}
-      <div className="bg-gradient-to-r from-yellow-500 to-orange-600 shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/simple-menu')}
-                className="p-2 text-white hover:text-yellow-100 transition-colors duration-200"
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.bg }}>
+      <header
+        className="sticky top-0 z-20 border-b shadow-sm"
+        style={{ backgroundColor: COLORS.header, borderColor: COLORS.border }}
+      >
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="p-2 rounded-sm transition-opacity hover:opacity-80"
+              style={{ color: '#fff' }}
+              aria-label="戻る"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1
+                className="text-lg sm:text-xl font-semibold tracking-tight"
+                style={{ color: '#fff', fontFamily: "'Noto Serif JP', serif" }}
               >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-white">人気ランキング</h1>
-                <p className="text-sm text-yellow-100">全国の購入データを元にした月次ランキング</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => loadRankings()}
-                disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-yellow-600 bg-white hover:bg-yellow-50 disabled:opacity-50 transition-colors duration-200"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                更新
-              </button>
+                人気ランキング
+              </h1>
+              <p className="text-xs sm:text-sm opacity-90" style={{ color: '#F5F0E8' }}>
+                先々月・先月・今月の集計（カテゴリ・商品名・地域・ポイント）
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => shiftAnchor(-1)}
+              className="px-2 py-1 text-sm rounded-sm"
+              style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.4)' }}
+            >
+              ←
+            </button>
+            <span className="text-sm flex items-center gap-1 px-2" style={{ color: '#fff' }}>
+              <Calendar className="w-4 h-4 opacity-90" />
+              基準: {ymLabel(anchor.year, anchor.month)}
+            </span>
+            <button
+              type="button"
+              onClick={() => shiftAnchor(1)}
+              className="px-2 py-1 text-sm rounded-sm"
+              style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.4)' }}
+            >
+              →
+            </button>
+            <button
+              type="button"
+              onClick={() => load()}
+              disabled={loading}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-sm text-sm font-medium transition-opacity disabled:opacity-50"
+              style={{ backgroundColor: '#fff', color: COLORS.header }}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              更新
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* エラーメッセージ */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-5 w-5 text-red-400">⚠️</div>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-800">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="mt-2 text-sm text-red-600 hover:text-red-800"
-                >
-                  閉じる
-                </button>
-              </div>
-            </div>
+          <div
+            className="mb-6 p-4 rounded-sm text-sm"
+            style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}
+          >
+            {error}
           </div>
         )}
-        {/* 月選択・地域選択 */}
-        <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 月選択 */}
-            <div className="flex items-center justify-center space-x-4">
-              <button
-                onClick={() => changeMonth('prev')}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                ←
-              </button>
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-yellow-500" />
-                <span className="text-lg font-semibold text-gray-900">
-                  {selectedMonth.split('-')[0]}年{selectedMonth.split('-')[1]}月
-                </span>
-              </div>
-              <button
-                onClick={() => changeMonth('next')}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                →
-              </button>
-            </div>
 
-            {/* 地域選択 */}
-            <div className="flex items-center justify-center space-x-4">
-              <MapPin className="w-5 h-5 text-blue-500" />
-              <select
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">全国</option>
-                <option value="北海道・東北">北海道・東北</option>
-                <option value="関東甲信越">関東甲信越</option>
-                <option value="中部">中部</option>
-                <option value="関西">関西</option>
-                <option value="中国・四国">中国・四国</option>
-                <option value="九州・沖縄">九州・沖縄</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* 人気の花ランキング */}
-        <div className="mb-8">
-          <RankingCard
-            title="人気の花ランキング"
-            icon={Flower}
-            data={rankings.popularFlowers}
-            valueFormatter={(value) => `${value}本`}
-            color="text-pink-500"
-          />
-        </div>
-
-        {/* 地域別ランキング */}
-        {selectedRegion !== 'all' && rankings.regionalRankings[selectedRegion] && (
-          <div className="mb-8">
-            <RankingCard
-              title={`${selectedRegion}地域ランキング`}
-              icon={MapPin}
-              data={rankings.regionalRankings[selectedRegion]}
-              valueFormatter={(value) => `¥${value.toLocaleString()}`}
-              color="text-blue-500"
+        {loading && !bundle ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <div
+              className="w-10 h-10 border-2 rounded-full animate-spin"
+              style={{ borderColor: COLORS.border, borderTopColor: COLORS.header }}
             />
+            <p className="text-sm" style={{ color: COLORS.muted }}>
+              読み込み中…
+            </p>
           </div>
-        )}
-
-        {/* 全国ランキンググリッド */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* ポイント使用ランキング */}
-          <RankingCard
-            title="ポイント使用ランキング"
-            icon={Gift}
-            data={rankings.pointsUsed}
-            valueFormatter={(value) => `${value}pt`}
-            color="text-purple-500"
-          />
-
-          {/* 残ポイントランキング */}
-          <RankingCard
-            title="残ポイントランキング"
-            icon={Gift}
-            data={rankings.remainingPoints}
-            valueFormatter={(value) => `${value}pt`}
-            color="text-green-500"
-          />
-
-          {/* 平均売上ランキング */}
-          <RankingCard
-            title="平均売上ランキング"
-            icon={DollarSign}
-            data={rankings.averageSales}
-            valueFormatter={(value) => `¥${value.toLocaleString()}`}
-            color="text-blue-500"
-          />
-
-          {/* 総売上ランキング */}
-          <RankingCard
-            title="総売上ランキング"
-            icon={TrendingUp}
-            data={rankings.totalSales}
-            valueFormatter={(value) => `¥${value.toLocaleString()}`}
-            color="text-orange-500"
-          />
-
-          {/* 購入回数ランキング */}
-          <RankingCard
-            title="購入回数ランキング"
-            icon={ShoppingCart}
-            data={rankings.purchaseCount}
-            valueFormatter={(value) => `${value}回`}
-            color="text-indigo-500"
-          />
-        </div>
-
-        {/* 統計サマリー */}
-        <div className="mt-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-yellow-500" />
-            統計サマリー
-          </h3>
-          {rankings.pointsUsed.length === 0 && rankings.remainingPoints.length === 0 && 
-           rankings.averageSales.length === 0 && rankings.totalSales.length === 0 && 
-           rankings.purchaseCount.length === 0 && rankings.popularFlowers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>ランキングデータがありません</p>
-              <p className="text-sm mt-2">顧客データや購入履歴を追加してください</p>
-            </div>
-          ) : (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {rankings.pointsUsed.length > 0 ? rankings.pointsUsed[0].value : 0}
+        ) : bundle ? (
+          <>
+            {/* 3ヶ月KPI */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <TrendingUp className="w-5 h-5" style={{ color: COLORS.header }} />
+                月次サマリー（数値のみ）
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const k = bundle.kpis[i];
+                  return (
+                    <div
+                      key={`${lm.year}-${lm.month}`}
+                      className="rounded-sm p-5 border"
+                      style={{
+                        backgroundColor: COLORS.card,
+                        borderColor: COLORS.border
+                      }}
+                    >
+                      <div className="text-xs font-medium mb-1" style={{ color: COLORS.header }}>
+                        {lm.label}
+                      </div>
+                      <div className="text-sm mb-3" style={{ color: COLORS.muted }}>
+                        {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {!k ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ul className="space-y-2 text-sm" style={{ color: COLORS.text }}>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>決済件数</span>
+                            <span className="font-medium tabular-nums">
+                              {Number(k.payment_count).toLocaleString('ja-JP')} 件
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>売上合計（現金等・決済額）</span>
+                            <span className="font-medium tabular-nums">
+                              ¥{Number(k.total_revenue).toLocaleString('ja-JP')}
+                            </span>
+                          </li>
+                          {k.total_gross_sales_yen != null && (
+                            <li className="flex justify-between gap-2">
+                              <span style={{ color: COLORS.muted }}>グロス（決済＋利用pt×1円）</span>
+                              <span className="font-medium tabular-nums">
+                                ¥{Number(k.total_gross_sales_yen).toLocaleString('ja-JP')}
+                              </span>
+                            </li>
+                          )}
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>利用ポイント合計</span>
+                            <span className="font-medium tabular-nums">
+                              {Number(k.total_points_used).toLocaleString('ja-JP')} pt
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>付与ポイント合計</span>
+                            <span className="font-medium tabular-nums">
+                              {Number(k.total_points_earned ?? 0).toLocaleString('ja-JP')} pt
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>利用＋付与（活動合計）</span>
+                            <span className="font-medium tabular-nums">
+                              {Number(
+                                k.total_points_activity ??
+                                  Number(k.total_points_used) + Number(k.total_points_earned ?? 0)
+                              ).toLocaleString('ja-JP')}{' '}
+                              pt
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>ユニーク顧客（ID数）</span>
+                            <span className="font-medium tabular-nums">
+                              {Number(k.unique_customers).toLocaleString('ja-JP')}
+                            </span>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-sm text-gray-500">最高ポイント使用</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {rankings.remainingPoints.length > 0 ? rankings.remainingPoints[0].value : 0}
+            </section>
+
+            {/* 品目 */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <Flower2 className="w-5 h-5" style={{ color: COLORS.header }} />
+                品目カテゴリ別（本数・売上）
+              </h2>
+              <p className="text-sm mb-3" style={{ color: COLORS.muted }}>
+                上位表示は<strong>按分グロス売上</strong>（その決済の「決済額＋利用ポイント（1pt=1円）」を、明細の金額比で各行に配分）の多い順です。
+                <strong>本数</strong>は明細の quantity 合計、<strong>明細行</strong>はレシート行の件数です。
+              </p>
+              <div
+                className="rounded-sm border overflow-x-auto"
+                style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+              >
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: COLORS.accentSoft }}>
+                      <th className="text-left p-3 font-medium" style={{ color: COLORS.text }}>
+                        品目
+                      </th>
+                      {labeledMonths.map((lm) => (
+                        <th key={`h-${lm.year}-${lm.month}`} className="p-3 text-right font-medium" style={{ color: COLORS.text }}>
+                          {lm.label}
+                          <div className="text-xs font-normal" style={{ color: COLORS.muted }}>
+                            本数 / 明細 / グロス売上
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productPivot.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center" style={{ color: COLORS.muted }}>
+                          この期間の品目データがありません
+                        </td>
+                      </tr>
+                    ) : (
+                      productPivot.map((row) => (
+                        <tr key={row.category} className="border-t" style={{ borderColor: COLORS.border }}>
+                          <td className="p-3 font-medium" style={{ color: COLORS.text }}>
+                            {row.category}
+                          </td>
+                          {row.cells.map((c, j) => (
+                            <td key={j} className="p-3 text-right tabular-nums" style={{ color: COLORS.text }}>
+                              {c.lineCount > 0 || c.qty > 0 || c.revenue > 0 ? (
+                                <>
+                                  <div className="font-medium">{c.qty.toLocaleString('ja-JP')} 本</div>
+                                  <div className="text-xs" style={{ color: COLORS.muted }}>
+                                    明細 {c.lineCount.toLocaleString('ja-JP')} 行
+                                  </div>
+                                  <div className="text-xs" style={{ color: COLORS.muted }}>
+                                    ¥{c.revenue.toLocaleString('ja-JP')}
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ color: COLORS.muted }}>—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-sm text-gray-500">最高残ポイント</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                ¥{rankings.averageSales.length > 0 ? rankings.averageSales[0].value.toLocaleString() : 0}
+            </section>
+
+            {/* 商品名（明細の name 原文） */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <Flower2 className="w-5 h-5" style={{ color: COLORS.header }} />
+                被り商品名ランキング（マスタ一致）
+              </h2>
+              <p className="text-sm mb-3" style={{ color: COLORS.muted }}>
+                flower_item_categories の有効マスタ名（前後空白無視・英大文字小文字無視）と一致する明細だけを対象に、その月で
+                <strong>2回以上</strong>売上明細に出た名前だけをランキングします。売上は品目表と同じく按分グロス（決済額＋利用pt）です。各月上位25件まで表示します。
+              </p>
+              <div
+                className="rounded-sm border overflow-x-auto"
+                style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+              >
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: COLORS.accentSoft }}>
+                      <th className="text-left p-3 font-medium" style={{ color: COLORS.text }}>
+                        商品名
+                      </th>
+                      {labeledMonths.map((lm) => (
+                        <th
+                          key={`nh-${lm.year}-${lm.month}`}
+                          className="p-3 text-right font-medium"
+                          style={{ color: COLORS.text }}
+                        >
+                          {lm.label}
+                          <div className="text-xs font-normal" style={{ color: COLORS.muted }}>
+                            件数 / 店舗数 / 本数 / 売上
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {namePivot.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center" style={{ color: COLORS.muted }}>
+                          条件を満たすデータがありません（マスタ名と明細の一致、同一月2明細以上が必要です）
+                        </td>
+                      </tr>
+                    ) : (
+                      namePivot.map((row) => (
+                        <tr key={row.item_name} className="border-t" style={{ borderColor: COLORS.border }}>
+                          <td className="p-3 font-medium max-w-[220px]" style={{ color: COLORS.text }}>
+                            <span className="break-words">{row.item_name}</span>
+                          </td>
+                          {row.cells.map((c, j) => (
+                            <td key={j} className="p-3 text-right tabular-nums" style={{ color: COLORS.text }}>
+                              {c.count > 0 || c.revenue > 0 ? (
+                                <>
+                                  <div>{c.count.toLocaleString('ja-JP')} 件</div>
+                                  <div className="text-xs" style={{ color: COLORS.muted }}>
+                                    {c.stores.toLocaleString('ja-JP')} 店
+                                  </div>
+                                  <div className="text-xs" style={{ color: COLORS.muted }}>
+                                    {c.qty.toLocaleString('ja-JP')} 本
+                                  </div>
+                                  <div className="text-xs" style={{ color: COLORS.muted }}>
+                                    ¥{c.revenue.toLocaleString('ja-JP')}
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ color: COLORS.muted }}>—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-sm text-gray-500">最高平均売上</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                ¥{rankings.totalSales.length > 0 ? rankings.totalSales[0].value.toLocaleString() : 0}
+            </section>
+
+            {/* 地域販売（店舗住所） */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <MapPin className="w-5 h-5" style={{ color: COLORS.header }} />
+                地域別販売ランキング（店舗の都道府県）
+              </h2>
+              <p className="text-sm mb-3" style={{ color: COLORS.muted }}>
+                <code className="text-[11px]">stores.address</code> から都道府県を抽出し、その月の決済を集計しています。上位は
+                <strong>グロス売上</strong>（決済額＋利用pt×1円）の多い順です。
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const rows: RegionalSalesMonthRow[] = bundle.regionalSales[i] || [];
+                  return (
+                    <div
+                      key={`rs-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {rows.length === 0 ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ol className="space-y-2">
+                          {rows.map((r, idx) => (
+                            <li
+                              key={`${r.prefecture}-${idx}`}
+                              className="flex flex-col gap-0.5 text-sm border-b border-dashed pb-2 last:border-0"
+                              style={{ borderColor: COLORS.border, color: COLORS.text }}
+                            >
+                              <div className="flex justify-between gap-2">
+                                <span>
+                                  <span className="tabular-nums mr-2" style={{ color: COLORS.muted }}>
+                                    {idx + 1}.
+                                  </span>
+                                  {r.prefecture}
+                                </span>
+                                <span className="tabular-nums font-medium shrink-0">
+                                  ¥{Number(r.total_revenue_gross).toLocaleString('ja-JP')}
+                                </span>
+                              </div>
+                              <div className="text-xs tabular-nums pl-5" style={{ color: COLORS.muted }}>
+                                現金等 ¥{Number(r.total_revenue_cash).toLocaleString('ja-JP')} ·{' '}
+                                {Number(r.payment_count).toLocaleString('ja-JP')} 件 ·{' '}
+                                {Number(r.store_count).toLocaleString('ja-JP')} 店
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-sm text-gray-500">最高総売上</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-600">
-                {rankings.purchaseCount.length > 0 ? rankings.purchaseCount[0].value : 0}
+            </section>
+
+            {/* 地域ポイント */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <MapPin className="w-5 h-5" style={{ color: COLORS.header }} />
+                地域別（都道府県）ポイント・決済
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const rows = bundle.regionalTop[i] || [];
+                  return (
+                    <div
+                      key={`reg-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {rows.length === 0 ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ol className="space-y-2">
+                          {rows.map((r, idx) => (
+                            <li
+                              key={r.prefecture}
+                              className="flex justify-between gap-2 text-sm"
+                              style={{ color: COLORS.text }}
+                            >
+                              <span>
+                                <span className="tabular-nums mr-2" style={{ color: COLORS.muted }}>
+                                  {idx + 1}.
+                                </span>
+                                {r.prefecture}
+                              </span>
+                              <span className="tabular-nums font-medium shrink-0">
+                                {Number(r.total_points).toLocaleString('ja-JP')} pt
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-sm text-gray-500">最高購入回数</div>
-            </div>
-          </div>
-          )}
-        </div>
-      </div>
+            </section>
+
+            {/* ポイント利用帯 */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <Gift className="w-5 h-5" style={{ color: COLORS.header }} />
+                ポイント利用額の分布
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const rows = bundle.pointsUsage[i] || [];
+                  return (
+                    <div
+                      key={`pu-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {rows.length === 0 ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ul className="space-y-2 text-sm">
+                          {rows.map((r) => (
+                            <li key={r.points_range} className="flex justify-between gap-2" style={{ color: COLORS.text }}>
+                              <span style={{ color: COLORS.muted }}>{r.points_range}</span>
+                              <span className="tabular-nums font-medium">
+                                {Number(r.usage_count).toLocaleString('ja-JP')} 件
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* customer_rankings 集計（匿名） */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <BarChart3 className="w-5 h-5" style={{ color: COLORS.header }} />
+                ポイント利用ランキング参加傾向（匿名集計）
+              </h2>
+              <p className="text-xs mb-3" style={{ color: COLORS.muted }}>
+                customer_rankings は月次スナップショットです（
+                <code className="text-[11px]">ranking_completed_payment_events</code> 上の利用＋付与の合算）。
+                KPI・品目・地域も同じイベントビューをソースにしています。
+                空の月は月末運用で{' '}
+                <code className="text-[11px]">refresh_customer_rankings(年, 月)</code> を service_role で実行してください（手順は docs/RANKING_MONTH_END.md）。
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const s = bundle.customerSummary[i];
+                  return (
+                    <div
+                      key={`cr-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {!s || Number(s.ranked_participant_count) === 0 ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          集計データなし
+                        </p>
+                      ) : (
+                        <ul className="space-y-2 text-sm" style={{ color: COLORS.text }}>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>ランキング対象者数</span>
+                            <span className="tabular-nums font-medium">
+                              {Number(s.ranked_participant_count).toLocaleString('ja-JP')}
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>平均（利用＋付与）</span>
+                            <span className="tabular-nums font-medium">
+                              {Number(s.avg_points_among_ranked).toLocaleString('ja-JP')} pt
+                            </span>
+                          </li>
+                          <li className="flex justify-between gap-2">
+                            <span style={{ color: COLORS.muted }}>上位のポイント幅（最大）</span>
+                            <span className="tabular-nums font-medium">
+                              {Number(s.top_points_value).toLocaleString('ja-JP')} pt
+                            </span>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* 季節（年×月） */}
+            <section className="mb-6">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <Calendar className="w-5 h-5" style={{ color: COLORS.header }} />
+                季節・月次トレンド（決済件数）
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const s = bundle.seasonal[i];
+                  return (
+                    <div
+                      key={`se-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {!s ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ul className="space-y-1 text-sm" style={{ color: COLORS.text }}>
+                          <li>
+                            季節: <strong>{s.season}</strong>
+                          </li>
+                          <li className="tabular-nums">
+                            決済: {Number(s.payment_count).toLocaleString('ja-JP')} 件
+                          </li>
+                          <li className="tabular-nums" style={{ color: COLORS.muted }}>
+                            平均単価: ¥{Number(s.average_payment_amount).toLocaleString('ja-JP')}
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {!hasAnyData && (
+              <p className="text-center text-sm py-8" style={{ color: COLORS.muted }}>
+                この基準月付近の決済データがまだありません。データが溜まると自動的に表示されます。
+              </p>
+            )}
+          </>
+        ) : null}
+      </main>
     </div>
   );
 };

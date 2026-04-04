@@ -1,4 +1,6 @@
 -- 基本的な人気ランキングシステム
+-- @deprecated 内容は simple_rankings_setup.sql と重複しています。新規適用は
+-- simple_rankings_setup.sql または popularity_rankings_monthly_views.sql を優先してください。
 
 -- 1. ポイント使用ランキング（月次）
 CREATE OR REPLACE VIEW monthly_points_used_ranking AS

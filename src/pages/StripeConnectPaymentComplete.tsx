@@ -15,6 +15,41 @@ const getApiBaseUrl = () => {
 };
 const API_BASE_URL = getApiBaseUrl();
 
+/** customer_payments.payment_data — ランキング用ビューが items を参照する */
+function buildPaymentDataForRankings(paymentInfo: {
+  amount: number;
+  items?: unknown[];
+  store_name?: string;
+  payment_code?: string;
+}): Record<string, unknown> {
+  const raw = Array.isArray(paymentInfo.items) ? paymentInfo.items : [];
+  const items = raw.map((it: any) => {
+    const qty = it.quantity ?? 1;
+    const unit = it.unit_price ?? it.price ?? 0;
+    const total = it.total ?? unit * qty;
+    return {
+      id: it.id,
+      name: it.name || it.item_name || '商品',
+      price: unit,
+      quantity: qty,
+      total
+    };
+  });
+  const subtotalFromLines = items.reduce((s, it) => s + (Number(it.total) || 0), 0);
+  const subtotal = subtotalFromLines > 0 ? subtotalFromLines : paymentInfo.amount;
+  const tax = Math.round(subtotal * 0.1);
+  const storeName = paymentInfo.store_name;
+  return {
+    items,
+    subtotal,
+    tax,
+    store_name: storeName,
+    storeName,
+    paymentCode: paymentInfo.payment_code,
+    totalAmount: paymentInfo.amount
+  };
+}
+
 /**
  * Stripe Connect決済完了ページ
  * 決済完了後のデータ保存と表示を担当
@@ -134,7 +169,6 @@ export const StripeConnectPaymentComplete: React.FC = () => {
       // 3. ポイント計算（決済金額の5%）
       const pointsEarned = Math.floor(paymentInfo.amount * 0.05);
       const pointsUsed = paymentInfo.points_used || 0;
-      const netPoints = pointsEarned - pointsUsed;
 
       // 4. purchase_historyテーブルに保存
       const { data: purchaseHistory, error: purchaseError } = await supabase
@@ -215,19 +249,26 @@ export const StripeConnectPaymentComplete: React.FC = () => {
       }
 
       // 7. customer_paymentsテーブルに保存（既存のテーブル）
+      const payment_data = buildPaymentDataForRankings({
+        amount: paymentInfo.amount,
+        items: paymentInfo.items,
+        store_name: paymentInfo.store_name,
+        payment_code: paymentInfo.payment_code
+      });
       const { error: customerPaymentError } = await supabase
         .from('customer_payments')
         .insert([
           {
-            customer_id: customerId,
-            store_id: paymentInfo.store_id,
+            customer_id: customerId != null ? String(customerId) : undefined,
+            user_id: user.id,
+            store_id: paymentInfo.store_id != null ? String(paymentInfo.store_id) : undefined,
             amount: paymentInfo.amount,
             points_earned: pointsEarned,
             points_used: pointsUsed,
             payment_method: 'stripe_connect',
             status: paymentInfo.status === 'succeeded' ? 'completed' : 'pending',
             payment_code: paymentInfo.payment_code,
-            stripe_payment_intent_id: paymentInfo.payment_intent_id,
+            payment_data,
             created_at: new Date().toISOString()
           }
         ]);
@@ -237,42 +278,8 @@ export const StripeConnectPaymentComplete: React.FC = () => {
         // エラーが発生しても続行
       }
 
-      // 8. 顧客のポイントを更新
-      if (customerId) {
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('total_points')
-          .eq('id', customerId)
-          .maybeSingle();
-
-        const currentPoints = customerData?.total_points || 0;
-        const newPoints = currentPoints + netPoints;
-
-        // 現在のtotal_purchase_amountを取得してから更新
-        const { data: currentCustomer } = await supabase
-          .from('customers')
-          .select('total_purchase_amount')
-          .eq('id', customerId)
-          .maybeSingle();
-
-        const currentPurchaseAmount = currentCustomer?.total_purchase_amount || 0;
-        const newPurchaseAmount = currentPurchaseAmount + paymentInfo.amount;
-
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
-            total_points: newPoints,
-            total_purchase_amount: newPurchaseAmount,
-            last_purchase_date: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', customerId);
-
-        if (updateError) {
-          console.error('顧客ポイント更新エラー:', updateError);
-          // エラーが発生しても続行
-        }
-      }
+      // 8. ポイント・残高は customer_payments INSERT/UPDATE 時の DB トリガー
+      //    （supabase/customer_payment_ledger_trigger.sql）で point_history / customers に反映
 
       console.log('✅ 決済データの保存が完了しました');
     } catch (err) {

@@ -48,6 +48,8 @@
 | `supabase/restore_original_lesson_data.sql` | `lesson_schools` | 復元用テンプレ（INSERT はコメントアウト） | 実際のデータは未記入 |
 | `supabase/delete_sample_data_and_fix_insert.sql` | `lesson_schools` | 1 件（`store_email`: botanism2011@gmail.com） | `store_email`, `name`, `prefecture` 等。RLS の説明付き |
 | `supabase/create_customer_participations_table.sql` | `customer_participations` | 参加サンプル 2 件 | `new_lesson_schedules` に `title = 'フラワーアレンジメント基礎講座'` がある前提 |
+| `supabase/customer_lesson_participation_action.sql` | RPC + 連携テーブル | **本番で実行推奨** — `customer_lesson_participation_action` が参加/取り消しを `customer_participations`・`customer_notifications`・`customer_lesson_points` を同一トランザクションで更新 | 事前に `customer_notifications_lesson_columns.sql` と `calculate_customer_level` があること |
+| `supabase/popularity_rankings_monthly_views.sql` | ビュー + `customer_rankings` 拡張 | 同上 + `product_popularity_by_name_month_view`（`items.name` 原文×月）。`refresh_customer_rankings` は PR + CP の `points_used` を合算 | 先に `customer_payments.payment_data` カラム追加あり。`public_ranking_setup.sql` は本ファイル実行後に再適用（`product_popularity_by_name_ranking_view` = 直近30日） |
 | `supabase/perfect_sync_lesson_schools.sql` | `lesson_schools` | 同期・INSERT の例 | バックアップ同期の文脈 |
 
 **アプリで参照しているテーブル:** `new_lesson_schedules`（スケジュール本体）。  

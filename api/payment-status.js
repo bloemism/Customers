@@ -35,16 +35,18 @@ export default async function handler(req, res) {
       // 決済成功時のデータを返す
       const metadata = paymentIntent.metadata;
       
+      const amountYen = paymentIntent.amount / 100;
       const result = {
         success: true,
         data: {
           payment_intent_id: paymentIntent.id,
-          amount: paymentIntent.amount,
+          /** 円（Stripe の最小通貨単位ではない）— customer_payments.amount と一致 */
+          amount: amountYen,
           status: paymentIntent.status,
           store_name: metadata.store_name || '不明な店舗',
           customer_id: metadata.customer_id || '',
           points_used: parseInt(metadata.points_used || '0'),
-          points_earned: Math.floor(paymentIntent.amount * 0.05), // 5%のポイント付与
+          points_earned: Math.floor(amountYen * 0.05), // 5%（円ベース）
           store_id: metadata.store_id || '',
           created_at: new Date(paymentIntent.created * 1000).toISOString()
         }

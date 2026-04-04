@@ -1,0 +1,11 @@
+-- customer_payments の RLS（87app 実装メモ）
+--
+-- 現在のポリシー例:
+--   INSERT: customers_can_insert_own_payments
+--           WITH CHECK ((auth.uid())::text = user_id)
+--   SELECT: customers_can_view_own_payments
+--           USING ((auth.uid())::text = user_id)
+--
+-- クライアントから INSERT する場合は必ず user_id に auth.users の UUID 文字列
+-- （Supabase JS の auth.getUser().id と同一）をセットすること。
+-- customer_id は text 型の環境があるため String(customerId) で渡すと安全。
