@@ -2,6 +2,25 @@
 
 87app とは別のリポジトリ・別デプロイ用の **単一ページサイト** です。React（Vite）でビルドします。
 
+## Monorepo（Customers 等）からこのフォルダだけ `bloemism/DBW` へ送る
+
+リポジトリルートで（SSH の例）:
+
+```bash
+git push origin main
+git push dbw dbw-split-export:main
+```
+
+`dbw` リモートが無い場合:
+
+```bash
+git remote add dbw git@github.com:bloemism/DBW.git
+git subtree split --prefix=dbw-lp -b dbw-split-export
+git push dbw dbw-split-export:main
+```
+
+`dbw-split-export` ブランチは `dbw-lp` のみの履歴です。`dbw-lp` を更新したあとに再度送る場合は、古い `dbw-split-export` を削除してから `subtree split` し直してください。
+
 ## 開発
 
 **リポジトリのルートで `npm run dev` しても 87app（ポート 5173）だけが起動します。** DBW のサイトは `dbw-lp` 配下で起動してください。
