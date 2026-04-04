@@ -36,7 +36,7 @@ npm run build
 
    例: リポジトリ名が `dbw-landing` なら `VITE_BASE_PATH=/dbw-landing/`。
 
-4. Pages のソースを **GitHub Actions** または **Actions でビルドした `dist` を `gh-pages` ブランチに push** など、お好みの方法で配信してください。
+4. リポジトリ **Settings → Pages** で **Source** を **GitHub Actions** に変更する（本リポジトリに含まれる `.github/workflows/pages.yml` が `main` へ push されるたびにビルド・公開します）。
 
 カスタムドメインでルート配信する場合は `vite.config.ts` の `base` を `'/'` にし、ビルド時は `VITE_BASE_PATH` を指定しなくてよいです。
 
