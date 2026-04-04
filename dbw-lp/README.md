@@ -2,6 +2,35 @@
 
 87app とは別のリポジトリ・別デプロイ用の **単一ページサイト** です。React（Vite）でビルドします。
 
+## 全体像（ここがわかると迷子になりにくい）
+
+| こと | 使うもの | SSH 関係 |
+|------|----------|----------|
+| コードを GitHub に送る（`git push`） | あなたの PC の **git** | **SSH または HTTPS** のどちらかで認証 |
+| サイトを見る（訪問者） | ブラウザ → `https://bloemism.github.io/DBW/` | **SSH は使わない**（HTTPS のみ） |
+| 本番のファイルを作る | **GitHub Actions** が `npm run build` → `dist` | なし（GitHub 内で完結） |
+
+「デプロイできている」のに画面がおかしかった時期は、**Pages のソースが “ブランチのルート” になっていて、ビルド前の `index.html`（`/src/main.tsx` を読む開発用）が配信されていた**ことがありました。**Source を GitHub Actions にし、ワークフローで `dist` を載せる**と、`/DBW/assets/*.js` 付きの本番 HTML になります。
+
+### SSH で `Permission denied (publickey)` のとき
+
+GitHub が **あなたの PC の中を検索して鍵を探すことはありません。** 鍵のペアは **あなたの Mac で作り、公開鍵だけを GitHub のアカウント設定に登録**します。
+
+- 手順の公式ドキュメント: [SSH で GitHub に接続する](https://docs.github.com/ja/authentication/connecting-to-github-with-ssh)
+- 動作確認: `ssh -T git@github.com`（成功すると `Hi ...!` のような返答）
+- SSH を使わない選択肢: リモートを `https://github.com/bloemism/DBW.git` にし、**Personal Access Token** で `git push`（トークンに `workflow` が必要なのは **`.github/workflows/` を push で更新するときだけ**）
+
+### 本番が正しく配信されているかの見分け方
+
+ローカルまたはターミナルで:
+
+```bash
+curl -s https://bloemism.github.io/DBW/ | grep script
+```
+
+- **良い例:** `src="/DBW/assets/index-….js"` のように **`assets` 配下の js**
+- **悪い例:** `src="/src/main.tsx"` → まだ **ビルド前の HTML が配信されている**（Pages の Source または Actions を見直す）
+
 ## Monorepo（Customers 等）からこのフォルダだけ `bloemism/DBW` へ送る
 
 リポジトリルートで（SSH の例）:
