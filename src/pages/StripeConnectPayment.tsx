@@ -1,18 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, CheckCircle, AlertCircle, ArrowLeft, Info } from 'lucide-react';
-
-// API Base URL（ローカル環境ではローカルAPIサーバーを使用）
-let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-if (!API_BASE_URL) {
-  // ローカル環境ではローカルAPIサーバーを使用
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    API_BASE_URL = 'http://localhost:3000';
-  } else {
-    // 本番環境ではVercelのAPIエンドポイントを使用
-    API_BASE_URL = 'https://customers-three-rust.vercel.app';
-  }
-}
+import { apiUrl } from '../lib/apiBase';
 
 /**
  * Stripe Connect Standard連結アカウント用の決済ページ
@@ -140,7 +129,8 @@ export const StripeConnectPayment: React.FC = () => {
       });
 
       // Stripe Connect決済Intent作成
-      const response = await fetch(`${API_BASE_URL}/api/create-connect-payment-intent`, {
+      const createIntentUrl = apiUrl('/api/create-connect-payment-intent');
+      const response = await fetch(createIntentUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,12 +164,11 @@ export const StripeConnectPayment: React.FC = () => {
           statusText: response.statusText,
           url: response.url,
           errorData,
-          API_BASE_URL
         });
         
         // 404エラーの場合、より詳細なメッセージを表示
         if (response.status === 404) {
-          throw new Error(`APIエンドポイントが見つかりません (404)。URL: ${API_BASE_URL}/api/create-connect-payment-intent。ローカル環境ではVercelのAPIエンドポイントを使用してください。`);
+          throw new Error(`APIエンドポイントが見つかりません (404)。URL: ${createIntentUrl}。dev環境では \`npm run dev:full\` で API サーバを起動してください。`);
         }
         
         // 連結アカウントの状態に関する詳細なエラーメッセージを構築
@@ -213,7 +202,6 @@ export const StripeConnectPayment: React.FC = () => {
           status: response.status,
           statusText: response.statusText,
           url: response.url,
-          API_BASE_URL
         });
         throw new Error(`空のレスポンスが返されました (${response.status})。APIエンドポイントが正しく動作していない可能性があります。`);
       }

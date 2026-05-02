@@ -4,22 +4,7 @@ import { ArrowLeft, CreditCard, AlertCircle, Hash, Check } from 'lucide-react';
 import type { PaymentData } from '../services/customerStripeService';
 import { useCustomer } from '../contexts/CustomerContext';
 import { supabase } from '../lib/supabase';
-// API Base URL（ローカル環境ではローカルAPIサーバーを使用）
-const getApiBaseUrl = () => {
-  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  if (!apiBaseUrl) {
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      apiBaseUrl = 'http://localhost:3000';
-    } else {
-      // 本番環境ではVercelのAPIエンドポイントを使用
-      apiBaseUrl = 'https://customers-three-rust.vercel.app';
-    }
-  }
-  return apiBaseUrl;
-};
-
-// 背景画像
-const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
+import { apiUrl } from '../lib/apiBase';
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -40,7 +25,7 @@ const PaymentPage: React.FC = () => {
   
   // Stripe Connect関連の状態
   const [storeStripeAccountId, setStoreStripeAccountId] = useState<string | null>(null);
-  const [loadingStripeAccount, setLoadingStripeAccount] = useState(false);
+  const [, setLoadingStripeAccount] = useState(false);
   const [paymentBanner, setPaymentBanner] = useState<{ kind: 'success' | 'info'; message: string } | null>(null);
 
   useEffect(() => {
@@ -335,6 +320,7 @@ const PaymentPage: React.FC = () => {
         user_id: user.id
       };
       if (customerId) insertRow.customer_id = String(customerId);
+      if (customer?.address) insertRow.address = customer.address;
 
       const { error: cpError } = await supabase.from('customer_payments').insert(insertRow);
 
@@ -445,8 +431,7 @@ const PaymentPage: React.FC = () => {
       });
 
       // Stripe Connect決済Intent作成
-      const API_BASE_URL = getApiBaseUrl();
-      const response = await fetch(`${API_BASE_URL}/api/create-connect-payment-intent`, {
+      const response = await fetch(apiUrl('/api/create-connect-payment-intent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

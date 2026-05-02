@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env
+
+# Nested standalone repos (own .git, managed separately)
+87app/

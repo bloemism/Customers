@@ -7,16 +7,14 @@ import {
   Gift,
   MapPin,
   RefreshCw,
-  Flower,
-  CreditCard
+  Flower
 } from 'lucide-react';
 import { PublicRankingService } from '../services/publicRankingService';
 import type {
   RegionalStatistics,
   ProductPopularity,
   PointsUsageStats,
-  SeasonalTrends,
-  PaymentMethodTrends
+  SeasonalTrends
 } from '../services/publicRankingService';
 
 const COLORS = {
@@ -32,7 +30,7 @@ const COLORS = {
 const PublicRankings: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'regional' | 'products' | 'points' | 'seasonal' | 'payment'>('regional');
+  const [selectedTab, setSelectedTab] = useState<'regional' | 'products' | 'points' | 'seasonal'>('regional');
   const [selectedPrefecture, setSelectedPrefecture] = useState<string>('東京都');
   const [pointMonthTab, setPointMonthTab] = useState<'prev2' | 'prev1' | 'current' | 'all'>('all');
   const [regionalPoints, setRegionalPoints] = useState<{ prefecture: string; total_points: number }[]>([]);
@@ -42,14 +40,12 @@ const PublicRankings: React.FC = () => {
     products: ProductPopularity[];
     points: PointsUsageStats[];
     seasonal: SeasonalTrends[];
-    payment: PaymentMethodTrends[];
     regionalProducts: ProductPopularity[];
   }>({
     regional: [],
     products: [],
     points: [],
     seasonal: [],
-    payment: [],
     regionalProducts: []
   });
 
@@ -59,14 +55,13 @@ const PublicRankings: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [regional, products, points, seasonal, payment] = await Promise.all([
+      const [regional, products, points, seasonal] = await Promise.all([
         PublicRankingService.getRegionalStatistics(),
         PublicRankingService.getProductPopularity(),
         PublicRankingService.getPointsUsageStats(),
-        PublicRankingService.getSeasonalTrends(),
-        PublicRankingService.getPaymentMethodTrends()
+        PublicRankingService.getSeasonalTrends()
       ]);
-      setRankings(prev => ({ ...prev, regional, products, points, seasonal, payment }));
+      setRankings(prev => ({ ...prev, regional, products, points, seasonal }));
     } catch (err) {
       console.error('ランキングデータ取得エラー:', err);
       setError('データの取得に失敗しました');
@@ -113,7 +108,7 @@ const PublicRankings: React.FC = () => {
     loadRegionalProducts(prefecture);
   };
 
-  const handleTabChange = (tab: 'regional' | 'products' | 'points' | 'seasonal' | 'payment') => {
+  const handleTabChange = (tab: 'regional' | 'products' | 'points' | 'seasonal') => {
     setSelectedTab(tab);
   };
 
@@ -135,8 +130,7 @@ const PublicRankings: React.FC = () => {
     { id: 'regional', label: '地域別統計', icon: MapPin },
     { id: 'products', label: '人気商品', icon: Flower },
     { id: 'points', label: 'ポイント使用', icon: Gift },
-    { id: 'seasonal', label: '季節トレンド', icon: Calendar },
-    { id: 'payment', label: '決済方法', icon: CreditCard }
+    { id: 'seasonal', label: '季節トレンド', icon: Calendar }
   ];
 
   const prefectures = [
@@ -186,7 +180,7 @@ const PublicRankings: React.FC = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => handleTabChange(tab.id as 'regional' | 'products' | 'points' | 'seasonal' | 'payment')}
+                    onClick={() => handleTabChange(tab.id as 'regional' | 'products' | 'points' | 'seasonal')}
                     className="flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors"
                     style={{
                       borderColor: active ? COLORS.accent : 'transparent',
@@ -447,43 +441,6 @@ const PublicRankings: React.FC = () => {
               </div>
             )}
 
-            {selectedTab === 'payment' && (
-              <div className="space-y-6">
-                <div className="rounded-lg p-6" style={{ backgroundColor: COLORS.cardBg, border: `1px solid ${COLORS.border}` }}>
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2" style={{ color: COLORS.text }}>
-                    <CreditCard className="h-5 w-5" style={{ color: COLORS.accent }} />
-                    決済方法別トレンド
-                  </h2>
-                  {rankings.payment.length === 0 ? (
-                    <div className="text-center py-12" style={{ color: COLORS.textMuted }}>
-                      <CreditCard className="h-12 w-12 mx-auto mb-4" style={{ color: COLORS.border }} />
-                      <p className="font-medium">決済方法のデータがありません</p>
-                      <p className="text-sm mt-2">決済データが追加されると表示されます</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {rankings.payment.map((method, index) => (
-                        <div key={method.payment_method} className="flex items-center justify-between p-4 rounded-lg" style={{ backgroundColor: '#F5F0E8', border: `1px solid ${COLORS.border}` }}>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold" style={{ backgroundColor: COLORS.accent, color: '#fff' }}>{index + 1}</div>
-                            <div>
-                              <h3 className="font-medium" style={{ color: COLORS.text }}>
-                                {method.payment_method === 'stripe_connect' ? 'クレジットカード' : '現金'}
-                              </h3>
-                              <p className="text-sm" style={{ color: COLORS.textMuted }}>使用回数: {method.usage_count}回</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium" style={{ color: COLORS.text }}>{method.usage_percentage}%</p>
-                            <p className="text-sm" style={{ color: COLORS.textMuted }}>使用率</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

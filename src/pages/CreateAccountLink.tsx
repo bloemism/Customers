@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, CheckCircle, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { apiUrl } from '../lib/apiBase';
 
 /**
  * アカウントリンク作成ページ
@@ -15,16 +16,6 @@ export const CreateAccountLink: React.FC = () => {
   const [accountStatus, setAccountStatus] = useState<any>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
 
-  // API Base URL
-  let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-  if (!API_BASE_URL) {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      API_BASE_URL = 'http://localhost:3000';
-    } else {
-      API_BASE_URL = 'https://customers-three-rust.vercel.app';
-    }
-  }
-
   const handleCreateLink = async () => {
     if (!accountId || !accountId.startsWith('acct_')) {
       setError('有効な連結アカウントIDを入力してください（acct_で始まる必要があります）');
@@ -36,7 +27,7 @@ export const CreateAccountLink: React.FC = () => {
     setOnboardingUrl('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/create-account-link`, {
+      const response = await fetch(apiUrl('/api/create-account-link'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +73,7 @@ export const CreateAccountLink: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/get-connected-account-status?accountId=${encodeURIComponent(accountId)}`, {
+      const response = await fetch(apiUrl(`/api/get-connected-account-status?accountId=${encodeURIComponent(accountId)}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

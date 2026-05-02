@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, QrCode, Star, Gift, CreditCard, Calendar, MapPin, BookOpen } from 'lucide-react';
+import { ArrowLeft, User, Contact, Star, Gift, CreditCard, Calendar, MapPin, BookOpen } from 'lucide-react';
 
 // 背景画像
 const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
@@ -111,8 +111,8 @@ export const CustomerReadmePage: React.FC = () => {
       )
     },
     {
-      icon: QrCode,
-      title: 'マイ顧客コード',
+      icon: Contact,
+      title: 'マイ会員コード',
       content: (
         <>
           <p className="mb-4">マイ顧客コードでは、ご自身の顧客アカウントデータやポイントなどの情報がデータベースに組み込まれ、アルファベットと数字に置き換えられ作られます。</p>

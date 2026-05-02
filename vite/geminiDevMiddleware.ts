@@ -1,8 +1,15 @@
 /**
- * 開発時のみ: npm run dev だけで Gemini（GEMINI_API_KEY は Node の process.env のみ）
+ * 開発時のみ: npm run dev だけで Gemini を試せる軽量ミドルウェア
+ *
+ * セキュリティは本番 API（api/gemini-concierge.js）と同じ層を持つ:
+ *   1. IP レートリミット（インメモリ：60/h, 200/d）
+ *   2. Supabase Auth JWT 必須
+ *   3. ユーザーごと 1日10回までのクォータ（Supabase RPC で原子的に消費）
+ *   4. 入力サイズ・画像数の上限
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect } from 'vite'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { FLOWER_CONCIERGE_SYSTEM_PROMPT } from '../src/config/flowerConciergePrompt'
 
 function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -32,6 +39,85 @@ const MAX_IMAGES_PER_MESSAGE = 4
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_TOTAL_IMAGE_BYTES = 18 * 1024 * 1024
 
+const DEFAULT_DAILY_LIMIT = Number.parseInt(process.env.AI_CONCIERGE_DAILY_LIMIT || '10', 10) || 10
+
+// ---------- IP レートリミット ----------
+const IP_LIMIT_PER_HOUR = 60
+const IP_LIMIT_PER_DAY = 200
+const HOUR_MS = 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type IpBucket = { hourStart: number; hourCount: number; dayStart: number; dayCount: number }
+const ipBucket = new Map<string, IpBucket>()
+
+function checkIpRateLimit(ip: string): { allowed: boolean; reason?: string } {
+  if (!ip) return { allowed: true }
+  const now = Date.now()
+  let b = ipBucket.get(ip)
+  if (!b) {
+    b = { hourStart: now, hourCount: 0, dayStart: now, dayCount: 0 }
+    ipBucket.set(ip, b)
+  }
+  if (now - b.hourStart > HOUR_MS) {
+    b.hourStart = now
+    b.hourCount = 0
+  }
+  if (now - b.dayStart > DAY_MS) {
+    b.dayStart = now
+    b.dayCount = 0
+  }
+  if (b.hourCount >= IP_LIMIT_PER_HOUR) {
+    return { allowed: false, reason: 'IP からのリクエストが多すぎます（1時間あたり）' }
+  }
+  if (b.dayCount >= IP_LIMIT_PER_DAY) {
+    return { allowed: false, reason: 'IP からのリクエストが多すぎます（1日あたり）' }
+  }
+  b.hourCount += 1
+  b.dayCount += 1
+  if (ipBucket.size > 10000) {
+    let i = 0
+    for (const k of ipBucket.keys()) {
+      ipBucket.delete(k)
+      if (++i > 5000) break
+    }
+  }
+  return { allowed: true }
+}
+
+function getClientIp(req: IncomingMessage): string {
+  const xff = req.headers['x-forwarded-for']
+  if (typeof xff === 'string' && xff.length > 0) {
+    return xff.split(',')[0].trim()
+  }
+  return req.socket?.remoteAddress || ''
+}
+
+// ---------- Supabase（JWT 検証＋RPC） ----------
+function getSupabaseUrlAndKey(): { url?: string; anonKey?: string } {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+  return { url, anonKey }
+}
+
+function getUserScopedSupabaseClient(jwt: string): SupabaseClient | null {
+  const { url, anonKey } = getSupabaseUrlAndKey()
+  if (!url || !anonKey) return null
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  })
+}
+
+function extractBearerToken(req: IncomingMessage): string | null {
+  const h = req.headers.authorization
+  if (typeof h === 'string' && h.toLowerCase().startsWith('bearer ')) {
+    const token = h.slice(7).trim()
+    if (token) return token
+  }
+  return null
+}
+
+// ---------- 入力バリデーション ----------
 type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } }
@@ -113,6 +199,17 @@ function validateMessages(raw: unknown): { error?: string; contents?: { role: st
   return { contents }
 }
 
+type QuotaResult = {
+  allowed: boolean
+  used: number
+  limit: number
+  remaining: number
+  reset_at?: string
+  reason?: string
+  error?: string
+}
+
+// ---------- Handler ----------
 async function handleGeminiDev(
   req: IncomingMessage,
   res: ServerResponse,
@@ -123,10 +220,12 @@ async function handleGeminiDev(
   if (path === '/__gemini_dev/health' && req.method === 'GET') {
     const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY
     const geminiConfigured = !!(key?.trim())
+    const { url, anonKey } = getSupabaseUrlAndKey()
     sendJson(res, 200, {
       ok: true,
       via: 'vite-gemini-dev',
       geminiConfigured,
+      supabaseConfigured: !!(url && anonKey),
       ...(geminiConfigured
         ? {}
         : {
@@ -153,6 +252,19 @@ async function handleGeminiDev(
     return
   }
 
+  // ── (1) IP レートリミット
+  const ip = getClientIp(req)
+  const ipCheck = checkIpRateLimit(ip)
+  if (!ipCheck.allowed) {
+    sendJson(res, 429, {
+      success: false,
+      error: ipCheck.reason || 'リクエストが多すぎます',
+      rateLimited: true,
+    })
+    return
+  }
+
+  // ── (2) Gemini API キー
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY
   if (!apiKey?.trim()) {
     sendJson(res, 503, {
@@ -163,20 +275,79 @@ async function handleGeminiDev(
     return
   }
 
+  // ── (3) Supabase JWT 必須
+  const jwt = extractBearerToken(req)
+  if (!jwt) {
+    sendJson(res, 401, {
+      success: false,
+      error: 'ログインが必要です（認証トークンが見つかりません）。',
+      unauthorized: true,
+    })
+    return
+  }
+
+  const supabase = getUserScopedSupabaseClient(jwt)
+  if (!supabase) {
+    sendJson(res, 503, {
+      success: false,
+      error:
+        'Supabase 設定（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）が不足しています。.env を確認してください。',
+    })
+    return
+  }
+
+  const { data: userInfo, error: userErr } = await supabase.auth.getUser()
+  if (userErr || !userInfo?.user?.id) {
+    sendJson(res, 401, {
+      success: false,
+      error: '認証トークンが無効です。再ログインしてからお試しください。',
+      unauthorized: true,
+    })
+    return
+  }
+
+  // ── (4) クォータ消費（原子的）
+  const { data: quotaResult, error: quotaErr } = await supabase.rpc(
+    'try_consume_ai_concierge_quota',
+    { p_daily_limit: DEFAULT_DAILY_LIMIT }
+  )
+  if (quotaErr) {
+    console.error('[vite gemini dev] quota RPC error:', quotaErr)
+    sendJson(res, 500, {
+      success: false,
+      error: 'クォータ確認に失敗しました。時間をおいて再度お試しください。',
+    })
+    return
+  }
+  const quota = quotaResult as QuotaResult | null
+  if (!quota?.allowed) {
+    sendJson(res, 429, {
+      success: false,
+      error:
+        quota?.reason ||
+        `本日の利用上限（${DEFAULT_DAILY_LIMIT}回）に達しました。明日また使えます。`,
+      rateLimited: true,
+      quota: quota || null,
+    })
+    return
+  }
+
+  // ── (5) 入力バリデーション
   let body: Record<string, unknown>
   try {
     body = await readJsonBody(req)
   } catch {
-    sendJson(res, 400, { success: false, error: 'JSON 本文が不正です' })
+    sendJson(res, 400, { success: false, error: 'JSON 本文が不正です', quota })
     return
   }
 
   const validated = validateMessages(body.messages)
   if (validated.error) {
-    sendJson(res, 400, { success: false, error: validated.error })
+    sendJson(res, 400, { success: false, error: validated.error, quota })
     return
   }
 
+  // ── (6) Gemini 呼び出し
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
 
@@ -203,7 +374,7 @@ async function handleGeminiDev(
       errObj?.message ||
       errObj?.status ||
       `Gemini API エラー (${geminiRes.status})`
-    sendJson(res, 502, { success: false, error: msg })
+    sendJson(res, 502, { success: false, error: msg, quota })
     return
   }
 
@@ -218,11 +389,12 @@ async function handleGeminiDev(
     sendJson(res, 200, {
       success: false,
       error: `回答を生成できませんでした（finish: ${reason}）`,
+      quota,
     })
     return
   }
 
-  sendJson(res, 200, { success: true, text })
+  sendJson(res, 200, { success: true, text, quota })
 }
 
 export function geminiDevMiddleware(): Connect.NextHandleFunction {

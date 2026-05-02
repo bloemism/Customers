@@ -5,14 +5,9 @@ import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft,
   Plus,
-  QrCode,
   ShoppingCart,
-  Mail,
-  Copy,
-  Download,
   X
 } from 'lucide-react';
-import QRCode from 'qrcode';
 
 // 会計アイテムの型定義
 interface CheckoutItem {
@@ -103,18 +98,6 @@ const CheckoutScreen: React.FC = () => {
   
   // 動的決済用の金額入力（5桁コード用）
   const [dynamicPaymentAmount, setDynamicPaymentAmount] = useState<number>(0);
-  
-  // QRコード・URL情報
-  const [itemQRInfo, setItemQRInfo] = useState<{
-    type: 'item' | 'receipt';
-    title: string;
-    qrCodeUrl: string;
-    emailUrl: string;
-    data: unknown;
-  } | null>(null);
-  
-  // モーダル表示
-  const [showItemQRModal, setShowItemQRModal] = useState(false);
 
   // 店舗情報を読み込み
   useEffect(() => {
@@ -268,11 +251,11 @@ const CheckoutScreen: React.FC = () => {
     setFinalTotal(newTotal);
   }, [checkoutItems, pointsToUse]);
 
-  // URLをクリップボードにコピー
+  // 決済コードをクリップボードにコピー
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      alert('URLをクリップボードにコピーしました');
+      alert('決済コードをクリップボードにコピーしました');
     } catch (error) {
       console.error('コピーエラー:', error);
     }
@@ -446,328 +429,6 @@ const CheckoutScreen: React.FC = () => {
       alert(`決済コード生成エラー: ${error}`);
     } finally {
       setPaymentCode5DigitLoading(false);
-    }
-  };
-
-  // 現金支払いQRコード生成
-  const generateCashQRCode = async () => {
-    try {
-      console.log('現金支払いQRコード生成開始');
-      console.log('QRCodeライブラリ:', QRCode);
-      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
-      
-      // QRCodeライブラリの存在確認
-      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
-        throw new Error('QRCodeライブラリが正しく読み込まれていません');
-      }
-      
-      const checkoutData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
-          };
-        }),
-        subtotal: subtotal,
-        tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
-        payment_method: 'cash',
-        timestamp: new Date().toISOString()
-      };
-
-      console.log('現金支払いデータ:', checkoutData);
-
-      const qrData = JSON.stringify(checkoutData);
-      console.log('QRデータ:', qrData);
-
-      // QRコード生成（シンプルなオプション）
-      const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
-
-      // encodeURIComponentを使用して日本語文字を安全にエンコード
-      const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
-      console.log('メールURL:', emailUrl);
-
-      setItemQRInfo({
-        type: 'receipt',
-        title: '現金支払い',
-        qrCodeUrl,
-        emailUrl,
-        data: checkoutData
-      });
-      
-      console.log('itemQRInfo設定完了');
-      setShowItemQRModal(true);
-      console.log('モーダル表示設定完了');
-      
-    } catch (error) {
-      console.error('現金支払いQRコード生成エラー:', error);
-      console.error('エラーの詳細:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        QRCode: typeof QRCode,
-        toDataURL: typeof QRCode?.toDataURL
-      });
-      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  // クレジットカード支払いQRコード生成
-  const generateCreditCardQRCode = async () => {
-    try {
-      console.log('クレジットカード支払いQRコード生成開始');
-      
-      console.log('QRCodeライブラリ:', QRCode);
-      console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
-      
-      // QRCodeライブラリの存在確認
-      if (!QRCode || typeof QRCode.toDataURL !== 'function') {
-        throw new Error('QRCodeライブラリが正しく読み込まれていません');
-      }
-
-    const checkoutData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
-          };
-        }),
-      subtotal: subtotal,
-      tax: tax,
-        total: total,
-
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
-        payment_method: 'credit_card',
-      timestamp: new Date().toISOString()
-    };
-
-      console.log('クレジットカード支払いデータ:', checkoutData);
-
-      const qrData = JSON.stringify(checkoutData);
-      console.log('QRデータ:', qrData);
-
-      // QRコード生成（シンプルなオプション）
-      const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL生成完了:', qrCodeUrl ? '成功' : '失敗');
-
-      // encodeURIComponentを使用して日本語文字を安全にエンコード
-      const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
-      console.log('メールURL:', emailUrl);
-
-      setItemQRInfo({
-        type: 'receipt',
-        title: 'クレジットカード支払い',
-        qrCodeUrl,
-        emailUrl,
-        data: checkoutData
-      });
-      
-      console.log('itemQRInfo設定完了');
-      setShowItemQRModal(true);
-      console.log('モーダル表示設定完了');
-      
-    } catch (error) {
-      console.error('クレジットカード支払いQRコード生成エラー:', error);
-      console.error('エラーの詳細:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        QRCode: typeof QRCode,
-        toDataURL: typeof QRCode?.toDataURL
-      });
-      alert(`QRコード生成エラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  // クレジットカード支払いURL生成
-  const generateCreditCardUrl = async () => {
-    try {
-      console.log('クレジットカード支払いURL生成開始');
-      
-      const checkoutData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
-        store_connect_account_id: store?.stripe_connect_account_id || '', // Stripe Connect Account ID
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
-          };
-        }),
-        subtotal: subtotal,
-        tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
-        payment_method: 'credit_card',
-        timestamp: new Date().toISOString()
-      };
-
-      console.log('クレジットカード支払いデータ:', checkoutData);
-
-      // encodeURIComponentを使用して日本語文字を安全にエンコード
-      const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(checkoutData))}`;
-      console.log('メールURL:', emailUrl);
-
-      setItemQRInfo({
-        type: 'receipt',
-        title: 'クレジットカード支払い',
-        qrCodeUrl: '', // URL生成の場合は空
-        emailUrl,
-        data: checkoutData
-      });
-      
-      console.log('itemQRInfo設定完了');
-      setShowItemQRModal(true);
-      console.log('モーダル表示設定完了');
-      
-    } catch (error) {
-      console.error('クレジットカード支払いURL生成エラー:', error);
-      alert(`URL生成エラー: ${error}`);
-    }
-  };
-
-
-
-  // 伝票全体のQRコード生成
-  const generateReceiptQRCode = async () => {
-    try {
-      console.log('伝票全体QRコード生成開始');
-      
-      // 決済用QRコードデータ（顧客側アプリで認識される形式）
-      const receiptData = {
-        type: 'payment', // 決済用QRコードであることを明示
-        storeId: store?.id || 'unknown',
-        storeName: store?.name || '不明',
-        storeAddress: store?.address || '不明',
-        storePhone: store?.phone || '不明',
-        storeEmail: store?.email || '不明',
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            id: `${item.flower_item_category_id}_${item.color_category_id}`,
-            name: `${flowerItem?.name || '不明'} (${color?.name || '不明'})`,
-            price: item.unit_price,
-            quantity: item.quantity,
-            total: item.total_price
-          };
-        }),
-        subtotal: subtotal,
-        tax: tax,
-        totalAmount: total, // 顧客側が期待するフィールド名
-        pointsUsed: pointsToUse, // 顧客側が期待するフィールド名
-        pointsEarned: pointsEarned,
-        timestamp: new Date().toISOString()
-      };
-
-      console.log('伝票データ:', receiptData);
-
-      const qrData = JSON.stringify(receiptData);
-      console.log('QRデータ:', qrData);
-
-      const qrCodeUrl = await QRCode.toDataURL(qrData);
-      console.log('QRコードURL:', qrCodeUrl);
-
-      // encodeURIComponentを使用して日本語文字を安全にエンコード
-      const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(receiptData))}`;
-      console.log('メールURL:', emailUrl);
-
-      setItemQRInfo({
-        type: 'receipt',
-        title: '伝票全体',
-        qrCodeUrl,
-        emailUrl,
-        data: receiptData
-      });
-      
-      console.log('itemQRInfo設定完了');
-      setShowItemQRModal(true);
-      console.log('モーダル表示設定完了');
-      
-    } catch (error) {
-      console.error('伝票全体QRコード生成エラー:', error);
-      alert(`QRコード生成エラー: ${error}`);
-    }
-  };
-
-  // 伝票全体のURL生成
-  const generateReceiptUrl = async () => {
-    try {
-      console.log('伝票全体URL生成開始');
-      
-      const receiptData = {
-        store_name: store?.name || '不明',
-        store_address: store?.address || '不明',
-        store_phone: store?.phone || '不明',
-        store_email: store?.email || '不明',
-        items: checkoutItems.map(item => {
-          const flowerItem = flowerItemCategories.find(cat => cat.id === item.flower_item_category_id);
-          const color = colorCategories.find(cat => cat.id === item.color_category_id);
-          return {
-            flower_item_name: flowerItem?.name || '不明',
-            color_name: color?.name || '不明',
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
-          };
-        }),
-        subtotal: subtotal,
-        tax: tax,
-        total: total,
-        points_used: pointsToUse,
-        points_earned: pointsEarned,
-        timestamp: new Date().toISOString()
-      };
-
-      console.log('伝票データ:', receiptData);
-
-      // encodeURIComponentを使用して日本語文字を安全にエンコード
-      const emailUrl = `${window.location.origin}/checkout/${encodeURIComponent(JSON.stringify(receiptData))}`;
-      console.log('メールURL:', emailUrl);
-
-      setItemQRInfo({
-        type: 'receipt',
-        title: '伝票全体',
-        qrCodeUrl: '', // URL生成の場合は空
-        emailUrl,
-        data: receiptData
-      });
-      
-      console.log('itemQRInfo設定完了');
-      setShowItemQRModal(true);
-      console.log('モーダル表示設定完了');
-      
-    } catch (error) {
-      console.error('伝票全体URL生成エラー:', error);
-      alert(`URL生成エラー: ${error}`);
     }
   };
 
@@ -1075,29 +736,6 @@ const CheckoutScreen: React.FC = () => {
               </div>
             )}
 
-            {/* 伝票全体のQRコード・URL生成 */}
-            {checkoutItems.length > 0 && (
-              <div className="border-t pt-4 mb-4">
-                <h3 className="text-md font-semibold text-gray-900 mb-3">伝票全体</h3>
-                <div className="grid grid-cols-2 gap-3">
-                                  <button
-                    onClick={() => generateReceiptQRCode()}
-                    className="py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    伝票QR生成
-                                  </button>
-                                <button
-                    onClick={() => generateReceiptUrl()}
-                    className="py-3 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-                                >
-                    <Mail className="w-4 h-4 mr-2" />
-                    伝票URL生成
-                                </button>
-                </div>
-                    </div>
-            )}
-
                     {/* ポイント使用 */}
             {checkoutItems.length > 0 && (
               <div className="border-t pt-4 mb-4">
@@ -1250,120 +888,9 @@ const CheckoutScreen: React.FC = () => {
                 )}
               </div>
 
-              <button 
-                onClick={() => generateCashQRCode()}
-                className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-              >
-                <QrCode className="w-5 h-5 mr-2" />
-                現金支払い QRコード生成
-              </button>
-              
-              {/* クレジットカード支払いの詳細化 */}
-              <div className="space-y-2">
-                <button 
-                  onClick={() => generateCreditCardQRCode()}
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  クレジットカード QRコード生成
-                </button>
-                
-                        <button
-                  onClick={() => generateCreditCardUrl()}
-                  className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center text-sm"
-                        >
-                  <Mail className="w-4 h-4 mr-2" />
-                  クレジットカード URL生成
-                        </button>
-                
-
-              </div>
             </div>
                       </div>
                     </div>
-
-        {/* 品目別QRコードモーダル */}
-        {showItemQRModal && itemQRInfo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {itemQRInfo.title}
-              </h3>
-              
-              {/* QRコード - 伝票全体の場合のみ表示 */}
-              {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl ? (
-                <div className="text-center mb-4">
-                  <img 
-                    src={itemQRInfo.qrCodeUrl} 
-                    alt="QR Code" 
-                    className="mx-auto w-48 h-48"
-                    onError={(e) => {
-                      console.error('QRコード画像の読み込みに失敗しました');
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('QRコード画像の読み込みに成功しました');
-                    }}
-                  />
-                  <p className="text-sm text-gray-600 mt-2">QRコードをスキャンして支払い</p>
-                </div>
-              ) : itemQRInfo.type === 'receipt' ? (
-                <div className="text-center mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">QRコードの生成に失敗しました</p>
-                  <p className="text-red-500 text-xs mt-1">ブラウザのコンソールでエラーを確認してください</p>
-                </div>
-              ) : null}
-
-              {/* メール請求用URL */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  メール請求用URL
-                        </label>
-                <div className="flex items-center space-x-2">
-                          <input
-                    type="text"
-                    value={itemQRInfo.emailUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(itemQRInfo.emailUrl)}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                      </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  このURLを顧客にメールで送信して支払いを依頼できます
-                </p>
-                    </div>
-
-              {/* ボタン */}
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowItemQRModal(false)}
-                  className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  閉じる
-                </button>
-                {itemQRInfo.type === 'receipt' && itemQRInfo.qrCodeUrl && (
-                    <button
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = itemQRInfo.qrCodeUrl;
-                      link.download = `receipt-qr-${new Date().toISOString().slice(0, 10)}.png`;
-                      link.click();
-                    }}
-                    className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    QRコード保存
-                    </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

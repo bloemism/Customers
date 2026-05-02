@@ -1,20 +1,14 @@
 import { loadStripe } from '@stripe/stripe-js';
 import type { PaymentIntent, ApiResponse } from '../types';
+import { apiUrl } from '../lib/apiBase';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
-// API Base URL（空の場合は相対パス）
-// 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
-let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
-  API_BASE_URL = ''; // 相対パスを使用
-}
 
 export class PaymentService {
   // 決済セッションを作成
   static async createPaymentSession(amount: number, currency: string = 'jpy'): Promise<ApiResponse<PaymentIntent>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+      const response = await fetch(apiUrl('/api/create-payment-intent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +43,7 @@ export class PaymentService {
   // QRコード用の決済セッションを作成
   static async createQRPaymentSession(amount: number): Promise<ApiResponse<{ qr_code: string; session_id: string }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/create-qr-payment`, {
+      const response = await fetch(apiUrl('/api/create-qr-payment'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +74,7 @@ export class PaymentService {
   // 決済を確認
   static async confirmPayment(paymentIntentId: string): Promise<ApiResponse<boolean>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/confirm-payment`, {
+      const response = await fetch(apiUrl('/api/confirm-payment'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

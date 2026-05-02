@@ -1,11 +1,5 @@
 import { supabase } from '../lib/supabase';
-
-// API Base URL（空の場合は相対パス）
-// 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
-let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
-  API_BASE_URL = ''; // 相対パスを使用
-}
+import { apiUrl } from '../lib/apiBase';
 
 export interface ConnectedAccountInfo {
   id: string;
@@ -70,7 +64,7 @@ export const createConnectedAccount = async (
   businessType: 'individual' | 'company' = 'individual'
 ): Promise<{ success: boolean; accountId?: string; onboardingUrl?: string; error?: string }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/create-connected-account`, {
+    const response = await fetch(apiUrl('/api/create-connected-account'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -116,7 +110,7 @@ export const getConnectedAccount = async (
   storeId: string
 ): Promise<{ success: boolean; hasAccount: boolean; account?: ConnectedAccountInfo; store?: StoreAccountInfo; error?: string }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/get-connected-account?storeId=${storeId}`);
+    const response = await fetch(apiUrl(`/api/get-connected-account?storeId=${storeId}`));
 
     const text = await response.text();
     if (!text) {
@@ -152,7 +146,7 @@ export const createAccountLink = async (
   accountId: string
 ): Promise<{ success: boolean; url?: string; error?: string }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/create-account-link`, {
+    const response = await fetch(apiUrl('/api/create-account-link'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -289,7 +283,7 @@ export const createConnectPayment = async (
   try {
     const fees = calculateFees(amount);
 
-    const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+    const response = await fetch(apiUrl('/api/create-payment-intent'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

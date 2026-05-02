@@ -8,7 +8,7 @@ import {
   Map,
   ShoppingCart,
   CreditCard,
-  QrCode,
+  Contact,
   TrendingUp,
   Users,
   Calendar,
@@ -212,16 +212,16 @@ export const ReadmePage: React.FC = () => {
               </div>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-green-800 mb-2">📱 マイQRコード</h3>
+              <h3 className="font-semibold text-green-800 mb-2">📱 マイ会員コード</h3>
               <p className="text-green-700">
-                お客様側アプリにマイQRコードに、ご自身の顧客アカウントデータやポイントなどの情報がQRコードで作られます。
-                それを見て残ポイントを確認ください（それを見て会計時にマイナスするポイントを口頭で確認ください）。
+                お客様側アプリの「マイ会員コード」画面に、ご自身の会員コードとポイント残高が表示されます。
+                会員コードを店舗にお伝えいただくと、会計時にポイント使用・付与をスムーズにご案内できます。
               </p>
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="font-semibold text-yellow-800 mb-2">📅 レッスンスケジュール管理</h3>
               <p className="text-yellow-700">
-                継続でレッスンを行いたい場合は、マイQRコードを先生に見せ登録してもらうと、
+                継続でレッスンを行いたい場合は、会員コードを先生にお伝えして登録してもらうと、
                 レッスンスケジュール管理のページに、次回以降のレッスンが見れるようになります。
                 ご自身のご都合の良いレッスン日を選択し登録してもらいます。
               </p>
@@ -235,7 +235,7 @@ export const ReadmePage: React.FC = () => {
             <div className="bg-pink-50 p-4 rounded-lg">
               <h3 className="font-semibold text-pink-800 mb-2">⭐ レベルシステム</h3>
               <p className="text-pink-700">
-                ポイントを貯めるとレベルが上がるシステムになっています。QRコードに出るレベルを見て、
+                ポイントを貯めるとレベルが上がるシステムになっています。会員コードに表示されるレベルを見て、
                 お客様の花購入頻度がわかります。年間での特典も考えています。
               </p>
             </div>
@@ -250,30 +250,32 @@ export const ReadmePage: React.FC = () => {
           </h2>
           <div className="space-y-4 text-gray-700">
             <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-green-800 mb-2">💳 クレジット決済</h3>
+              <h3 className="font-semibold text-green-800 mb-2">💳 クレジット決済（決済コード）</h3>
               <p className="text-green-700">
-                店舗先からのメールでクレジット決済のURLをメールで送り決済してもらってください。
-                決済が完了しないとお花をお届けできないよう説明してください。
+                店舗が会計画面で5桁（基本決済）または6桁（遠距離決済）の決済コードを発行します。
+                お客様は顧客アプリの「店舗決済」画面でコードを入力し、「クレジット」を選択するとStripeのカード決済画面に進みます。
+                決済完了後、自動でポイントが付与されます。
               </p>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-2">🏦 銀行口座</h3>
+              <h3 className="font-semibold text-blue-800 mb-2">🏦 銀行口座（店舗側）</h3>
               <p className="text-blue-700">
-                銀行口座は、お客様のクレジット決済の振り込みに使われます。<strong>必ず登録ください。</strong>
-                </p>
-              </div>
+                Stripe Connect連結アカウントの銀行口座は、店舗のクレジット決済売上の振込先に使われます。<strong>店舗オーナーは必ずStripeオンボーディングを完了してください。</strong>
+              </p>
+            </div>
             <div className="bg-orange-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-orange-800 mb-2">💵 現金決済</h3>
+              <h3 className="font-semibold text-orange-800 mb-2">💵 現金決済（決済コード）</h3>
               <p className="text-orange-700">
-                支払いは現金やクレジットなどの決済になります。お客様の判断によります。
-                現金の場合もQRコードで必ず決済。お互いに通知があってからレジ打ち現金取引願います。
+                現金の場合も同じ決済コードを入力したうえで、「現金」を選択してください。
+                データ上の決済として記録され、5%のポイントが付与されます。実際のお支払いは店舗レジで行います。
+                ポイント付与のために、現金決済も必ずアプリ上での処理をお願いします。
               </p>
             </div>
             <div className="bg-red-50 p-4 rounded-lg">
               <p className="text-red-700">
-                ⚠️ <strong>ポイントの取引データが有効になりません。</strong>
-                </p>
-              </div>
+                ⚠️ <strong>アプリ上の決済処理を行わないと、ポイント付与・履歴が反映されません。</strong>
+              </p>
+            </div>
           </div>
         </div>
 
@@ -334,7 +336,7 @@ export const ReadmePage: React.FC = () => {
               <ul className="text-orange-700 space-y-2">
                 <li>• 上記1週間前までの発注でしたら、ポイント使用も可能か店舗でルールを決めてお客様とご相談ください</li>
                 <li>• 支払い決済のデータは決済履歴、ポイントデータはポイント履歴に反映されます</li>
-                <li>• 現金取引の場合もQRコードでの決済処理が必須です</li>
+                <li>• 現金取引の場合もアプリ上の決済コード処理が必須です（ポイント付与のため）</li>
               </ul>
             </div>
           </div>

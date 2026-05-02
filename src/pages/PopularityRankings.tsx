@@ -13,6 +13,7 @@ import {
 import {
   fetchPopularityThreeMonthData,
   getThreeLabeledMonths,
+  type CustomerRegionalSalesMonthRow,
   type PopularityThreeMonthBundle,
   type ProductPopularityByNameMonthRow,
   type ProductPopularityMonthRow,
@@ -130,6 +131,7 @@ const PopularityRankings: React.FC = () => {
       bundle.products.some((p) => p.length > 0) ||
       bundle.productsByName.some((p) => p.length > 0) ||
       bundle.regionalSales.some((p) => p.length > 0) ||
+      bundle.customerRegionalSales.some((p) => p.length > 0) ||
       bundle.regionalTop.some((p) => p.length > 0) ||
       bundle.pointsUsage.some((p) => p.length > 0));
 
@@ -509,6 +511,76 @@ const PopularityRankings: React.FC = () => {
                                 現金等 ¥{Number(r.total_revenue_cash).toLocaleString('ja-JP')} ·{' '}
                                 {Number(r.payment_count).toLocaleString('ja-JP')} 件 ·{' '}
                                 {Number(r.store_count).toLocaleString('ja-JP')} 店
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* お客さま住所ベースの地域別販売 */}
+            <section className="mb-10">
+              <h2
+                className="text-base font-semibold mb-4 flex items-center gap-2"
+                style={{ color: COLORS.text, fontFamily: "'Noto Serif JP', serif" }}
+              >
+                <MapPin className="w-5 h-5" style={{ color: COLORS.header }} />
+                お客さまの都道府県別 購買ランキング
+              </h2>
+              <p className="text-sm mb-3" style={{ color: COLORS.muted }}>
+                <code className="text-[11px]">customer_payments.address</code>{' '}
+                （決済時点のお客さま側の都道府県スナップショット）から集計しています。
+                上位は<strong>グロス売上</strong>（決済額＋利用pt×1円）の多い順です。
+                ※住所未登録のお客さまは「その他」に集計されます。
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {labeledMonths.map((lm, i) => {
+                  const rows: CustomerRegionalSalesMonthRow[] =
+                    bundle.customerRegionalSales[i] || [];
+                  return (
+                    <div
+                      key={`crs-${lm.year}-${lm.month}`}
+                      className="rounded-sm border p-4"
+                      style={{ backgroundColor: COLORS.card, borderColor: COLORS.border }}
+                    >
+                      <div className="text-xs font-medium mb-2" style={{ color: COLORS.header }}>
+                        {lm.label} · {ymLabel(lm.year, lm.month)}
+                      </div>
+                      {rows.length === 0 ? (
+                        <p className="text-sm" style={{ color: COLORS.muted }}>
+                          データなし
+                        </p>
+                      ) : (
+                        <ol className="space-y-2">
+                          {rows.map((r, idx) => (
+                            <li
+                              key={`${r.prefecture}-${idx}`}
+                              className="flex flex-col gap-0.5 text-sm border-b border-dashed pb-2 last:border-0"
+                              style={{ borderColor: COLORS.border, color: COLORS.text }}
+                            >
+                              <div className="flex justify-between gap-2">
+                                <span>
+                                  <span className="tabular-nums mr-2" style={{ color: COLORS.muted }}>
+                                    {idx + 1}.
+                                  </span>
+                                  {r.prefecture}
+                                </span>
+                                <span className="tabular-nums font-medium shrink-0">
+                                  ¥{Number(r.total_revenue_gross).toLocaleString('ja-JP')}
+                                </span>
+                              </div>
+                              <div
+                                className="text-xs tabular-nums pl-5"
+                                style={{ color: COLORS.muted }}
+                              >
+                                現金等 ¥{Number(r.total_revenue_cash).toLocaleString('ja-JP')} ·{' '}
+                                {Number(r.payment_count).toLocaleString('ja-JP')} 件 ·{' '}
+                                {Number(r.unique_customers).toLocaleString('ja-JP')} 人 ·{' '}
+                                {Number(r.total_points_activity).toLocaleString('ja-JP')} pt
                               </div>
                             </li>
                           ))}

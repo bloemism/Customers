@@ -62,10 +62,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('lucide-react')) {
               return 'ui'
             }
-            // QRコード関連（大きなライブラリを分離）
-            if (id.includes('qrcode') || id.includes('html5-qrcode')) {
-              return 'qr'
-            }
             // Stripe
             if (id.includes('@stripe/stripe-js')) {
               return 'stripe'
@@ -104,9 +100,6 @@ export default defineConfig(({ mode }) => {
         'react-router-dom',
         '@supabase/supabase-js',
         'lucide-react',
-        'qrcode',
-        'qrcode.react',
-        'html5-qrcode',
         '@stripe/stripe-js',
         '@googlemaps/js-api-loader',
       ],

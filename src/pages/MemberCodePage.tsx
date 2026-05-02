@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { QrCode, ArrowLeft, Copy, Check, Star } from 'lucide-react';
-
-// 背景画像
-const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
+import { Contact, ArrowLeft, Copy, Check, Star } from 'lucide-react';
 
 const levelConfig = {
   BASIC: {
@@ -37,7 +34,7 @@ const levelConfig = {
   }
 };
 
-const CustomerQRCode: React.FC = () => {
+const MemberCodePage: React.FC = () => {
   const navigate = useNavigate();
   const { customer } = useCustomerAuth();
   const [copiedTarget, setCopiedTarget] = useState<'code' | 'id' | null>(null);
@@ -74,8 +71,6 @@ const CustomerQRCode: React.FC = () => {
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: '#FAF8F5' }}>
-      {/* 無地背景 */}
-
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-8">
@@ -127,7 +122,7 @@ const CustomerQRCode: React.FC = () => {
                   className="text-sm"
                   style={{ color: 'rgba(250,248,245,0.75)' }}
                 >
-                  店舗でスキャンすると、ポイントや決済がスムーズに進みます。
+                  会員コードを店舗にお伝えいただくと、ポイント管理がスムーズに進みます。
                 </p>
               </div>
 
@@ -318,7 +313,7 @@ const CustomerQRCode: React.FC = () => {
                       border: '1px solid #E0D6C8'
                     }}
                   >
-                    <QrCode className="w-4 h-4" style={{ color: '#5C6B4A' }} />
+                    <Contact className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                     <code 
                       className="flex-1 font-mono text-sm break-all"
                       style={{ color: '#3D4A35' }}
@@ -390,4 +385,4 @@ const CustomerQRCode: React.FC = () => {
   );
 };
 
-export default CustomerQRCode;
+export default MemberCodePage;

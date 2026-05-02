@@ -353,6 +353,19 @@ export type RegionalSalesMonthRow = {
   total_revenue_gross: number;
 };
 
+/** 顧客住所（customer_payments.address スナップショット）から都道府県別の月次販売 */
+export type CustomerRegionalSalesMonthRow = {
+  year: number;
+  month: number;
+  prefecture: string;
+  payment_count: number;
+  unique_customers: number;
+  store_count: number;
+  total_revenue_cash: number;
+  total_revenue_gross: number;
+  total_points_activity: number;
+};
+
 export type RegionalPointsMonthRow = {
   year: number;
   month: number;
@@ -398,6 +411,8 @@ export type PopularityThreeMonthBundle = {
   productsByName: ProductPopularityByNameMonthRow[][];
   regionalTop: RegionalPointsMonthRow[][];
   regionalSales: RegionalSalesMonthRow[][];
+  /** 顧客都道府県別の月次販売（customer_payments.address ベース） */
+  customerRegionalSales: CustomerRegionalSalesMonthRow[][];
   pointsUsage: PointsUsageMonthRow[][];
   seasonal: (SeasonalYearMonthRow | null)[];
   customerSummary: (CustomerRankingPublicSummaryRow | null)[];
@@ -405,6 +420,7 @@ export type PopularityThreeMonthBundle = {
 
 const TOP_REGIONAL = 12;
 const TOP_REGIONAL_SALES = 12;
+const TOP_CUSTOMER_REGIONAL = 12;
 const TOP_PRODUCTS = 15;
 const TOP_PRODUCT_NAMES = 25;
 
@@ -451,7 +467,7 @@ export async function fetchPopularityThreeMonthData(
     )
   ]);
 
-  const [regionalResults, regionalSalesResults] = await Promise.all([
+  const [regionalResults, regionalSalesResults, customerRegionalResults] = await Promise.all([
     Promise.all(
       months.map((m) =>
         supabase
@@ -472,6 +488,18 @@ export async function fetchPopularityThreeMonthData(
           .eq('month', m.month)
           .order('total_revenue_gross', { ascending: false })
           .limit(TOP_REGIONAL_SALES)
+      )
+    ),
+    // 顧客都道府県別 — customer_payments.address スナップショット集計
+    Promise.all(
+      months.map((m) =>
+        supabase
+          .from('customer_regional_sales_by_month_view')
+          .select('*')
+          .eq('year', m.year)
+          .eq('month', m.month)
+          .order('total_revenue_gross', { ascending: false })
+          .limit(TOP_CUSTOMER_REGIONAL)
       )
     )
   ]);
@@ -511,6 +539,9 @@ export async function fetchPopularityThreeMonthData(
     productsByName: productByNameResults.map((r) => (r.data as ProductPopularityByNameMonthRow[]) || []),
     regionalTop: regionalResults.map((r) => (r.data as RegionalPointsMonthRow[]) || []),
     regionalSales: regionalSalesResults.map((r) => (r.data as RegionalSalesMonthRow[]) || []),
+    customerRegionalSales: customerRegionalResults.map(
+      (r) => (r.data as CustomerRegionalSalesMonthRow[]) || []
+    ),
     pointsUsage: pointsUsageResults.map((r) => (r.data as PointsUsageMonthRow[]) || []),
     seasonal: seasonalResults.map((r) => (r.data as SeasonalYearMonthRow | null) ?? null),
     customerSummary

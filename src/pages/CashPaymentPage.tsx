@@ -244,6 +244,7 @@ const CashPaymentPage: React.FC = () => {
         user_id: user.id
       };
       if (customerId) insertRow.customer_id = String(customerId);
+      if (customer?.address) insertRow.address = customer.address;
 
       const { error: cpError } = await supabase.from('customer_payments').insert(insertRow);
 

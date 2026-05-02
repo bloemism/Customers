@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
 import {
-  QrCode,
+  Contact,
   MapPin,
   Map,
   Calendar,
@@ -95,12 +95,12 @@ export const CustomerMenuScreen: React.FC = () => {
   // メニュー項目の定義
   const menuItems: MenuItem[] = [
     {
-      id: 'customer-qr',
+      id: 'customer-code',
       title: 'マイ会員コード',
       description: '会員コードとポイント残高を表示',
-      icon: QrCode,
+      icon: Contact,
       category: 'primary',
-      route: '/customer-qr'
+      route: '/customer-code'
     },
     {
       id: 'store-payment',

@@ -1,10 +1,8 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '../lib/supabase';
+import { apiUrl } from '../lib/apiBase';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
-// API Base URL（空の場合は相対パス）
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export interface PaymentData {
   store_id?: string;
@@ -29,30 +27,6 @@ export class CustomerStripeService {
   // Stripeインスタンスを取得
   static async getStripe() {
     return await stripePromise;
-  }
-
-  // QRコードから決済データを解析
-  static parseQRCodeData(qrData: string): PaymentData | null {
-    try {
-      const data = JSON.parse(qrData);
-      
-      // 必要なフィールドが存在するかチェック
-      if (!data.amount || !data.store_name) {
-        throw new Error('QRコードデータが不完全です');
-      }
-
-      return {
-        store_id: data.store_id,
-        amount: data.amount,
-        store_name: data.store_name,
-        customer_id: data.customer_id || '',
-        points_to_use: data.points_to_use || 0,
-        items: data.items || []
-      };
-    } catch (error) {
-      console.error('QRコードデータ解析エラー:', error);
-      return null;
-    }
   }
 
   // Stripe Connect決済を実行
@@ -90,32 +64,17 @@ export class CustomerStripeService {
       // 決済金額を計算（ポイント使用後）
       const finalAmount = Math.max(0, paymentData.amount - paymentData.points_to_use);
 
-      // API Base URL（ローカル環境ではローカルAPIサーバーを使用）
-      let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-      
-      // ローカル環境（localhost）の場合は、ローカルAPIサーバーを使用
-      if (!API_BASE_URL) {
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          API_BASE_URL = 'http://localhost:3000';
-        } else {
-          // 本番環境ではVercelのAPIエンドポイントを使用
-          API_BASE_URL = 'https://customers-three-rust.vercel.app';
-        }
-      }
-      
-      // デバッグ用ログ
-      console.log('API_BASE_URL:', API_BASE_URL, '現在のオリジン:', window.location.origin, 'ホスト名:', window.location.hostname);
+      const createPaymentIntentUrl = apiUrl('/api/create-payment-intent');
 
       console.log('APIリクエスト送信（運営側アカウント）:', {
-        url: `${API_BASE_URL}/api/create-payment-intent`,
+        url: createPaymentIntentUrl,
         amount: finalAmount,
         store_id: paymentData.store_id,
-        API_BASE_URL
       });
 
       // Stripe Payment Intentを作成（運営側のアカウントで決済）
       // 注意: Destination Charges方式では、stripeAccountとtransfer_dataは不要
-      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+      const response = await fetch(createPaymentIntentUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,12 +115,11 @@ export class CustomerStripeService {
           url: response.url,
           errorData,
           errorText,
-          API_BASE_URL
         });
         
         // 404エラーの場合、より詳細なメッセージを表示
         if (response.status === 404) {
-          throw new Error(`APIエンドポイントが見つかりません (404)。URL: ${API_BASE_URL}/api/create-payment-intent。ローカル環境ではVercelのAPIエンドポイントを使用してください。`);
+          throw new Error(`APIエンドポイントが見つかりません (404)。URL: ${createPaymentIntentUrl}。dev環境では \`npm run dev:full\` で API サーバを起動してください。`);
         }
         
         // 500エラーの場合、より詳細なエラー情報を表示
@@ -190,7 +148,6 @@ export class CustomerStripeService {
           status: response.status,
           statusText: response.statusText,
           url: response.url,
-          API_BASE_URL
         });
         throw new Error(`空のレスポンスが返されました (${response.status})。APIエンドポイントが正しく動作していない可能性があります。`);
       }
@@ -253,7 +210,7 @@ export class CustomerStripeService {
       }
 
       // 決済情報を取得
-      const response = await fetch(`${API_BASE_URL}/api/payment-status/${paymentIntentId}`);
+      const response = await fetch(apiUrl(`/api/payment-status/${paymentIntentId}`));
       const text = await response.text();
       if (!text) {
         throw new Error('空のレスポンスが返されました');
@@ -271,6 +228,15 @@ export class CustomerStripeService {
       const payment_data = {
         store_name: paymentStatus.data.store_name || ''
       };
+
+      // 顧客の都道府県（地域別ランキング用スナップショット）を取得
+      const { data: customerRow } = await supabase
+        .from('customers')
+        .select('address')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const customerAddress = customerRow?.address ?? null;
+
       const { error: historyError } = await supabase.from('customer_payments').insert([
         {
           user_id: user.id,
@@ -282,6 +248,7 @@ export class CustomerStripeService {
           status: 'completed',
           stripe_payment_intent_id: paymentIntentId,
           payment_data,
+          address: customerAddress ?? undefined,
           created_at: new Date().toISOString()
         }
       ]);
@@ -308,7 +275,7 @@ export class CustomerStripeService {
   // 決済状態を確認
   static async checkPaymentStatus(paymentIntentId: string): Promise<any> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payment-status/${paymentIntentId}`);
+      const response = await fetch(apiUrl(`/api/payment-status/${paymentIntentId}`));
       const text = await response.text();
       if (!text) {
         return { success: false, error: '空のレスポンスが返されました' };

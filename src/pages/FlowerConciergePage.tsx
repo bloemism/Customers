@@ -1,8 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, ImagePlus, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react';
-import { sendConciergeMessages, type ConciergeMessage } from '../services/geminiConciergeService';
+import {
+  ConciergeQuotaExceededError,
+  ConciergeUnauthorizedError,
+  fetchConciergeQuotaStatus,
+  sendConciergeMessages,
+  type ConciergeMessage,
+  type ConciergeQuota,
+} from '../services/geminiConciergeService';
 import { fileToConciergeImage } from '../utils/conciergeImage';
+
+const DAILY_LIMIT = 10;
 
 const MAX_IMAGES_PER_SEND = 4;
 const DEFAULT_IMAGE_ONLY_TEXT =
@@ -19,8 +28,25 @@ export default function FlowerConciergePage() {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [localApiWarning, setLocalApiWarning] = useState<string | null>(null);
+  const [quota, setQuota] = useState<ConciergeQuota | null>(null);
+  const [quotaExhausted, setQuotaExhausted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 起動時に残りクォータを取得
+  useEffect(() => {
+    let cancelled = false;
+    fetchConciergeQuotaStatus(DAILY_LIMIT).then((q) => {
+      if (cancelled) return;
+      if (q) {
+        setQuota(q);
+        setQuotaExhausted(!q.allowed);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -125,6 +151,10 @@ export default function FlowerConciergePage() {
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (loading) return;
+    if (quotaExhausted) {
+      setError(`本日の利用上限（${DAILY_LIMIT}回）に達しています。明日また使えます。`);
+      return;
+    }
     if (!trimmed && pendingImages.length === 0) return;
 
     setError(null);
@@ -153,18 +183,33 @@ export default function FlowerConciergePage() {
     setLoading(true);
 
     try {
-      const reply = await sendConciergeMessages(nextThread);
+      const result = await sendConciergeMessages(nextThread);
       snapshot.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-      setMessages((prev) => [...prev, { role: 'assistant', text: reply }]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: result.text }]);
+      if (result.quota) {
+        setQuota(result.quota);
+        setQuotaExhausted(!result.quota.allowed || result.quota.remaining <= 0);
+      }
     } catch (e) {
       setMessages((prev) => prev.slice(0, -1));
       setInput(trimmed);
       setPendingImages(snapshot);
-      setError(e instanceof Error ? e.message : '送信に失敗しました');
+      if (e instanceof ConciergeQuotaExceededError) {
+        setQuota(e.quota);
+        setQuotaExhausted(true);
+        setError(
+          e.message ||
+            `本日の利用上限（${DAILY_LIMIT}回）に達しました。明日また使えます。`
+        );
+      } else if (e instanceof ConciergeUnauthorizedError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : '送信に失敗しました');
+      }
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, pendingImages]);
+  }, [input, loading, messages, pendingImages, quotaExhausted]);
 
   const clearSession = () => {
     pendingImages.forEach((p) => URL.revokeObjectURL(p.previewUrl));
@@ -218,6 +263,23 @@ export default function FlowerConciergePage() {
             AI flower concierge
           </h1>
         </div>
+        {quota && (
+          <div
+            className="hidden sm:flex flex-col items-end shrink-0 px-3 py-1.5 rounded-sm border text-right"
+            style={{
+              borderColor: quotaExhausted ? '#D4A594' : '#E0D6C8',
+              backgroundColor: quotaExhausted ? '#F5EBE6' : '#F5F0E8',
+              color: quotaExhausted ? '#5C3D32' : '#3A4A32',
+            }}
+            title="1日あたりの利用回数（深夜0時 JST にリセット）"
+            aria-live="polite"
+          >
+            <span className="text-[10px] tracking-[0.15em]">本日の利用</span>
+            <span className="text-sm font-semibold tabular-nums">
+              残り {quota.remaining} / {quota.limit} 回
+            </span>
+          </div>
+        )}
         <button
           type="button"
           onClick={clearSession}
@@ -229,6 +291,22 @@ export default function FlowerConciergePage() {
           <Trash2 className="w-5 h-5" />
         </button>
       </header>
+
+      {quota && (
+        <div
+          className="sm:hidden px-4 py-2 text-xs flex items-center justify-between border-b"
+          style={{
+            backgroundColor: quotaExhausted ? '#F5EBE6' : '#F5F0E8',
+            borderColor: quotaExhausted ? '#D4A594' : '#E0D6C8',
+            color: quotaExhausted ? '#5C3D32' : '#2A2826',
+          }}
+        >
+          <span className="tracking-[0.15em]">本日の利用</span>
+          <span className="font-semibold tabular-nums">
+            残り {quota.remaining} / {quota.limit} 回
+          </span>
+        </div>
+      )}
 
       {localApiWarning && (
         <div

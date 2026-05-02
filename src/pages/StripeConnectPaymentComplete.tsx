@@ -2,18 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Loader, AlertCircle, ArrowLeft, Receipt } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-
-// API Base URL
-const getApiBaseUrl = () => {
-  if (typeof window === 'undefined') {
-    return process.env.VITE_API_BASE_URL || 'http://localhost:3000';
-  }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3000';
-  }
-  return 'https://customers-three-rust.vercel.app';
-};
-const API_BASE_URL = getApiBaseUrl();
+import { apiUrl } from '../lib/apiBase';
 
 /** customer_payments.payment_data — ランキング用ビューが items を参照する */
 function buildPaymentDataForRankings(paymentInfo: {
@@ -83,7 +72,7 @@ export const StripeConnectPaymentComplete: React.FC = () => {
 
     try {
       // 1. Stripe Checkout Sessionから決済情報を取得
-      const sessionResponse = await fetch(`${API_BASE_URL}/api/get-checkout-session?session_id=${sessionId}`);
+      const sessionResponse = await fetch(apiUrl(`/api/get-checkout-session?session_id=${sessionId}`));
       if (!sessionResponse.ok) {
         throw new Error('決済情報の取得に失敗しました');
       }
@@ -97,7 +86,7 @@ export const StripeConnectPaymentComplete: React.FC = () => {
       const paymentIntentId = session.payment_intent;
 
       // 2. Payment Intentから詳細情報を取得
-      const paymentIntentResponse = await fetch(`${API_BASE_URL}/api/get-payment-intent?payment_intent_id=${paymentIntentId}`);
+      const paymentIntentResponse = await fetch(apiUrl(`/api/get-payment-intent?payment_intent_id=${paymentIntentId}`));
       if (!paymentIntentResponse.ok) {
         throw new Error('決済詳細情報の取得に失敗しました');
       }
@@ -153,17 +142,17 @@ export const StripeConnectPaymentComplete: React.FC = () => {
 
       // 2. 顧客IDを取得（user.idまたはmetadata.customer_idから）
       let customerId = paymentInfo.customer_id;
-      if (!customerId) {
-        // customersテーブルからuser_idで検索
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (customerData) {
-          customerId = customerData.id;
-        }
+      let customerAddress: string | null = null;
+      // customers テーブルから user_id で取得（id と address を一括取得）
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id, address')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (customerData) {
+        if (!customerId) customerId = customerData.id;
+        customerAddress = customerData.address ?? null;
       }
 
       // 3. ポイント計算（決済金額の5%）
@@ -269,6 +258,7 @@ export const StripeConnectPaymentComplete: React.FC = () => {
             status: paymentInfo.status === 'succeeded' ? 'completed' : 'pending',
             payment_code: paymentInfo.payment_code,
             payment_data,
+            address: customerAddress ?? undefined,
             created_at: new Date().toISOString()
           }
         ]);

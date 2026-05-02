@@ -38,9 +38,8 @@ const CustomerMenuScreen = React.lazy(() => import('./pages/CustomerMenuScreen')
 const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin').then(module => ({ default: module.CustomerLogin })));
 const CustomerSignUp = React.lazy(() => import('./pages/CustomerSignUp').then(module => ({ default: module.CustomerSignUp })));
 const CustomerDataRegistration = React.lazy(() => import('./pages/CustomerDataRegistration'));
-const CustomerQRCode = React.lazy(() => import('./pages/CustomerQRCode'));
+const MemberCodePage = React.lazy(() => import('./pages/MemberCodePage'));
 const CustomerReadmePage = React.lazy(() => import('./pages/CustomerReadmePage').then(module => ({ default: module.CustomerReadmePage })));
-const CustomerCodePage = React.lazy(() => import('./pages/CustomerCodePage'));
 const CustomerProfilePage = React.lazy(() => import('./pages/CustomerProfilePage'));
 const PaymentHistoryPage = React.lazy(() => import('./pages/PaymentHistoryPage'));
 const PointHistoryPage = React.lazy(() => import('./pages/PointHistoryPage'));
@@ -56,7 +55,6 @@ const SignUpForm = React.lazy(() => import('./components/auth/SignUpForm').then(
 // その他のページ
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
 const Menu = React.lazy(() => import('./pages/Menu').then(module => ({ default: module.Menu })));
-const MenuPage = React.lazy(() => import('./pages/MenuPage').then(module => ({ default: module.default })));
 const MenuScreen = React.lazy(() => import('./pages/MenuScreen').then(module => ({ default: module.MenuScreen })));
 const StoreOwnerRegistration = React.lazy(() => import('./pages/StoreOwnerRegistration').then(module => ({ default: module.StoreOwnerRegistration })));
 const CustomerRegistration = React.lazy(() => import('./pages/CustomerRegistration').then(module => ({ default: module.CustomerRegistration })));
@@ -192,19 +190,20 @@ function App() {
                   <CustomerDataRegistration />
                 </CustomerAuthGuard>
               } />
+              <Route path="/customer-code" element={
+              <CustomerAuthGuard>
+                  <MemberCodePage />
+                </CustomerAuthGuard>
+              } />
+              {/* 旧URL互換 (/customer-qr → /customer-code) */}
               <Route path="/customer-qr" element={
               <CustomerAuthGuard>
-                  <CustomerQRCode />
+                  <MemberCodePage />
                 </CustomerAuthGuard>
               } />
               <Route path="/customer-readme" element={
               <CustomerAuthGuard>
                   <CustomerReadmePage />
-                </CustomerAuthGuard>
-              } />
-              <Route path="/customer-code" element={
-              <CustomerAuthGuard>
-                  <CustomerCodePage />
                 </CustomerAuthGuard>
               } />
               <Route path="/customer-payments" element={

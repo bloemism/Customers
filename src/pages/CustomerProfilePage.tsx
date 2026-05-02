@@ -22,6 +22,7 @@ const CustomerProfilePage: React.FC = () => {
     name: '',
     phone: '',
     address: '',
+    address_2: '',
     birth_date: ''
   });
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,7 @@ const CustomerProfilePage: React.FC = () => {
         name: customer.name || '',
         phone: customer.phone || '',
         address: customer.address || '',
+        address_2: customer.address_2 || '',
         birth_date: customer.birth_date || ''
       });
     }
@@ -86,7 +88,8 @@ const CustomerProfilePage: React.FC = () => {
     name: '87app Lover',
     email: 'guest@87app.com',
     phone: '090-0000-0000',
-    address: '東京都渋谷区神宮前',
+    address: '東京都',
+    address_2: '渋谷区',
     birth_date: '',
     created_at: new Date().toISOString(),
     level: 'BASIC',
@@ -210,7 +213,7 @@ const CustomerProfilePage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <MapPin className="w-4 h-4" style={{ color: '#5C6B4A' }} />
                 <span className="text-sm" style={{ color: '#2D2A26' }}>
-                  {profile.address || '未登録'}
+                  {[profile.address, profile.address_2].filter(Boolean).join(' ') || '未登録'}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -374,27 +377,54 @@ const CustomerProfilePage: React.FC = () => {
                 style={{ color: '#2D2A26', fontWeight: 500 }}
               >
                 <MapPin className="w-4 h-4" style={{ color: '#5C6B4A' }} />
-                住所（町名まで）
+                お住まいの地域
               </label>
-              <input
-                name="address"
-                type="text"
-                value={formData.address}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 rounded-sm transition-all duration-200"
-                style={inputStyle}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#5C6B4A';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#E0D6C8';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-                placeholder="東京都目黒区青葉台"
-              />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <input
+                    name="address"
+                    type="text"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                    style={inputStyle}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    placeholder="都道府県（例：東京都）"
+                    aria-label="都道府県"
+                  />
+                  <p className="mt-1 text-xs" style={{ color: '#8A857E' }}>都道府県</p>
+                </div>
+                <div>
+                  <input
+                    name="address_2"
+                    type="text"
+                    value={formData.address_2}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-sm transition-all duration-200"
+                    style={inputStyle}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#5C6B4A';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(92,107,74,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#E0D6C8';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    placeholder="市区町村（例：港区）"
+                    aria-label="市区町村"
+                  />
+                  <p className="mt-1 text-xs" style={{ color: '#8A857E' }}>市区町村</p>
+                </div>
+              </div>
               <p className="mt-2 text-xs" style={{ color: '#8A857E' }}>
-                プライバシー保護のため、番地以降は省略してください。
+                プライバシー保護のため、番地以降は登録しません。
               </p>
             </div>
 

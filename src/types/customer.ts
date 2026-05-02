@@ -4,7 +4,10 @@ export interface Customer {
   name: string;
   email: string;
   phone?: string;
+  /** 都道府県（例: 東京都） */
   address?: string;
+  /** 市区町村（例: 港区） */
+  address_2?: string;
   birth_date?: string;
   points: number;
   level: number;

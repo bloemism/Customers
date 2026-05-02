@@ -3,13 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CreditCard, User, Building, ShoppingCart, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-
-// API Base URL（空の場合は相対パス）
-// 環境変数が設定されていない場合、またはProduction環境のURLが設定されている場合は相対パスを使用
-let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-if (!API_BASE_URL || API_BASE_URL.includes('customers-three-rust.vercel.app')) {
-  API_BASE_URL = ''; // 相対パスを使用
-}
+import { apiUrl } from '../lib/apiBase';
 
 interface PaymentSessionData {
   customerData: {
@@ -132,7 +126,7 @@ export const DynamicStripeCheckout: React.FC = () => {
       const amountInCents = Math.round(paymentData.finalAmount * 100);
 
       // Stripe Connect決済Intent作成
-      const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+      const response = await fetch(apiUrl('/api/create-payment-intent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -12,9 +12,7 @@ import {
   X,
   Mail,
   Phone,
-  QrCode
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import LessonCalendar from '../components/LessonCalendar';
 import {
   loadLessonSchools,
@@ -278,107 +276,6 @@ const LessonScheduleManagement: React.FC = () => {
     } catch (error) {
       console.error('参加状況更新エラー:', error);
       setMessage('参加状況の更新中にエラーが発生しました');
-      setMessageType('error');
-    }
-  };
-
-  const generateLessonQRCode = async (schedule: LessonSchedule) => {
-    try {
-      const baseUrl = window.location.origin;
-      const lessonUrl = `${baseUrl}/lesson-participation/${schedule.id}`;
-      
-      const qrData = {
-        type: 'lesson_participation',
-        schedule_id: schedule.id,
-        lesson_title: schedule.title,
-        lesson_date: schedule.date,
-        start_time: schedule.start_time,
-        end_time: schedule.end_time,
-        max_participants: schedule.max_participants,
-        price: schedule.price,
-        lesson_url: lessonUrl,
-        timestamp: new Date().toISOString(),
-        app: '87app-customers'
-      };
-
-      const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
-        width: 300,
-        margin: 2,
-        color: { dark: '#3D4A35', light: '#FAF8F5' }
-      });
-
-      const newWindow = window.open('', '_blank', 'width=400,height=550');
-      if (newWindow) {
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>レッスン参加QRコード</title>
-              <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
-              <style>
-                body { 
-                  font-family: 'Noto Serif JP', serif; 
-                  text-align: center; 
-                  padding: 30px;
-                  background: #FAF8F5;
-                  color: #2D2A26;
-                  margin: 0;
-                }
-                .container {
-                  background: white;
-                  padding: 30px;
-                  border-radius: 4px;
-                  border: 1px solid #E0D6C8;
-                  max-width: 320px;
-                  margin: 0 auto;
-                }
-                .title { 
-                  font-size: 18px; 
-                  color: #5C6B4A; 
-                  margin-bottom: 20px;
-                  letter-spacing: 0.1em;
-                }
-                .lesson-name { 
-                  font-size: 16px; 
-                  margin-bottom: 15px;
-                  color: #3D4A35;
-                }
-                .info { 
-                  font-size: 13px; 
-                  color: #8A857E; 
-                  margin: 8px 0;
-                }
-                .qr { 
-                  margin: 25px 0;
-                  padding: 15px;
-                  background: #F5F0E8;
-                  border-radius: 4px;
-                }
-                .qr img { 
-                  border-radius: 4px; 
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="title">LESSON QR CODE</div>
-                <div class="lesson-name">${schedule.title}</div>
-                <div class="info">${new Date(schedule.date + 'T00:00:00').toLocaleDateString('ja-JP')}</div>
-                <div class="info">${schedule.start_time} - ${schedule.end_time}</div>
-                <div class="info">¥${schedule.price.toLocaleString()} / 定員${schedule.max_participants}名</div>
-                <div class="qr"><img src="${qrCodeUrl}" alt="QRコード" /></div>
-              </div>
-            </body>
-          </html>
-        `);
-        newWindow.document.close();
-      }
-
-      setMessage('QRコードを生成しました');
-      setMessageType('success');
-    } catch (error) {
-      console.error('QRコード生成エラー:', error);
-      setMessage('QRコードの生成中にエラーが発生しました');
       setMessageType('error');
     }
   };
@@ -946,14 +843,6 @@ const LessonScheduleManagement: React.FC = () => {
               <div className="space-y-6">
                 {/* アクションボタン */}
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => generateLessonQRCode(selectedSchedule)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-sm text-xs transition-colors"
-                    style={{ backgroundColor: '#5C6B4A', color: '#FAF8F5' }}
-                  >
-                    <QrCode className="w-4 h-4" />
-                    QRコード生成
-                  </button>
                   {!isLessonCompleted(selectedSchedule.id) && (
                     <button
                       onClick={() => handleCompleteLesson(selectedSchedule.id)}

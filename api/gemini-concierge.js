@@ -2,9 +2,22 @@
  * 87app — AI Flower Concierge（Gemini）
  * 会話はサーバーに保存しない。リクエスト単位で Gemini に渡すのみ。
  *
- * 環境変数: GEMINI_API_KEY（Google AI Studio の API キー）
- * 任意: GEMINI_MODEL（未指定時は gemini-2.5-flash）
+ * セキュリティ層:
+ *   1. CORS（既存）
+ *   2. IP レートリミット（インメモリ：60req/h, 200req/day）
+ *   3. Supabase Auth JWT 必須（Authorization: Bearer <token>）
+ *   4. ユーザーごと 1日10回までのクォータ（Supabase RPC で原子的に消費）
+ *   5. 入力サイズ・画像数・テキスト量の上限（既存）
+ *
+ * 環境変数:
+ *   GEMINI_API_KEY            — Google AI Studio の API キー（必須）
+ *   GEMINI_MODEL              — 既定: gemini-2.5-flash
+ *   VITE_SUPABASE_URL         — Supabase URL（JWT 検証＋RPC 呼び出し用）
+ *   VITE_SUPABASE_ANON_KEY    — Supabase anon key（JWT 検証＋RPC 呼び出し用）
+ *   AI_CONCIERGE_DAILY_LIMIT  — 既定: 10
  */
+
+import { createClient } from '@supabase/supabase-js';
 
 const SYSTEM_PROMPT = `あなたは「87app」のフラワー・コンシェルジュアシスタントです。花と緑に関する問い合わせやアドバイスを、親しみやく専門的に行ってください。
 
@@ -33,6 +46,93 @@ const MAX_IMAGES_PER_MESSAGE = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 18 * 1024 * 1024;
 
+const DEFAULT_DAILY_LIMIT = Number.parseInt(process.env.AI_CONCIERGE_DAILY_LIMIT || '10', 10) || 10;
+
+// ---------------------------------------------------------------------------
+// IP レートリミット（インメモリ・プロセス単位の予備防御層）
+//   JWT 認証を主防御として置きつつ、未認証や異常な多発呼び出しを早期遮断
+//   Vercel など複数インスタンスでは完全ではないが、コスト暴走の歯止めになる
+// ---------------------------------------------------------------------------
+const IP_LIMIT_PER_HOUR = 60;
+const IP_LIMIT_PER_DAY = 200;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const ipBucket = new Map(); // ip -> { hourStart, hourCount, dayStart, dayCount }
+
+function checkIpRateLimit(ip) {
+  if (!ip) return { allowed: true };
+  const now = Date.now();
+  let b = ipBucket.get(ip);
+  if (!b) {
+    b = { hourStart: now, hourCount: 0, dayStart: now, dayCount: 0 };
+    ipBucket.set(ip, b);
+  }
+  if (now - b.hourStart > HOUR_MS) {
+    b.hourStart = now;
+    b.hourCount = 0;
+  }
+  if (now - b.dayStart > DAY_MS) {
+    b.dayStart = now;
+    b.dayCount = 0;
+  }
+  if (b.hourCount >= IP_LIMIT_PER_HOUR) {
+    return { allowed: false, reason: 'IP からのリクエストが多すぎます（1時間あたり）' };
+  }
+  if (b.dayCount >= IP_LIMIT_PER_DAY) {
+    return { allowed: false, reason: 'IP からのリクエストが多すぎます（1日あたり）' };
+  }
+  b.hourCount += 1;
+  b.dayCount += 1;
+  // 古いエントリの掃除（1万件超えたら半分捨てる — 厳密 LRU でなくて良い）
+  if (ipBucket.size > 10000) {
+    let i = 0;
+    for (const k of ipBucket.keys()) {
+      ipBucket.delete(k);
+      if (++i > 5000) break;
+    }
+  }
+  return { allowed: true };
+}
+
+function getClientIp(req) {
+  const xff = req.headers?.['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) {
+    return xff.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || req.connection?.remoteAddress || '';
+}
+
+// ---------------------------------------------------------------------------
+// Supabase クライアント（JWT 検証＋RPC 呼び出し用）
+// ---------------------------------------------------------------------------
+function getSupabaseUrlAndKey() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  return { url, anonKey };
+}
+
+function getUserScopedSupabaseClient(jwt) {
+  const { url, anonKey } = getSupabaseUrlAndKey();
+  if (!url || !anonKey) return null;
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+}
+
+function extractBearerToken(req) {
+  const h = req.headers?.authorization || req.headers?.Authorization;
+  if (typeof h === 'string' && h.toLowerCase().startsWith('bearer ')) {
+    const token = h.slice(7).trim();
+    if (token) return token;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// CORS
+// ---------------------------------------------------------------------------
 function cors(res) {
   // server-local では先に express の cors() が Allow-Origin を付ける。* と二重にすると失敗することがある
   try {
@@ -47,6 +147,9 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
+// ---------------------------------------------------------------------------
+// 入力バリデーション（既存ロジック）
+// ---------------------------------------------------------------------------
 function validateMessages(raw) {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { error: 'messages は空でない配列である必要があります' };
@@ -119,6 +222,9 @@ function validateMessages(raw) {
   return { contents };
 }
 
+// ---------------------------------------------------------------------------
+// Handler
+// ---------------------------------------------------------------------------
 export default async function handler(req, res) {
   const safeJson = (status, payload) => {
     try {
@@ -141,6 +247,18 @@ export default async function handler(req, res) {
       return safeJson(405, { error: 'Method not allowed', success: false });
     }
 
+    // ── (1) IP レートリミット（早期遮断）
+    const ip = getClientIp(req);
+    const ipCheck = checkIpRateLimit(ip);
+    if (!ipCheck.allowed) {
+      return safeJson(429, {
+        success: false,
+        error: ipCheck.reason || 'リクエストが多すぎます',
+        rateLimited: true,
+      });
+    }
+
+    // ── (2) Gemini API キー
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
       return safeJson(503, {
@@ -150,14 +268,67 @@ export default async function handler(req, res) {
       });
     }
 
-    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-    const { messages } = req.body || {};
-
-    const validated = validateMessages(messages);
-    if (validated.error) {
-      return safeJson(400, { success: false, error: validated.error });
+    // ── (3) Supabase JWT 必須
+    const jwt = extractBearerToken(req);
+    if (!jwt) {
+      return safeJson(401, {
+        success: false,
+        error: 'ログインが必要です（認証トークンが見つかりません）。',
+        unauthorized: true,
+      });
     }
 
+    const supabase = getUserScopedSupabaseClient(jwt);
+    if (!supabase) {
+      return safeJson(503, {
+        success: false,
+        error:
+          'Supabase 設定（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）が不足しています。サーバー環境変数を確認してください。',
+      });
+    }
+
+    // JWT を検証してユーザー情報を取得
+    const { data: userInfo, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userInfo?.user?.id) {
+      return safeJson(401, {
+        success: false,
+        error: '認証トークンが無効です。再ログインしてからお試しください。',
+        unauthorized: true,
+      });
+    }
+
+    // ── (4) クォータ消費（原子的）
+    const { data: quotaResult, error: quotaErr } = await supabase.rpc(
+      'try_consume_ai_concierge_quota',
+      { p_daily_limit: DEFAULT_DAILY_LIMIT }
+    );
+    if (quotaErr) {
+      console.error('gemini-concierge quota RPC error:', quotaErr);
+      return safeJson(500, {
+        success: false,
+        error: 'クォータ確認に失敗しました。時間をおいて再度お試しください。',
+      });
+    }
+    if (!quotaResult?.allowed) {
+      return safeJson(429, {
+        success: false,
+        error:
+          quotaResult?.reason ||
+          `本日の利用上限（${DEFAULT_DAILY_LIMIT}回）に達しました。明日また使えます。`,
+        rateLimited: true,
+        quota: quotaResult || null,
+      });
+    }
+
+    // ── (5) 入力バリデーション
+    const { messages } = req.body || {};
+    const validated = validateMessages(messages);
+    if (validated.error) {
+      return safeJson(400, { success: false, error: validated.error, quota: quotaResult });
+    }
+
+    // ── (6) Gemini 呼び出し
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const geminiRes = await fetch(url, {
@@ -186,6 +357,7 @@ export default async function handler(req, res) {
       return safeJson(502, {
         success: false,
         error: msg,
+        quota: quotaResult,
       });
     }
 
@@ -199,10 +371,11 @@ export default async function handler(req, res) {
       return safeJson(200, {
         success: false,
         error: `回答を生成できませんでした（finish: ${reason}）`,
+        quota: quotaResult,
       });
     }
 
-    return safeJson(200, { success: true, text });
+    return safeJson(200, { success: true, text, quota: quotaResult });
   } catch (e) {
     console.error('gemini-concierge:', e);
     return safeJson(500, {
