@@ -106,6 +106,7 @@ export default defineConfig(({ mode }) => {
       exclude: ['express', 'cors'],
     },
     server: {
+      // 顧客側（Customers / bloemtarot）: 店舗側 87app は別クローンで 5174
       port: 5173,
       host: true,
       hmr: {

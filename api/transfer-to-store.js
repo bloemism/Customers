@@ -34,6 +34,22 @@ export async function transferToStore(paymentIntentId, storeId) {
 
     const totalAmount = paymentIntent.amount; // セント単位
 
+    const metadata = paymentIntent.metadata || {};
+    let customerId = metadata.customer_id || null;
+    const paymentCodeFromMeta = metadata.payment_code || null;
+
+    /** payment_transactions.customer_id が空になりやすい経路の補完（Webhook 先に customer_payments を INSERT 済みのことが多い） */
+    if (!customerId) {
+      const { data: cpRow } = await supabase
+        .from('customer_payments')
+        .select('customer_id')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
+      if (cpRow?.customer_id) {
+        customerId = cpRow.customer_id;
+      }
+    }
+
     // 2. 店舗の銀行口座情報を取得
     const { data: storeData, error: storeError } = await supabase
       .from('stores')
@@ -80,6 +96,8 @@ export async function transferToStore(paymentIntentId, storeId) {
       .from('payment_transactions')
       .insert({
         store_id: storeId,
+        customer_id: customerId,
+        payment_code: paymentCodeFromMeta,
         stripe_payment_intent_id: paymentIntentId,
         amount: totalAmount,
         currency: 'jpy',

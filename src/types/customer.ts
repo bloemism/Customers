@@ -10,9 +10,12 @@ export interface Customer {
   address_2?: string;
   birth_date?: string;
   points: number;
-  level: number;
+  /** DB は BASIC 等の文字列のこともある */
+  level: number | string;
   created_at?: string;
   updated_at?: string;
+  /** 会員コード（例: A1234）。DB の VARCHAR(5) 等 */
+  customer_code?: string;
 }
 
 export interface PointHistory {

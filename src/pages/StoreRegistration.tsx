@@ -817,6 +817,11 @@ export const StoreRegistration: React.FC = () => {
 
         if (uploadError) {
           console.error('画像アップロードエラー:', uploadError);
+          setError(
+            uploadError.message?.includes('row-level security')
+              ? 'ストレージへのアップロードが権限で拒否されました。Supabase の storage.objects の INSERT ポリシー（バケット store-images）を確認してください。'
+              : uploadError.message || '画像のアップロードに失敗しました'
+          );
           continue;
         }
 
@@ -837,6 +842,11 @@ export const StoreRegistration: React.FC = () => {
 
         if (insertError) {
           console.error('画像情報保存エラー:', insertError);
+          setError(
+            insertError.message?.includes('row-level security')
+              ? '画像メタデータの保存が権限で拒否されました。store_images の RLS と stores.owner_id = auth.uid() の整合を確認してください。'
+              : insertError.message
+          );
         }
       }
 

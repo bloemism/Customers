@@ -15,9 +15,54 @@
  *   VITE_SUPABASE_URL         — Supabase URL（JWT 検証＋RPC 呼び出し用）
  *   VITE_SUPABASE_ANON_KEY    — Supabase anon key（JWT 検証＋RPC 呼び出し用）
  *   AI_CONCIERGE_DAILY_LIMIT  — 既定: 10
+ *   GEMINI_UPSTREAM_TIMEOUT_MS — Gemini generateContent への fetch 待ち上限（ミリ秒）。
+ *       未設定時はテキストのみ 48s・画像を含む場合 58s（Vercel の関数 maxDuration 60s 内に収める）。
+ *       Pro で関数時間を延ばした場合は本値も長めに（例: 240000）。
  */
 
 import { createClient } from '@supabase/supabase-js';
+
+/** Vercel 関数上限より短く設定すること（ここで切ると 504 ではなく JSON エラーで返す） */
+function resolveGeminiUpstreamTimeoutMs(contents) {
+  const raw = process.env.GEMINI_UPSTREAM_TIMEOUT_MS;
+  const fromEnv = raw != null && raw !== '' ? Number.parseInt(String(raw), 10) : NaN;
+  if (!Number.isNaN(fromEnv) && fromEnv > 0) {
+    return fromEnv;
+  }
+  const hasVision =
+    Array.isArray(contents) &&
+    contents.some(
+      (c) =>
+        Array.isArray(c?.parts) &&
+        c.parts.some((p) => p && typeof p === 'object' && p.inlineData)
+    );
+  // 画像付きは Gemini 側の処理が数倍遅くなりがち
+  return hasVision ? 58000 : 48000;
+}
+
+async function fetchGeminiGenerateContent(url, body, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      const err = new Error(
+        `Gemini への接続がタイムアウトしました（${timeoutMs}ms）。画像がある場合は枚数を減らすか、しばらく待って再試行してください。`
+      );
+      err.name = 'GeminiTimeoutError';
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const SYSTEM_PROMPT = `あなたは「87app」のフラワー・コンシェルジュアシスタントです。花と緑に関する問い合わせやアドバイスを、親しみやく専門的に行ってください。
 
@@ -331,20 +376,32 @@ export default async function handler(req, res) {
     const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
-        },
-        contents: validated.contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
-      }),
-    });
+    const upstreamMs = resolveGeminiUpstreamTimeoutMs(validated.contents);
+    const geminiBody = {
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
+      contents: validated.contents,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      },
+    };
+
+    let geminiRes;
+    try {
+      geminiRes = await fetchGeminiGenerateContent(url, geminiBody, upstreamMs);
+    } catch (e) {
+      if (e?.name === 'GeminiTimeoutError') {
+        return safeJson(504, {
+          success: false,
+          error: e.message,
+          quota: quotaResult,
+          timedOut: true,
+        });
+      }
+      throw e;
+    }
 
     const json = await geminiRes.json().catch(() => ({}));
 
@@ -378,9 +435,14 @@ export default async function handler(req, res) {
     return safeJson(200, { success: true, text, quota: quotaResult });
   } catch (e) {
     console.error('gemini-concierge:', e);
-    return safeJson(500, {
+    const msg = e?.message || String(e);
+    const isAbort = e?.name === 'AbortError' || /aborted|timeout/i.test(msg);
+    return safeJson(isAbort ? 504 : 500, {
       success: false,
-      error: e?.message || String(e),
+      error: isAbort
+        ? `処理がタイムアウトしました。画像を減らすか、時間をおいて再試行してください。（${msg}）`
+        : msg,
+      timedOut: isAbort,
     });
   }
 }

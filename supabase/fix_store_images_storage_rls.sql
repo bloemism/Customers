@@ -1,16 +1,7 @@
--- Supabase Storageバケット作成
+-- store-images バケットへの INSERT が「new row violates row-level security policy」で失敗する場合の修正。
+-- リモートの SQL Editor で実行するか、マイグレーションとして適用してください。
+-- auth.role() より PostgreSQL ロール authenticated を明示した方が JWT と整合しやすいです。
 
--- 店舗画像用のStorageバケットを作成
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'store-images',
-  'store-images',
-  true,
-  5242880, -- 5MB
-  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-) ON CONFLICT (id) DO NOTHING;
-
--- Storageポリシーを設定（再実行時は fix_store_images_storage_rls.sql と同様に DROP してから）
 DROP POLICY IF EXISTS "Anyone can view store images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload store images" ON storage.objects;
 DROP POLICY IF EXISTS "Store owners can update their store images" ON storage.objects;

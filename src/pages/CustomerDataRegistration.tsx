@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { supabase } from '../lib/supabase';
+import { selectCustomerByAuthUserId } from '../utils/customerRowQuery';
 import { User, Mail, MapPin, Calendar, ArrowLeft, Edit3, Check } from 'lucide-react';
 
 const CustomerDataRegistration: React.FC = () => {
@@ -44,11 +45,7 @@ const CustomerDataRegistration: React.FC = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           console.log('顧客データを直接取得中:', user.id);
-          const { data: customerData, error } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+          const { data: customerData, error } = await selectCustomerByAuthUserId(user.id);
           
           console.log('取得した顧客データ:', customerData, error);
           
@@ -112,11 +109,7 @@ const CustomerDataRegistration: React.FC = () => {
         // データを再取得
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: updatedCustomer } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+          const { data: updatedCustomer } = await selectCustomerByAuthUserId(user.id);
           if (updatedCustomer) {
             setRegisteredData(updatedCustomer);
           }

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 
@@ -8,11 +8,26 @@ const LOGIN_BG = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?a
 
 export const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useCustomerAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    const st = location.state as { registeredEmail?: string; notice?: string } | null;
+    if (st?.registeredEmail) {
+      setEmail(st.registeredEmail);
+    }
+    if (st?.notice) {
+      setNotice(st.notice);
+    }
+    if (st?.registeredEmail || st?.notice) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +107,21 @@ export const CustomerLogin: React.FC = () => {
               87appで花のある生活を楽しもう
             </p>
           </div>
+
+          {/* 新規登録直後などの案内 */}
+          {notice && (
+            <div
+              className="rounded-sm p-4 mb-6"
+              style={{
+                backgroundColor: '#F0F4EC',
+                border: '1px solid #C5D1B8',
+              }}
+            >
+              <p className="text-sm" style={{ color: '#2D2A26' }}>
+                {notice}
+              </p>
+            </div>
+          )}
 
           {/* エラーメッセージ */}
           {error && (

@@ -122,16 +122,9 @@ function App() {
                 <StoreRegistration />
               </SimpleAuthGuard>
             } />
-              <Route path="/florist-map" element={
-                <SimpleAuthGuard>
-                  <FloristMap />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/flower-lesson-map" element={
-                <SimpleAuthGuard>
-                  <FlowerLessonMap />
-                </SimpleAuthGuard>
-              } />
+              {/* 顧客メニューからも利用するため店舗認証は不要（ページ内で認証を要求しない） */}
+              <Route path="/florist-map" element={<FloristMap />} />
+              <Route path="/flower-lesson-map" element={<FlowerLessonMap />} />
               <Route path="/lesson-school-management" element={
                 <SimpleAuthGuard>
                   <LessonSchoolManagement />
@@ -142,11 +135,7 @@ function App() {
                   <LessonScheduleManagement />
                 </SimpleAuthGuard>
               } />
-              <Route path="/popularity-rankings" element={
-                <SimpleAuthGuard>
-                  <PublicRankings />
-                </SimpleAuthGuard>
-              } />
+              <Route path="/popularity-rankings" element={<PublicRankings />} />
               <Route path="/store-analytics" element={
                 <SimpleAuthGuard>
                   <StoreAnalytics />
@@ -157,16 +146,8 @@ function App() {
                   <SubscriptionManagement />
                 </SimpleAuthGuard>
               } />
-              <Route path="/privacy-and-payment" element={
-                <SimpleAuthGuard>
-                  <PrivacyAndPaymentPage />
-                </SimpleAuthGuard>
-              } />
-              <Route path="/policy" element={
-                <SimpleAuthGuard>
-                  <PrivacyAndPaymentPage />
-                </SimpleAuthGuard>
-              } />
+              <Route path="/privacy-and-payment" element={<PrivacyAndPaymentPage />} />
+              <Route path="/policy" element={<PrivacyAndPaymentPage />} />
               <Route path="/readme" element={<ReadmePage />} />
               <Route path="/customer-menu" element={
               <CustomerAuthGuard>
@@ -227,26 +208,27 @@ function App() {
                 </CustomerProvider>
                 </CustomerAuthGuard>
               } />
+              {/* 店舗決済・Stripe は顧客アカウント（CustomerAuth）で利用 */}
               <Route path="/store-payment" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <CustomerProvider>
                     <PaymentPage />
                   </CustomerProvider>
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/dynamic-stripe-checkout" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <CustomerProvider>
                     <PaymentPage />
                   </CustomerProvider>
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/cash-payment" element={
-                <SimpleAuthGuard>
+                <CustomerAuthGuard>
                   <CustomerProvider>
                     <CashPaymentPage />
                   </CustomerProvider>
-                </SimpleAuthGuard>
+                </CustomerAuthGuard>
               } />
               <Route path="/stripe-connect-onboarding" element={
                 <SimpleAuthGuard>

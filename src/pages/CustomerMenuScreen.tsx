@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-import { supabase } from '../lib/supabase';
 import {
   Contact,
   MapPin,
@@ -73,6 +72,8 @@ export const CustomerMenuScreen: React.FC = () => {
   const { customer, signOut, refreshCustomer } = useCustomerAuth();
   const [activeCard, setActiveCard] = useState<string | null>(null);
   const [paymentFlash, setPaymentFlash] = useState<string | null>(null);
+  /** メニュー表示直後にコンテキストの fetch が遅れるとゲストが一瞬出るため、1 回 refresh が終わるまで待つ */
+  const [profileHydrated, setProfileHydrated] = useState(false);
 
   useEffect(() => {
     const notice = (location.state as { paymentNotice?: string } | null)?.paymentNotice;
@@ -83,14 +84,17 @@ export const CustomerMenuScreen: React.FC = () => {
   }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
-    const fetchCustomerData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && !customer) {
-        await refreshCustomer();
-      }
+    let cancelled = false;
+    (async () => {
+      await refreshCustomer();
+      if (!cancelled) setProfileHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
     };
-    fetchCustomerData();
-  }, [customer, refreshCustomer]);
+    // refreshCustomer は毎レンダーで新インスタンスのため deps に入れない（マウント時の1回同期のみ）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // メニュー項目の定義
   const menuItems: MenuItem[] = [
@@ -210,13 +214,23 @@ export const CustomerMenuScreen: React.FC = () => {
     };
   };
 
-  const defaultCustomer = customer || {
+  const loadingProfile = {
+    id: '',
+    name: '読み込み中…',
+    email: '',
+    points: 0,
+    level: 'BASIC' as const
+  };
+
+  const guestProfile = {
     id: '',
     name: 'ゲストユーザー',
     email: 'guest@example.com',
     points: 0,
-    level: 'BASIC' as const,
+    level: 'BASIC' as const
   };
+
+  const defaultCustomer = customer ?? (!profileHydrated ? loadingProfile : guestProfile);
 
   const levelInfo = getLevelInfo(defaultCustomer.level);
   const levelProgress = getLevelProgress(defaultCustomer.points, defaultCustomer.level);

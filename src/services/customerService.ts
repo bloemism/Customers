@@ -159,9 +159,14 @@ export class CustomerService {
       const { data, error } = await supabase
         .from('customers')
         .insert([{
-          ...customerData,
-          // 認証ユーザーのIDを関連付ける（将来的に使用）
-          // auth_user_id: user.id
+          user_id: user.id,
+          id: user.id,
+          email: customerData.email ?? null,
+          name: customerData.name,
+          phone: customerData.phone ?? null,
+          address: customerData.address ?? null,
+          birth_date: customerData.birth_date ?? null,
+          gender: customerData.gender ?? null,
         }])
         .select()
         .single();

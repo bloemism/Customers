@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { User, Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 // 型定義
 interface UserProfile {
@@ -23,24 +23,9 @@ interface AuthContextType {
   signInStoreOwner: (email: string, password: string) => Promise<{ error: any; user?: any }>;
 }
 
-// Supabaseクライアントの作成
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://aoqmdyapjsmmvjrwfdup.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcW1keWFwanNtbXZqcndmZHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5OTY2NTAsImV4cCI6MjA3MDU3MjY1MH0.jPQ4jGvuLDDZ4sFU1sbakWJIRyBKbEkaXsTnirQR4PY';
-
 console.log('🔧 環境変数チェック:');
 console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? '設定済み' : '未設定 (デフォルト使用)');
 console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '設定済み' : '未設定 (デフォルト使用)');
-console.log('実際のURL:', supabaseUrl);
-console.log('実際のKey:', supabaseKey ? '***' : '未設定');
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Supabase環境変数エラー:');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl);
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseKey ? '***' : '未設定');
-  throw new Error(`Supabase環境変数が設定されていません。URL: ${supabaseUrl ? 'OK' : 'NG'}, Key: ${supabaseKey ? 'OK' : 'NG'}`);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // コンテキストの作成
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { normalizeBirthDateForDb } from '../utils/birthDateDb';
 
 interface Customer {
   id: string; // Supabase auth.users.id (UUID)
@@ -61,6 +63,11 @@ interface CustomerAuthContextType {
   getTechnicalPointsHistory: (schoolId?: string) => Promise<TechnicalPoint[]>;
 }
 
+/** 顧客アプリでは店舗オーナーのみ拒否。user_type 未設定は顧客として扱う（旧アカウント対策） */
+function isStoreOwnerAccount(user: User | undefined | null): boolean {
+  return user?.user_metadata?.user_type === 'store_owner';
+}
+
 const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
 
 export const useCustomerAuth = () => {
@@ -80,17 +87,15 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Customer Auth state changed:', event, session);
-        
+
         if (session?.user) {
-          // ユーザータイプがcustomerかどうか確認
-          if (session.user.user_metadata?.user_type === 'customer') {
-            // ログイン時は顧客データを取得せず、メニュー画面で判定
-            console.log('顧客認証成功、メニュー画面で顧客データを確認');
-            setCustomer(null); // 一旦nullに設定
-          } else {
-            // 店舗ユーザーの場合はログアウト
+          if (isStoreOwnerAccount(session.user)) {
             await supabase.auth.signOut();
             setCustomer(null);
+          } else {
+            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+              await fetchCustomerData(session.user.id);
+            }
           }
         } else {
           setCustomer(null);
@@ -101,114 +106,154 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     );
 
     // 初期セッションを取得
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user && session.user.user_metadata?.user_type === 'customer') {
-        // 初期セッションでも顧客データを取得せず、メニュー画面で判定
-        console.log('初期セッション: 顧客認証済み、メニュー画面で顧客データを確認');
-        setCustomer(null); // 一旦nullに設定
-      } else {
-        setLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user && !isStoreOwnerAccount(session.user)) {
+        await fetchCustomerData(session.user.id);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const applyCustomerRow = (row: Record<string, unknown>) => {
+    const levelRaw = String(row.level ?? 'BASIC').toUpperCase();
+    const level: Customer['level'] =
+      levelRaw === 'REGULAR' || levelRaw === 'PRO' || levelRaw === 'EXPERT' ? levelRaw : 'BASIC';
+
+    const customerData: Customer = {
+      id: String(row.id ?? ''),
+      email: String(row.email ?? ''),
+      name: String(row.name ?? '未設定'),
+      alphabet: (row.alphabet as string | null | undefined) || undefined,
+      phone: (row.phone as string | null | undefined) || undefined,
+      address: (row.address as string | null | undefined) || undefined,
+      birth_date: (row.birth_date as string | null | undefined) || undefined,
+      customer_code: (row.customer_code as string | null | undefined) || undefined,
+      points: Number(row.points ?? row.current_points ?? 0),
+      level,
+      created_at: String(row.created_at ?? new Date().toISOString()),
+      updated_at: String(row.updated_at ?? new Date().toISOString())
+    };
+    setCustomer(customerData);
+    localStorage.setItem('customerAuth', JSON.stringify(customerData));
+  };
+
+  /** customer_code が空のとき DB の RPC で発行（ensure_my_customer_code.sql が必要） */
+  const tryAssignCustomerCode = async (row: Record<string, unknown>) => {
+    const existing = row.customer_code as string | null | undefined;
+    if (existing && String(existing).trim()) return;
+    const { data: ccRes, error: ccErr } = await supabase.rpc('ensure_my_customer_code');
+    if (ccErr) {
+      console.warn('[customers] ensure_my_customer_code:', ccErr.message);
+      return;
+    }
+    if (ccRes && typeof ccRes === 'object' && 'customer_code' in ccRes) {
+      const cc = (ccRes as { customer_code?: string }).customer_code;
+      if (cc) applyCustomerRow({ ...row, customer_code: cc });
+    }
+  };
+
+  /** user_id 優先、次に id（= auth.uid のレガシー行）。select * で列不足エラーを避ける */
+  const selectCustomerRowByAuthUser = async (userId: string) => {
+    const run = () => supabase.from('customers').select('*');
+
+    const { data: byUserId, error: errUserId } = await run().eq('user_id', userId).maybeSingle();
+    if (errUserId) {
+      console.error('customers user_id 取得エラー:', errUserId);
+      return { data: null as Record<string, unknown> | null, error: errUserId };
+    }
+    if (byUserId) {
+      return { data: byUserId as Record<string, unknown>, error: null };
+    }
+
+    const { data: byId, error: errId } = await run().eq('id', userId).maybeSingle();
+    if (errId) {
+      console.error('customers id 取得エラー:', errId);
+      return { data: null, error: errId };
+    }
+    return { data: byId as Record<string, unknown> | null, error: null };
+  };
+
   const fetchCustomerData = async (userId: string) => {
     try {
       console.log('顧客データ取得開始:', userId);
-      
-      console.log('customersテーブルからデータを取得中...');
-      const { data, error } = await supabase
-          .from('customers')
-          .select('id, email, name, alphabet, phone, address, birth_date, customer_code, points, level, created_at, updated_at, user_id')
-          .eq('user_id', userId)
-          .single();
-      
+
+      // DB 上で user_id が NULL / 誤りのとき RLS により行が返らない。RPC で補正（SQL 再適用が必要な場合あり）
+      const { data: linkResult, error: linkErr } =
+        await supabase.rpc('ensure_customer_user_id_from_auth');
+      if (linkErr) {
+        console.warn('[customers] ensure_customer_user_id_from_auth:', linkErr.message);
+      } else {
+        console.log('[customers] ensure_customer_user_id_from_auth:', linkResult);
+      }
+
+      const { data, error } = await selectCustomerRowByAuthUser(userId);
       console.log('customersテーブル取得結果:', { data, error });
 
       if (error) {
         console.error('顧客データ取得エラー:', error);
-        if (error.code === 'PGRST116') {
-          console.log('顧客データが見つかりません。新規作成を試行します。');
-          // 顧客データが存在しない場合は、auth.usersから情報を取得して作成
-          const { data: authUser } = await supabase.auth.getUser();
-          console.log('authUser取得結果:', authUser);
-          
-          if (authUser.user) {
-            console.log('顧客データ挿入開始:', {
-              user_id: authUser.user.id,
-              email: authUser.user.email,
-              name: authUser.user.user_metadata?.name || '未設定',
-              phone: authUser.user.user_metadata?.phone || null,
-              points: 0,
-              level: 'BASIC'
-            });
-            
-            const { error: insertError } = await supabase
-              .from('customers')
-              .insert({
-                id: authUser.user.id,
-                user_id: authUser.user.id,
-                email: authUser.user.email!,
-                name: authUser.user.user_metadata?.name || '未設定',
-                alphabet: null,
-                phone: authUser.user.user_metadata?.phone || null,
-                points: 0,
-                level: 'BASIC'
-              });
-            
-            if (insertError) {
-              console.error('顧客データ自動作成エラー:', insertError);
-              setCustomer(null);
-              return;
-            }
-            
-            console.log('顧客データ挿入成功、再取得開始');
-            // 再取得
-            const { data: newData } = await supabase
-              .from('customers')
-              .select('id, email, name, alphabet, phone, address, birth_date, customer_code, points, level, created_at, updated_at, user_id')
-              .eq('user_id', userId)
-              .single();
-            
-            console.log('再取得結果:', newData);
-            if (newData) {
-              setCustomer(newData);
-              localStorage.setItem('customerAuth', JSON.stringify(newData));
-            }
-          } else {
-            console.log('authUser.userが存在しません');
+        setCustomer(null);
+        return;
+      }
+
+      if (data) {
+        const uid = data.user_id as string | null | undefined;
+        const rowId = data.id as string | undefined;
+        if (!uid && rowId === userId) {
+          const { error: syncErr } = await supabase
+            .from('customers')
+            .update({ user_id: userId })
+            .eq('id', userId);
+          if (syncErr) {
+            console.warn('user_id 補正スキップ（RLS またはスキーマ）:', syncErr);
           }
+        }
+        console.log('顧客データ取得成功:', data);
+        applyCustomerRow(data);
+        await tryAssignCustomerCode(data);
+        return;
+      }
+
+      console.log('顧客データが見つかりません。新規作成を試行します。');
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser.user) {
+        console.log('authUser.userが存在しません');
+        setCustomer(null);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from('customers').insert({
+        id: authUser.user.id,
+        user_id: authUser.user.id,
+        email: authUser.user.email!,
+        name: authUser.user.user_metadata?.name || '未設定',
+        alphabet: null,
+        phone: authUser.user.user_metadata?.phone || null,
+        points: 0,
+        level: 'BASIC'
+      });
+
+      if (insertError) {
+        console.error('顧客データ自動作成エラー:', insertError);
+        // 別経路で既に行がある（例: UNIQUE email）の可能性 — 再取得
+        const { data: retry } = await selectCustomerRowByAuthUser(userId);
+        if (retry) {
+          applyCustomerRow(retry);
+          await tryAssignCustomerCode(retry);
         } else {
           setCustomer(null);
         }
         return;
       }
 
-      if (data) {
-        console.log('顧客データ取得成功:', data);
-        console.log('customer_code:', data.customer_code);
-        // customer_codeを含む全てのデータをcustomerオブジェクトに設定
-        const customerData: Customer = {
-          id: data.id,
-          email: data.email,
-          name: data.name,
-          alphabet: data.alphabet || undefined,
-          phone: data.phone || undefined,
-          address: data.address || undefined,
-          birth_date: data.birth_date || undefined,
-          customer_code: data.customer_code || undefined, // customer_codeを明示的に設定
-          points: data.points || 0,
-          level: (data.level || 'BASIC') as 'BASIC' | 'REGULAR' | 'PRO' | 'EXPERT',
-          created_at: data.created_at,
-          updated_at: data.updated_at
-        };
-        console.log('設定するcustomerData:', customerData);
-        console.log('設定するcustomerData.customer_code:', customerData.customer_code);
-        console.log('customerData.customer_code の型:', typeof customerData.customer_code);
-        setCustomer(customerData);
-        localStorage.setItem('customerAuth', JSON.stringify(customerData));
+      const { data: newData, error: refetchErr } = await selectCustomerRowByAuthUser(userId);
+      console.log('再取得結果:', newData, refetchErr);
+      if (newData) {
+        applyCustomerRow(newData);
+        await tryAssignCustomerCode(newData);
+      } else {
+        setCustomer(null);
       }
     } catch (error) {
       console.error('顧客データ取得エラー:', error);
@@ -233,15 +278,24 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       if (data.user) {
         console.log('認証成功、ユーザータイプ確認:', data.user.user_metadata?.user_type);
-        
-        // ユーザータイプがcustomerかどうか確認
-        if (data.user.user_metadata?.user_type !== 'customer') {
+
+        if (isStoreOwnerAccount(data.user)) {
           console.log('店舗ユーザーが顧客ログインを試行、ログアウト');
           await supabase.auth.signOut();
           return { error: 'このアカウントは顧客アカウントではありません。店舗ログインをご利用ください。' };
         }
 
-        // 認証成功、メニュー画面に遷移（顧客データの存在チェックは削除）
+        // 旧ユーザーで user_type が無い場合は顧客としてメタデータを補完
+        if (data.user.user_metadata?.user_type !== 'customer') {
+          const { error: metaErr } = await supabase.auth.updateUser({
+            data: { ...data.user.user_metadata, user_type: 'customer' }
+          });
+          if (metaErr) {
+            console.warn('user_type 補完に失敗（続行）:', metaErr);
+          }
+        }
+
+        await fetchCustomerData(data.user.id);
         console.log('認証成功、メニュー画面に遷移');
         return { error: undefined };
       }
@@ -280,8 +334,12 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
 
         if (authData.user) {
-          console.log('認証成功、顧客データ登録画面に遷移');
-          console.log('返却するユーザー:', authData.user);
+          // 登録直後のセッションでメニューに入ると顧客行とずれてゲスト表示になるため、
+          // 必ずサインアウトしてログイン画面からメール認証させる
+          await supabase.auth.signOut();
+          setCustomer(null);
+          localStorage.removeItem('customerAuth');
+          console.log('新規登録完了: セッションを終了しログインへ誘導');
           return { error: undefined, user: authData.user };
         }
 
@@ -296,38 +354,6 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
   };
 
-  // 日本語形式の日付をISO形式に変換する関数
-  const convertJapaneseDateToISO = (japaneseDate: string): string | null => {
-    if (!japaneseDate) return null;
-    
-    // 「1972年12月15日」形式を「1972-12-15」形式に変換
-    const match = japaneseDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
-    if (match) {
-      const year = match[1];
-      const month = match[2].padStart(2, '0');
-      const day = match[3].padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    
-    return null;
-  };
-
-  // ISO形式の日付を日本語形式に変換する関数
-  const convertISODateToJapanese = (isoDate: string): string | null => {
-    if (!isoDate) return null;
-    
-    // 「1972-12-15」形式を「1972年12月15日」形式に変換
-    const match = isoDate.match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      const year = match[1];
-      const month = parseInt(match[2], 10);
-      const day = parseInt(match[3], 10);
-      return `${year}年${month}月${day}日`;
-    }
-    
-    return null;
-  };
-
   const registerCustomerData = async (name: string, alphabet?: string, address?: string, birth_date?: string) => {
     try {
       console.log('顧客データ登録開始:', { name, alphabet, address, birth_date });
@@ -337,31 +363,56 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
         return { error: '認証されていません' };
       }
 
-      // 誕生日をISO形式に変換
-      const isoBirthDate = convertJapaneseDateToISO(birth_date || '');
+      const isoBirthDate = normalizeBirthDateForDb(birth_date || '');
       console.log('誕生日変換:', { original: birth_date, converted: isoBirthDate });
 
-      // まず既存のレコードがあるかチェック
-      const { data: existingCustomer } = await supabase
+      const { data: byUser } = await supabase
         .from('customers')
         .select('id')
         .eq('user_id', authUser.user.id)
-        .single();
+        .maybeSingle();
+      let existingCustomer = byUser;
+      if (!existingCustomer) {
+        const { data: byId } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', authUser.user.id)
+          .maybeSingle();
+        existingCustomer = byId;
+      }
 
       let error;
       if (existingCustomer) {
-        // 既存のレコードがある場合は更新
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
+        const iso = isoBirthDate ?? '';
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('update_my_customer_profile', {
+          p_profile: {
             name,
-            alphabet: alphabet || null,
-            address: address || null,
-            birth_date: isoBirthDate,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', authUser.user.id);
-        error = updateError;
+            alphabet: alphabet ?? '',
+            address: address ?? '',
+            birth_date: iso
+          }
+        });
+        const rpcOk =
+          !rpcErr &&
+          rpcRes &&
+          typeof rpcRes === 'object' &&
+          (rpcRes as { ok?: boolean }).ok === true;
+        if (rpcOk) {
+          error = undefined;
+        } else {
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              name,
+              alphabet: alphabet || null,
+              address: address || null,
+              birth_date: isoBirthDate,
+              updated_at: new Date().toISOString(),
+              user_id: authUser.user.id
+            })
+            .eq('id', existingCustomer.id);
+          error = rpcErr ?? updateError;
+        }
       } else {
         // 新規レコードの場合は挿入
         const { error: insertError } = await supabase

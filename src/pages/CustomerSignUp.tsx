@@ -74,7 +74,14 @@ export const CustomerSignUp: React.FC = () => {
       if (result.error) {
         setError(result.error);
       } else if (result.user) {
-        navigate('/customer-data-registration');
+        navigate('/customer-login', {
+          replace: true,
+          state: {
+            registeredEmail: formData.email,
+            notice:
+              'アカウントを作成しました。メール確認が有効なプロジェクトでは、届いたメールのリンクを開いてからログインしてください。',
+          },
+        });
       } else {
         setError('認証できず');
       }

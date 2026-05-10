@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomer } from '../contexts/CustomerContext';
+import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { supabaseErrorMessage } from '../utils/supabaseErrorMessage';
 import {
   ArrowLeft,
   Calendar,
@@ -15,7 +17,8 @@ import {
 const BG_IMAGE = 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?auto=format&fit=crop&w=1920&q=80';
 
 const CustomerProfilePage: React.FC = () => {
-  const { customer, loading, updateCustomerProfile } = useCustomer();
+  const { customer, loading, error, fetchCustomerData, updateCustomerProfile } = useCustomer();
+  const { refreshCustomer } = useCustomerAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -31,12 +34,14 @@ const CustomerProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (customer) {
+      const raw = customer.birth_date || '';
+      const birthForInput = raw.includes('T') ? raw.split('T')[0] : raw;
       setFormData({
         name: customer.name || '',
         phone: customer.phone || '',
         address: customer.address || '',
         address_2: customer.address_2 || '',
-        birth_date: customer.birth_date || ''
+        birth_date: birthForInput
       });
     }
   }, [customer]);
@@ -48,11 +53,16 @@ const CustomerProfilePage: React.FC = () => {
 
     try {
       await updateCustomerProfile(formData);
+      try {
+        await refreshCustomer();
+      } catch (syncErr) {
+        console.warn('[CustomerProfilePage] refreshCustomer:', supabaseErrorMessage(syncErr));
+      }
       setMessage('プロフィールを更新しました');
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2500);
     } catch (error) {
-      setMessage('プロフィールの更新に失敗しました');
+      setMessage(`プロフィールの更新に失敗しました: ${supabaseErrorMessage(error)}`);
     } finally {
       setSaving(false);
     }
@@ -315,6 +325,36 @@ const CustomerProfilePage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error ? (
+              <div
+                className="p-4 rounded-sm text-sm space-y-2"
+                style={{ backgroundColor: '#FDF0F0', border: '1px solid #E8C4C4', color: '#5C2A2A' }}
+                role="alert"
+              >
+                <p>{error}</p>
+                <button
+                  type="button"
+                  className="underline font-medium"
+                  onClick={() => void fetchCustomerData()}
+                >
+                  データを再取得する
+                </button>
+              </div>
+            ) : null}
+            {!loading && !customer ? (
+              <p className="text-sm flex flex-wrap items-center gap-2" style={{ color: '#5C6B4A' }}>
+                <span>顧客データがまだありません。</span>
+                <button
+                  type="button"
+                  className="underline font-medium"
+                  style={{ color: '#3D4A35' }}
+                  onClick={() => void fetchCustomerData()}
+                >
+                  再取得
+                </button>
+                <span>するか、保存で新規登録されます。</span>
+              </p>
+            ) : null}
             <div className="grid gap-5 md:grid-cols-2">
               <div>
                 <label 

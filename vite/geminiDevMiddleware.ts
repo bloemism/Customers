@@ -41,6 +41,37 @@ const MAX_TOTAL_IMAGE_BYTES = 18 * 1024 * 1024
 
 const DEFAULT_DAILY_LIMIT = Number.parseInt(process.env.AI_CONCIERGE_DAILY_LIMIT || '10', 10) || 10
 
+/** ローカル dev はサーバー 60s 制限が無いので長め。環境変数で本番と揃えることも可 */
+function resolveGeminiUpstreamTimeoutMsDev(contents: unknown): number {
+  const raw = process.env.GEMINI_UPSTREAM_TIMEOUT_MS
+  const fromEnv = raw != null && raw !== '' ? Number.parseInt(String(raw), 10) : NaN
+  if (!Number.isNaN(fromEnv) && fromEnv > 0) return fromEnv
+  const arr = contents as { parts?: unknown[] }[]
+  const hasVision =
+    Array.isArray(arr) &&
+    arr.some(
+      (c) =>
+        Array.isArray(c?.parts) &&
+        c.parts.some((p) => p && typeof p === 'object' && 'inlineData' in (p as object))
+    )
+  return hasVision ? 180000 : 90000
+}
+
+async function fetchGeminiWithTimeout(url: string, body: object, timeoutMs: number): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 // ---------- IP レートリミット ----------
 const IP_LIMIT_PER_HOUR = 60
 const IP_LIMIT_PER_DAY = 200
@@ -351,20 +382,34 @@ async function handleGeminiDev(
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
 
-  const geminiRes = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: FLOWER_CONCIERGE_SYSTEM_PROMPT }],
-      },
-      contents: validated.contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-      },
-    }),
-  })
+  const upstreamMs = resolveGeminiUpstreamTimeoutMsDev(validated.contents)
+  const geminiBody = {
+    systemInstruction: {
+      parts: [{ text: FLOWER_CONCIERGE_SYSTEM_PROMPT }],
+    },
+    contents: validated.contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 2048,
+    },
+  }
+
+  let geminiRes: Response
+  try {
+    geminiRes = await fetchGeminiWithTimeout(url, geminiBody, upstreamMs)
+  } catch (e: unknown) {
+    const name = e instanceof Error ? e.name : ''
+    if (name === 'AbortError') {
+      sendJson(res, 504, {
+        success: false,
+        error: `Gemini への接続がタイムアウトしました（${upstreamMs}ms）。画像がある場合は枚数を減らして再試行してください。`,
+        timedOut: true,
+        quota,
+      })
+      return
+    }
+    throw e
+  }
 
   const json = (await geminiRes.json().catch(() => ({}))) as Record<string, unknown>
 

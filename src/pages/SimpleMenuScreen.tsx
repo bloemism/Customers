@@ -14,9 +14,10 @@ import {
   GraduationCap,
   TrendingUp,
   CreditCard,
-  Shield
+  Shield,
+  BarChart2
 } from 'lucide-react';
-import { checkFeatureAccess, AVAILABLE_FEATURES } from '../lib/stripe';
+import { AVAILABLE_FEATURES } from '../lib/stripe';
 import { supabase } from '../lib/supabase';
 
 // メニュー項目の型定義
@@ -120,6 +121,15 @@ export const SimpleMenuScreen: React.FC = () => {
       requiredFeature: 'POPULARITY_RANKINGS'
     },
     {
+      id: 'store-analytics',
+      title: '店舗アナリティクス',
+      description: '売上・指標の確認',
+      icon: BarChart2,
+      color: 'from-cyan-400 to-blue-500',
+      route: '/store-analytics',
+      requiredFeature: 'FLORIST_MAP'
+    },
+    {
       id: 'subscription-management',
       title: 'サブスクリプション管理',
       description: '月額プランの管理と支払い方法の設定',
@@ -149,66 +159,60 @@ export const SimpleMenuScreen: React.FC = () => {
   ];
 
   useEffect(() => {
-    // ユーザーのプランを判定（実際のデータベース構造に合わせて修正）
+    let cancelled = false;
+
     const determineUserPlan = async () => {
       if (!user?.email) {
+        setUserPlan('FLOWER_SCHOOL');
+        setLoading(false);
+        return;
+      }
+
+      if (!supabase) {
+        setUserPlan('FLOWER_SCHOOL');
         setLoading(false);
         return;
       }
 
       try {
-        console.log('プラン判定開始:', user.email);
-        
-        // Supabaseが利用可能かチェック
-        if (!supabase) {
-          console.error('Supabaseが利用できません');
-          setUserPlan('FLOWER_SCHOOL');
-          setLoading(false);
-          return;
+        const email = user.email;
+        const [storeResult, schoolResult] = await Promise.all([
+          supabase.from('stores').select('id').eq('email', email).maybeSingle(),
+          supabase
+            .from('lesson_schools')
+            .select('id')
+            .eq('store_email', email)
+            .maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        if (storeResult.error && storeResult.error.code !== 'PGRST116') {
+          console.warn('stores プラン判定:', storeResult.error.message);
         }
-        
-        // storesテーブルから店舗情報を取得（実際にデータが入っているテーブル）
-        const { data: storeData, error: storeError } = await supabase
-          .from('stores')
-          .select('id, name, email, address, phone')
-          .eq('email', user.email)
-          .single();
+        if (schoolResult.error && schoolResult.error.code !== 'PGRST116') {
+          console.warn('lesson_schools プラン判定:', schoolResult.error.message);
+        }
 
-        console.log('storesテーブル情報:', storeData, 'エラー:', storeError);
-
-        // スクール情報をチェック
-        const { data: schoolData, error: schoolError } = await supabase
-          .from('lesson_schools')
-          .select('id, name, store_email')
-          .eq('store_email', user.email)
-          .single();
-
-        console.log('lesson_schoolsテーブル情報:', schoolData, 'エラー:', schoolError);
-
-        // プラン判定ロジック（実際のデータに基づく）
-        if (storeData && storeData.id) {
-          // storesテーブルにデータがある場合はフローリストプラン
-          console.log('フローリストプランに設定（storesテーブルにデータあり）');
+        if (storeResult.data?.id) {
           setUserPlan('FLORIST');
-        } else if (schoolData && schoolData.id) {
-          // lesson_schoolsテーブルにデータがある場合はフラワースクールプラン
-          console.log('フラワースクールプランに設定（lesson_schoolsテーブルにデータあり）');
+        } else if (schoolResult.data?.id) {
           setUserPlan('FLOWER_SCHOOL');
         } else {
-          // どちらにもデータがない場合はデフォルトでフラワースクールプラン
-          console.log('デフォルトでフラワースクールプランに設定（データなし）');
           setUserPlan('FLOWER_SCHOOL');
         }
       } catch (error) {
         console.error('プラン判定エラー:', error);
-        // エラーの場合はデフォルトでフラワースクールプラン
-        setUserPlan('FLOWER_SCHOOL');
+        if (!cancelled) setUserPlan('FLOWER_SCHOOL');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     determineUserPlan();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const handleLogout = async () => {
@@ -220,11 +224,8 @@ export const SimpleMenuScreen: React.FC = () => {
     }
   };
 
-  // ユーザーのプランで利用可能なメニュー項目をフィルタリング
-  const availableMenuItems = menuItems.filter(item => {
-    if (item.id === 'subscription-management' || item.id === 'readme' || item.id === 'policy') return true; // 常に表示
-    return checkFeatureAccess(userPlan, item.requiredFeature);
-  });
+  // ログイン済みならメニューから各ページへ遷移可能（プランは表示・案内用）
+  const availableMenuItems = menuItems;
 
   if (loading) {
     return (
