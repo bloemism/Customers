@@ -43,7 +43,9 @@ const roleLabels: Record<CatalogViewerRole, string> = {
 
 export const InAppPurchaseCatalogPage: React.FC = () => {
   const {
-    setProducts,
+    productsLoading,
+    productsError,
+    saveProduct,
     viewerRole,
     setViewerRole,
     orderCases,
@@ -71,8 +73,8 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
     [filtered, orderCases]
   );
 
-  const replaceProduct = (id: string, next: InAppPurchaseProduct) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? next : p)));
+  const persistFromCatalog = async (_id: string, next: InAppPurchaseProduct) => {
+    await saveProduct(next);
   };
 
   return (
@@ -101,7 +103,7 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
               )}
             </Link>
             <Link
-              to="/dev/in-app-purchase-admin"
+              to="/dev/in-app-purchase/admin"
               className="text-sm px-2 py-1 rounded-md border border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:text-emerald-800"
             >
               商品管理へ
@@ -114,6 +116,16 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+        {productsError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+            {productsError}
+          </div>
+        )}
+
+        {productsLoading && (
+          <p className="text-sm text-slate-600 text-center py-6">カタログを読み込み中です…</p>
+        )}
+
         {import.meta.env.DEV && (
           <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/80 p-4">
             <p className="text-sm font-medium text-amber-900 mb-2">閲覧ロール（開発のみ）</p>
@@ -148,7 +160,7 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80">
             <h2 className="text-sm font-semibold text-slate-800">品目・価格・在庫の比較</h2>
             <p className="text-xs text-slate-500 mt-1">
-              横にスクロールして一覧比較できます。在庫はのちに Supabase でリアルタイム管理する想定です。
+              横にスクロールして一覧比較できます。在庫は Supabase の iap_catalog_stock と同期しています。
             </p>
           </div>
           <div className="overflow-x-auto -mx-px">
@@ -345,7 +357,7 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
                           </>
                         )}
                       </button>
-                      {expanded && <AdminProductEditor product={p} onSave={replaceProduct} />}
+                      {expanded && <AdminProductEditor product={p} onSave={persistFromCatalog} />}
                     </div>
                   )}
                 </li>
@@ -389,11 +401,12 @@ export const InAppPurchaseCatalogPage: React.FC = () => {
 
 type AdminEditorProps = {
   product: InAppPurchaseProduct;
-  onSave: (id: string, next: InAppPurchaseProduct) => void;
+  onSave: (id: string, next: InAppPurchaseProduct) => Promise<void>;
 };
 
 const AdminProductEditor: React.FC<AdminEditorProps> = ({ product, onSave }) => {
   const [draft, setDraft] = useState<InAppPurchaseProduct>(product);
+  const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
     setDraft(product);
@@ -413,7 +426,7 @@ const AdminProductEditor: React.FC<AdminEditorProps> = ({ product, onSave }) => 
     setDraft((d) => ({ ...d, [key]: e.target.checked }));
   };
 
-  const apply = () => {
+  const apply = async () => {
     const next: InAppPurchaseProduct = {
       ...draft,
       wholesalePrice: Number(draft.wholesalePrice) || 0,
@@ -428,7 +441,12 @@ const AdminProductEditor: React.FC<AdminEditorProps> = ({ product, onSave }) => 
       origin: draft.origin,
       sizeLabel: draft.sizeLabel,
     };
-    onSave(product.id, next);
+    setSaving(true);
+    try {
+      await onSave(product.id, next);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -563,10 +581,11 @@ const AdminProductEditor: React.FC<AdminEditorProps> = ({ product, onSave }) => 
 
       <button
         type="button"
-        onClick={apply}
-        className="w-full rounded-lg bg-emerald-600 text-white py-2 font-medium hover:bg-emerald-700"
+        onClick={() => void apply()}
+        disabled={saving}
+        className="w-full rounded-lg bg-emerald-600 text-white py-2 font-medium hover:bg-emerald-700 disabled:opacity-60"
       >
-        この内容を反映
+        {saving ? '保存中…' : 'この内容を反映（DB保存）'}
       </button>
     </div>
   );

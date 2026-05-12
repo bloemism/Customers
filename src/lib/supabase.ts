@@ -55,3 +55,12 @@ if (isDev || isDebug) {
     }
   })
 }
+
+/** ログ・エラー用（ホストのみ。キーは含めない） */
+export function getResolvedSupabaseHost(): string {
+  try {
+    return new URL(supabaseUrl).host;
+  } catch {
+    return '(invalid)';
+  }
+}

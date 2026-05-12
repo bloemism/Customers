@@ -1,7 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Package, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Package, ShoppingCart } from 'lucide-react';
 import { useIapShop } from '../contexts/InAppPurchaseCartContext';
+import {
+  insertIapPurchaseRecord,
+  type IapPurchaseDeliverySnapshot,
+} from '../lib/iapPurchaseRepository';
+import { supabaseErrorMessage } from '../lib/supabaseErrors';
 import type { CatalogViewerRole, InAppPurchaseProduct } from '../types/inAppPurchaseProduct';
 
 const yen = (n: number) =>
@@ -40,7 +45,14 @@ export const InAppPurchaseCartPage: React.FC = () => {
     storeParty,
     setStoreParty,
     filteredProducts,
+    linkedCustomerId,
+    linkedStoreId,
+    clearCartLines,
   } = useIapShop();
+
+  const [recordSaving, setRecordSaving] = useState(false);
+  const [recordMessage, setRecordMessage] = useState<string | null>(null);
+  const [recordError, setRecordError] = useState<string | null>(null);
 
   const cartSubtotal = useMemo(() => {
     let sum = 0;
@@ -73,6 +85,67 @@ export const InAppPurchaseCartPage: React.FC = () => {
   const showCustomerBlock = viewerRole === 'customer' || viewerRole === 'admin';
   const showStoreBlock = viewerRole === 'store' || viewerRole === 'admin';
 
+  const recordPurchase = useCallback(async () => {
+    if (cartLines.length === 0) return;
+    setRecordSaving(true);
+    setRecordError(null);
+    setRecordMessage(null);
+    const buyerKind: 'customer' | 'store' | 'admin_dev' =
+      viewerRole === 'store' ? 'store' : viewerRole === 'admin' ? 'admin_dev' : 'customer';
+    const customerId =
+      viewerRole === 'customer' || viewerRole === 'admin' ? linkedCustomerId : null;
+    const storeId = viewerRole === 'store' || viewerRole === 'admin' ? linkedStoreId : null;
+    const deliverySnapshot: IapPurchaseDeliverySnapshot = {
+      customer: {
+        full_name: customerParty.fullName,
+        phone: customerParty.phone,
+        address: customerParty.address,
+        customer_code: customerParty.customerCode,
+      },
+      store: {
+        trade_name: storeParty.tradeName,
+        store_code: storeParty.storeCode,
+        market_name: storeParty.marketName,
+      },
+    };
+    const linesSnapshot = cartLines.map((l) => ({
+      symbol: l.product.symbol,
+      item_name: l.product.itemName,
+      variety_name: l.product.varietyName,
+      cases: l.cases,
+    }));
+    try {
+      const id = await insertIapPurchaseRecord({
+        buyerKind,
+        viewerRole,
+        customerId,
+        storeId,
+        deliverySnapshot,
+        linesSnapshot,
+        subtotalYenExTax: cartSubtotal,
+        taxYen: taxAmount,
+        totalYenIncTax: cartTotal,
+      });
+      setRecordMessage(`記録しました（記録ID: ${id.slice(0, 8)}…）`);
+      clearCartLines();
+    } catch (e: unknown) {
+      setRecordError(supabaseErrorMessage(e) || '記録に失敗しました');
+    } finally {
+      setRecordSaving(false);
+    }
+  }, [
+    cartLines,
+    cartSubtotal,
+    taxAmount,
+    cartTotal,
+    viewerRole,
+    linkedCustomerId,
+    linkedStoreId,
+    customerParty,
+    storeParty,
+    clearCartLines,
+  ]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 pb-10">
       <header className="border-b border-slate-200 bg-white sticky top-0 z-20 shadow-sm">
@@ -96,6 +169,14 @@ export const InAppPurchaseCartPage: React.FC = () => {
           <Package className="w-3.5 h-3.5 shrink-0" aria-hidden />
           {roleLabels[viewerRole]} — ロールは商品一覧の開発用切替に連動しています。
         </p>
+
+        {(linkedCustomerId || linkedStoreId) && (
+          <p className="text-xs rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-900 px-3 py-2 leading-relaxed">
+            {linkedCustomerId && <>顧客ログイン: <code className="text-[11px]">customers</code> の氏名・電話・住所・顧客コードをカートに反映しました。 </>}
+            {linkedStoreId && <>店舗ログイン: <code className="text-[11px]">stores</code> の屋号・コード・届け先市場名を反映しました。</>}
+            内容は編集可能です。
+          </p>
+        )}
 
         <section className="rounded-2xl border-2 border-slate-200 bg-white shadow-md overflow-hidden">
           <div className="px-4 py-3 bg-slate-800 text-white">
@@ -242,22 +323,43 @@ export const InAppPurchaseCartPage: React.FC = () => {
             <p className="text-xs text-slate-500">計 {cartCaseCount} ケース</p>
           )}
           <p className="text-xs text-slate-500 pt-1">
-            決済時は明細・届け先を Stripe の metadata 等に載せる想定です（未接続）。
+            購入記録には税込合計・税抜小計・消費税・届け先スナップショット・各行の記号・品目・品種・ケース数が残ります（単価は保存しません）。
           </p>
         </div>
+
+        {recordError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+            {recordError}
+          </div>
+        )}
+        {recordMessage && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+            {recordMessage}
+          </div>
+        )}
+
+        <button
+          type="button"
+          disabled={recordSaving || cartLines.length === 0}
+          onClick={() => void recordPurchase()}
+          className="w-full min-h-[52px] rounded-xl bg-emerald-700 text-white text-base font-semibold shadow hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+        >
+          <ClipboardCheck className="w-5 h-5 shrink-0" aria-hidden />
+          {recordSaving ? '記録中…' : '購入を記録（iap_purchase_records）'}
+        </button>
+        <p className="text-xs text-slate-500 leading-relaxed -mt-2">
+          開発用: Supabase テーブル <code className="text-[11px]">iap_purchase_records</code> に1行 INSERT し、カート明細を空にします。Stripe
+          決済は別途接続予定です。
+        </p>
 
         <button
           type="button"
           disabled
-          className="w-full min-h-[52px] rounded-xl bg-slate-900 text-white text-base font-semibold opacity-70 cursor-not-allowed"
-          title="DB・Stripe 接続後に有効化"
+          className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-slate-100 text-slate-600 text-sm font-medium opacity-80 cursor-not-allowed"
+          title="未接続"
         >
           Stripe で支払う（接続予定）
         </button>
-        <p className="text-xs text-slate-500 leading-relaxed -mt-2">
-          カート専用ページなので、携帯でも合計・届け先・決済ボタンまで一画面でスクロールしやすくしています。Stripe
-          は別タブ／リダイレクトで開くと小さい埋め込みより安全です。
-        </p>
 
         <Link to="/" className="block text-center text-sm text-slate-600 hover:text-emerald-700 py-2">
           ホームへ

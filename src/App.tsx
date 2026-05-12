@@ -93,13 +93,6 @@ const DevInAppPurchaseLayout: React.FC = () => {
   );
 };
 
-const DevInAppPurchaseAdminRoute: React.FC = () => {
-  if (import.meta.env.PROD) {
-    return <Navigate to="/" replace />;
-  }
-  return <InAppPurchaseAdminPage />;
-};
-
 function App() {
   return (
     <Router>
@@ -122,8 +115,18 @@ function App() {
               <Route path="/dev/in-app-purchase" element={<DevInAppPurchaseLayout />}>
                 <Route index element={<InAppPurchaseCatalogPage />} />
                 <Route path="cart" element={<InAppPurchaseCartPage />} />
+                <Route path="admin" element={<InAppPurchaseAdminPage />} />
               </Route>
-              <Route path="/dev/in-app-purchase-admin" element={<DevInAppPurchaseAdminRoute />} />
+              <Route
+                path="/dev/in-app-purchase-admin"
+                element={
+                  import.meta.env.PROD ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <Navigate to="/dev/in-app-purchase/admin" replace />
+                  )
+                }
+              />
 
               {/* 保護されたルート */}
             <Route path="/menu" element={

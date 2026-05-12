@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCopy, LayoutList, Plus, Trash2, ShieldAlert } from 'lucide-react';
-import { mockInAppPurchaseProducts } from '../data/mockInAppPurchaseProducts';
+import { ClipboardCopy, LayoutList, Plus, RefreshCw, Trash2, ShieldAlert } from 'lucide-react';
+import { useIapShop } from '../contexts/InAppPurchaseCartContext';
+import { isPersistedIapCatalogId } from '../lib/iapCatalogRepository';
 import {
   b2bLineTotal,
   b2cLineTotal,
-  createEmptyInAppPurchaseProduct,
   gradeClassLabel,
   nonStandardGradeDescription,
   type InAppPurchaseProduct,
@@ -27,20 +27,44 @@ function fromDatetimeLocalValue(s: string): string {
 }
 
 export const InAppPurchaseAdminPage: React.FC = () => {
-  const [products, setProducts] = useState<InAppPurchaseProduct[]>(() => [...mockInAppPurchaseProducts]);
+  const {
+    products,
+    productsLoading,
+    productsSaving,
+    productsError,
+    refreshProducts,
+    patchProduct,
+    addCatalogRow,
+    registerDraftProduct,
+    removeCatalogRow,
+  } = useIapShop();
   const [copyDone, setCopyDone] = useState(false);
 
-  const patch = useCallback((id: string, partial: Partial<InAppPurchaseProduct>) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...partial, taxRate: 0.1 } : p)));
-  }, []);
+  const patch = useCallback(
+    (id: string, partial: Partial<InAppPurchaseProduct>) => {
+      patchProduct(id, partial);
+    },
+    [patchProduct]
+  );
 
-  const remove = useCallback((id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  const remove = useCallback(
+    async (id: string) => {
+      await removeCatalogRow(id);
+    },
+    [removeCatalogRow]
+  );
 
   const addRow = useCallback(() => {
-    setProducts((prev) => [...prev, createEmptyInAppPurchaseProduct()]);
-  }, []);
+    addCatalogRow();
+  }, [addCatalogRow]);
+
+  const registerById = useCallback(
+    (id: string) => {
+      const cur = products.find((x) => x.id === id);
+      if (cur) void registerDraftProduct(cur);
+    },
+    [products, registerDraftProduct]
+  );
 
   const copyJson = useCallback(async () => {
     try {
@@ -63,10 +87,19 @@ export const InAppPurchaseAdminPage: React.FC = () => {
             </h1>
             <p className="text-xs text-amber-700 mt-0.5 flex items-center gap-1">
               <ShieldAlert className="w-3.5 h-3.5 shrink-0" aria-hidden />
-              開発用・認証なし。再読み込みでサンプルに戻ります（カタログ画面とは別データ・DB未接続）。
+              開発用・認証なし。新規は入力後「この内容で新規登録」で DB に反映。既存行は入力後しばらくで自動保存されます。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void refreshProducts()}
+              disabled={productsLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${productsLoading ? 'animate-spin' : ''}`} aria-hidden />
+              再読み込み
+            </button>
             <Link
               to="/dev/in-app-purchase"
               className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
@@ -81,14 +114,21 @@ export const InAppPurchaseAdminPage: React.FC = () => {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+        {productsError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+            {productsError}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 items-center">
           <button
             type="button"
             onClick={addRow}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-700"
+            disabled={productsSaving}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
           >
             <Plus className="w-4 h-4" aria-hidden />
-            商品行を追加
+            {productsSaving ? '登録中…' : '入力用の空行を追加'}
           </button>
           <button
             type="button"
@@ -98,7 +138,9 @@ export const InAppPurchaseAdminPage: React.FC = () => {
             <ClipboardCopy className="w-4 h-4" aria-hidden />
             {copyDone ? 'コピーしました' : 'JSONをコピー'}
           </button>
-          <span className="text-xs text-slate-500">全 {products.length} 件</span>
+          <span className="text-xs text-slate-500">
+            全 {products.length} 件{productsLoading ? '（読み込み中）' : ''}
+          </span>
         </div>
 
         <div className="space-y-6">
@@ -107,12 +149,23 @@ export const InAppPurchaseAdminPage: React.FC = () => {
               key={p.id}
               className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
             >
-              <div className="flex items-center justify-between gap-2 px-4 py-2 bg-slate-50 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-700">#{index + 1}</span>
+              <div className="flex items-center justify-between gap-2 px-4 py-2 bg-slate-50 border-b border-slate-100 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-slate-700">#{index + 1}</span>
+                  {!isPersistedIapCatalogId(p.id) && (
+                    <span className="text-xs font-medium text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                      下書き（未登録）
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-mono text-slate-400 truncate max-w-[min(200px,40vw)]" title={p.id}>
+                  {isPersistedIapCatalogId(p.id) ? p.id : '保存後に UUID が付与されます'}
+                </span>
                 <button
                   type="button"
-                  onClick={() => remove(p.id)}
-                  className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
+                  title={isPersistedIapCatalogId(p.id) ? 'Supabase から削除' : '下書きを破棄（DB 未保存）'}
+                  onClick={() => void remove(p.id)}
+                  className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 ml-auto"
                 >
                   <Trash2 className="w-4 h-4" aria-hidden />
                   削除
@@ -199,11 +252,12 @@ export const InAppPurchaseAdminPage: React.FC = () => {
                     )}
                   </div>
                   <label className="block text-xs text-slate-600">
-                    画像URL
+                    画像URL（任意）
                     <input
                       className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1.5 text-xs font-mono"
                       value={p.imageUrl}
                       onChange={(e) => patch(p.id, { imageUrl: e.target.value })}
+                      placeholder="空欄で写真なし"
                     />
                   </label>
                   <label className="block text-xs text-slate-600">
@@ -363,13 +417,32 @@ export const InAppPurchaseAdminPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {!isPersistedIapCatalogId(p.id) && (
+                <div className="px-4 py-3 bg-amber-50/90 border-t border-amber-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-xs text-amber-950 leading-relaxed">
+                    品目・品種・産地などを入力してから、下のボタンで初めて Supabase に保存されます（この時点では DB にはありません）。
+                  </p>
+                  <button
+                    type="button"
+                    disabled={productsSaving}
+                    onClick={() => registerById(p.id)}
+                    className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 min-h-[44px]"
+                  >
+                    {productsSaving ? '登録中…' : 'この内容で新規登録（Supabaseへ）'}
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>
 
-        {products.length === 0 && (
-          <p className="text-center text-slate-500 py-12 rounded-xl border border-dashed border-slate-300 bg-white">
-            商品がありません。「商品行を追加」から登録してください。
+        {products.length === 0 && !productsLoading && (
+          <p className="text-center text-slate-500 py-12 rounded-xl border border-dashed border-slate-300 bg-white text-sm leading-relaxed max-w-xl mx-auto px-4">
+            商品がありません。0件はデータ未登録の正常状態です。「入力用の空行を追加」でフォームを出し、入力後「この内容で新規登録」で Supabase に保存してください。
+            <span className="block mt-2 text-amber-800/90">
+              一覧取得がタイムアウトする場合は、データ件数ではなく接続の問題です。.env の VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が、マイグレーションを当てたプロジェクトと一致しているか確認してください。
+            </span>
           </p>
         )}
       </div>

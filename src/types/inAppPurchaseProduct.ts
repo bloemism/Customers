@@ -74,7 +74,7 @@ export function isNonStandardProduct(p: InAppPurchaseProduct): boolean {
   return p.gradeClass === 'non_standard';
 }
 
-/** 管理画面で「行を追加」するときの初期行（DB接続前のローカル編集用） */
+/** 管理画面の「入力用の空行」初期値（この id は DB 保存前の下書き。登録後に UUID に置き換わる） */
 export function createEmptyInAppPurchaseProduct(): InAppPurchaseProduct {
   const id =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'

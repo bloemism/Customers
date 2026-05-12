@@ -84,31 +84,43 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   useEffect(() => {
     // Supabaseのセッション状態を監視
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Customer Auth state changed:', event, session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Customer Auth state changed:', event, session);
 
-        if (session?.user) {
-          if (isStoreOwnerAccount(session.user)) {
-            await supabase.auth.signOut();
-            setCustomer(null);
-          } else {
-            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
-              await fetchCustomerData(session.user.id);
-            }
-          }
-        } else {
-          setCustomer(null);
-          localStorage.removeItem('customerAuth');
-        }
-        setLoading(false);
+      const unblock = () => setLoading(false);
+
+      if (!session?.user) {
+        setCustomer(null);
+        localStorage.removeItem('customerAuth');
+        unblock();
+        return;
       }
-    );
 
-    // 初期セッションを取得
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (isStoreOwnerAccount(session.user)) {
+        void supabase.auth
+          .signOut()
+          .then(() => setCustomer(null))
+          .catch(() => setCustomer(null))
+          .finally(unblock);
+        return;
+      }
+
+      // 顧客: DB 取得でブロックしない（RPC/RLS でハングしてもガードのスピナーが止まる）
+      unblock();
+      if (
+        event === 'SIGNED_IN' ||
+        event === 'INITIAL_SESSION' ||
+        event === 'USER_UPDATED' ||
+        event === 'TOKEN_REFRESHED'
+      ) {
+        void fetchCustomerData(session.user.id);
+      }
+    });
+
+    // 初期セッション（onAuthStateChange の INITIAL_SESSION と二重になり得るが許容）
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user && !isStoreOwnerAccount(session.user)) {
-        await fetchCustomerData(session.user.id);
+        void fetchCustomerData(session.user.id);
       }
       setLoading(false);
     });
@@ -295,7 +307,7 @@ export const CustomerAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
           }
         }
 
-        await fetchCustomerData(data.user.id);
+        void fetchCustomerData(data.user.id);
         console.log('認証成功、メニュー画面に遷移');
         return { error: undefined };
       }
