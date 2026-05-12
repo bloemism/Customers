@@ -96,13 +96,14 @@ CREATE TABLE IF NOT EXISTS public.iap_catalog_items (
   is_public_b2c boolean NOT NULL DEFAULT false,
   sales_starts_at timestamptz NOT NULL DEFAULT now(),
   sales_ends_at timestamptz NOT NULL DEFAULT (now() + interval '1 year'),
-  seller_store_id uuid REFERENCES public.stores (id) ON DELETE SET NULL,
+  -- stores.id が uuid のプロジェクトと text のプロジェクトが混在するため、本DBは text に合わせる
+  seller_store_id text REFERENCES public.stores (id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE public.iap_catalog_items IS 'アプリ内販売カタログ（ロールにより B2B/B2C 表示を切替）';
-COMMENT ON COLUMN public.iap_catalog_items.seller_store_id IS '掲載オーナー店舗（任意）';
+COMMENT ON COLUMN public.iap_catalog_items.seller_store_id IS '掲載オーナー店舗の stores.id（型は public.stores.id に合わせる）';
 
 CREATE INDEX IF NOT EXISTS idx_iap_catalog_items_public_b2b
   ON public.iap_catalog_items (is_published, is_public_b2b) WHERE is_public_b2b = true;
