@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import { CustomerProvider } from './contexts/CustomerContext';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
@@ -7,6 +7,7 @@ import { SimpleAuthGuard } from './components/SimpleAuthGuard';
 import { CustomerAuthGuard } from './components/CustomerAuthGuard';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ScrollToTop } from './components/ScrollToTop';
+import { IapShopProvider } from './contexts/InAppPurchaseCartContext';
 import './App.css';
 
 // コード分割: ページコンポーネントを遅延読み込み
@@ -60,6 +61,15 @@ const StoreOwnerRegistration = React.lazy(() => import('./pages/StoreOwnerRegist
 const CustomerRegistration = React.lazy(() => import('./pages/CustomerRegistration').then(module => ({ default: module.CustomerRegistration })));
 const TestRouting = React.lazy(() => import('./pages/TestRouting').then(module => ({ default: module.TestRouting })));
 const SupabaseTest = React.lazy(() => import('./components/SupabaseTest').then(module => ({ default: module.SupabaseTest })));
+const InAppPurchaseCatalogPage = React.lazy(() =>
+  import('./pages/InAppPurchaseCatalogPage').then((m) => ({ default: m.InAppPurchaseCatalogPage }))
+);
+const InAppPurchaseCartPage = React.lazy(() =>
+  import('./pages/InAppPurchaseCartPage').then((m) => ({ default: m.InAppPurchaseCartPage }))
+);
+const InAppPurchaseAdminPage = React.lazy(() =>
+  import('./pages/InAppPurchaseAdminPage').then((m) => ({ default: m.InAppPurchaseAdminPage }))
+);
 
 // ローディングコンポーネント
 const PageLoader: React.FC = () => (
@@ -70,6 +80,25 @@ const PageLoader: React.FC = () => (
     </div>
   </div>
 );
+
+/** 本番ではアプリ内販売の開発用ルートへアクセスさせない */
+const DevInAppPurchaseLayout: React.FC = () => {
+  if (import.meta.env.PROD) {
+    return <Navigate to="/" replace />;
+  }
+  return (
+    <IapShopProvider>
+      <Outlet />
+    </IapShopProvider>
+  );
+};
+
+const DevInAppPurchaseAdminRoute: React.FC = () => {
+  if (import.meta.env.PROD) {
+    return <Navigate to="/" replace />;
+  }
+  return <InAppPurchaseAdminPage />;
+};
 
 function App() {
   return (
@@ -90,7 +119,12 @@ function App() {
               <Route path="/test" element={<TestRouting />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
               <Route path="/stripe-test" element={<StripeTest />} />
-              
+              <Route path="/dev/in-app-purchase" element={<DevInAppPurchaseLayout />}>
+                <Route index element={<InAppPurchaseCatalogPage />} />
+                <Route path="cart" element={<InAppPurchaseCartPage />} />
+              </Route>
+              <Route path="/dev/in-app-purchase-admin" element={<DevInAppPurchaseAdminRoute />} />
+
               {/* 保護されたルート */}
             <Route path="/menu" element={
               <SimpleAuthGuard>
