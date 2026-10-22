@@ -101,6 +101,12 @@ export const InAppPurchaseAdminPage: React.FC = () => {
               再読み込み
             </button>
             <Link
+              to="/dev/in-app-purchase/orders"
+              className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
+            >
+              注文一覧へ
+            </Link>
+            <Link
               to="/dev/in-app-purchase"
               className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50"
             >

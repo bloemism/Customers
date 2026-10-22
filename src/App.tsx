@@ -70,6 +70,9 @@ const InAppPurchaseCartPage = React.lazy(() =>
 const InAppPurchaseAdminPage = React.lazy(() =>
   import('./pages/InAppPurchaseAdminPage').then((m) => ({ default: m.InAppPurchaseAdminPage }))
 );
+const InAppPurchaseOrdersPage = React.lazy(() =>
+  import('./pages/InAppPurchaseOrdersPage').then((m) => ({ default: m.InAppPurchaseOrdersPage }))
+);
 
 // ローディングコンポーネント
 const PageLoader: React.FC = () => (
@@ -116,6 +119,7 @@ function App() {
                 <Route index element={<InAppPurchaseCatalogPage />} />
                 <Route path="cart" element={<InAppPurchaseCartPage />} />
                 <Route path="admin" element={<InAppPurchaseAdminPage />} />
+                <Route path="orders" element={<InAppPurchaseOrdersPage />} />
               </Route>
               <Route
                 path="/dev/in-app-purchase-admin"

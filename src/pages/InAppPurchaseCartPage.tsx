@@ -97,10 +97,13 @@ export const InAppPurchaseCartPage: React.FC = () => {
     const storeId = viewerRole === 'store' || viewerRole === 'admin' ? linkedStoreId : null;
     const deliverySnapshot: IapPurchaseDeliverySnapshot = {
       customer: {
+        customer_id: customerId ?? '',
         full_name: customerParty.fullName,
+        prefecture: customerParty.prefecture,
+        city: customerParty.city,
+        postal_code: customerParty.postalCode,
+        street_address: customerParty.streetAddress,
         phone: customerParty.phone,
-        address: customerParty.address,
-        customer_code: customerParty.customerCode,
       },
       store: {
         trade_name: storeParty.tradeName,
@@ -113,6 +116,8 @@ export const InAppPurchaseCartPage: React.FC = () => {
       item_name: l.product.itemName,
       variety_name: l.product.varietyName,
       cases: l.cases,
+      unit_price_yen: l.unitPerCase,
+      line_subtotal_yen: l.lineSubtotal,
     }));
     try {
       const id = await insertIapPurchaseRecord({
@@ -120,6 +125,12 @@ export const InAppPurchaseCartPage: React.FC = () => {
         viewerRole,
         customerId,
         storeId,
+        customerName: customerParty.fullName,
+        prefecture: customerParty.prefecture,
+        city: customerParty.city,
+        postalCode: customerParty.postalCode,
+        streetAddress: customerParty.streetAddress,
+        phone: customerParty.phone,
         deliverySnapshot,
         linesSnapshot,
         subtotalYenExTax: cartSubtotal,
@@ -172,7 +183,7 @@ export const InAppPurchaseCartPage: React.FC = () => {
 
         {(linkedCustomerId || linkedStoreId) && (
           <p className="text-xs rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-900 px-3 py-2 leading-relaxed">
-            {linkedCustomerId && <>顧客ログイン: <code className="text-[11px]">customers</code> の氏名・電話・住所・顧客コードをカートに反映しました。 </>}
+            {linkedCustomerId && <>顧客ログイン: ID・氏名・地域を反映しました。郵便番号・住所・電話番号を入力できます。 </>}
             {linkedStoreId && <>店舗ログイン: <code className="text-[11px]">stores</code> の屋号・コード・届け先市場名を反映しました。</>}
             内容は編集可能です。
           </p>
@@ -231,14 +242,58 @@ export const InAppPurchaseCartPage: React.FC = () => {
         {showCustomerBlock && (
           <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm space-y-3">
             <h2 className="text-sm font-semibold text-slate-700">お届け先（顧客）</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              顧客ID・氏名・地域はログイン情報です。配達する店舗は運営が決めます。
+            </p>
+            {!linkedCustomerId && (
+              <p className="text-xs rounded-lg bg-amber-50 border border-amber-100 text-amber-900 px-3 py-2">
+                顧客ログインすると ID・氏名・地域が入ります。
+              </p>
+            )}
             <div className="grid gap-3">
+              <label className="block text-xs text-slate-500">
+                顧客ID
+                <input
+                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-700"
+                  value={customerParty.customerId}
+                  readOnly
+                />
+              </label>
               <label className="block text-xs text-slate-500">
                 氏名
                 <input
-                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 px-3 py-2 text-base"
+                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-700"
                   value={customerParty.fullName}
-                  onChange={(e) => setCustomerParty((s) => ({ ...s, fullName: e.target.value }))}
+                  readOnly
                   autoComplete="name"
+                />
+              </label>
+              <label className="block text-xs text-slate-500">
+                地域
+                <input
+                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-700"
+                  value={[customerParty.prefecture, customerParty.city].filter(Boolean).join(' ')}
+                  readOnly
+                />
+              </label>
+              <label className="block text-xs text-slate-500">
+                郵便番号
+                <input
+                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 px-3 py-2 text-base"
+                  value={customerParty.postalCode}
+                  onChange={(e) => setCustomerParty((s) => ({ ...s, postalCode: e.target.value }))}
+                  autoComplete="postal-code"
+                  inputMode="numeric"
+                />
+              </label>
+              <label className="block text-xs text-slate-500">
+                住所
+                <input
+                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 px-3 py-2 text-base"
+                  value={customerParty.streetAddress}
+                  onChange={(e) => setCustomerParty((s) => ({ ...s, streetAddress: e.target.value }))}
+                  autoComplete="street-address"
+                  placeholder="番地・建物"
                 />
               </label>
               <label className="block text-xs text-slate-500">
@@ -248,23 +303,6 @@ export const InAppPurchaseCartPage: React.FC = () => {
                   value={customerParty.phone}
                   onChange={(e) => setCustomerParty((s) => ({ ...s, phone: e.target.value }))}
                   autoComplete="tel"
-                />
-              </label>
-              <label className="block text-xs text-slate-500">
-                顧客コード
-                <input
-                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 px-3 py-2 text-base"
-                  value={customerParty.customerCode}
-                  onChange={(e) => setCustomerParty((s) => ({ ...s, customerCode: e.target.value }))}
-                />
-              </label>
-              <label className="block text-xs text-slate-500">
-                住所
-                <input
-                  className="mt-1 w-full min-h-[44px] rounded-lg border border-slate-200 px-3 py-2 text-base"
-                  value={customerParty.address}
-                  onChange={(e) => setCustomerParty((s) => ({ ...s, address: e.target.value }))}
-                  autoComplete="street-address"
                 />
               </label>
             </div>
@@ -323,7 +361,7 @@ export const InAppPurchaseCartPage: React.FC = () => {
             <p className="text-xs text-slate-500">計 {cartCaseCount} ケース</p>
           )}
           <p className="text-xs text-slate-500 pt-1">
-            購入記録には税込合計・税抜小計・消費税・届け先スナップショット・各行の記号・品目・品種・ケース数が残ります（単価は保存しません）。
+            注文記録には税込合計・税抜小計・消費税・届け先・各行の記号・品目・品種・ケース数・その時点のケース単価が残ります。配達店舗は空のままです。
           </p>
         </div>
 
@@ -345,10 +383,10 @@ export const InAppPurchaseCartPage: React.FC = () => {
           className="w-full min-h-[52px] rounded-xl bg-emerald-700 text-white text-base font-semibold shadow hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
         >
           <ClipboardCheck className="w-5 h-5 shrink-0" aria-hidden />
-          {recordSaving ? '記録中…' : '購入を記録（iap_purchase_records）'}
+          {recordSaving ? '記録中…' : '注文を記録する'}
         </button>
         <p className="text-xs text-slate-500 leading-relaxed -mt-2">
-          開発用: Supabase テーブル <code className="text-[11px]">iap_purchase_records</code> に1行 INSERT し、カート明細を空にします。Stripe
+          開発用: 適用後の <code className="text-[11px]">iap_purchase_records</code> に1行 INSERT し、カート明細を空にします。テーブル適用前は保存に失敗します。Stripe
           決済は別途接続予定です。
         </p>
 
