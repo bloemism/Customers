@@ -36,10 +36,20 @@ type PersistedCart = {
 };
 
 export type CustomerParty = {
+  /** customers.id。ログインから入り、編集しない */
+  customerId: string;
+  /** customers.name。編集しない */
   fullName: string;
+  /** customers.address（都道府県）。編集しない */
+  prefecture: string;
+  /** customers.address_2（市区町村）。編集しない */
+  city: string;
+  /** 注文時に入力する郵便番号 */
+  postalCode: string;
+  /** 注文時に入力する番地・建物 */
+  streetAddress: string;
+  /** 登録電話を初期値にし、注文時に変更できる */
   phone: string;
-  address: string;
-  customerCode: string;
 };
 
 export type StoreParty = {
@@ -49,11 +59,27 @@ export type StoreParty = {
 };
 
 const emptyCustomer: CustomerParty = {
+  customerId: '',
   fullName: '',
+  prefecture: '',
+  city: '',
+  postalCode: '',
+  streetAddress: '',
   phone: '',
-  address: '',
-  customerCode: '',
 };
+
+/** 旧セッション（address / customerCode）が残っていても欠けを空にする */
+function normalizeCustomerParty(raw: Partial<CustomerParty> | null | undefined): CustomerParty {
+  return {
+    customerId: raw?.customerId ?? '',
+    fullName: raw?.fullName ?? '',
+    prefecture: raw?.prefecture ?? '',
+    city: raw?.city ?? '',
+    postalCode: raw?.postalCode ?? '',
+    streetAddress: raw?.streetAddress ?? '',
+    phone: raw?.phone ?? '',
+  };
+}
 
 const emptyStore: StoreParty = {
   tradeName: '',
@@ -119,7 +145,9 @@ export function IapShopProvider({ children }: { children: ReactNode }) {
   const persisted = typeof window !== 'undefined' ? loadPersisted() : null;
   const [viewerRole, setViewerRoleState] = useState<CatalogViewerRole>(persisted?.viewerRole ?? 'customer');
   const [orderCases, setOrderCases] = useState<Record<string, number>>(persisted?.orderCases ?? {});
-  const [customerParty, setCustomerParty] = useState<CustomerParty>(persisted?.customerParty ?? emptyCustomer);
+  const [customerParty, setCustomerParty] = useState<CustomerParty>(
+    normalizeCustomerParty(persisted?.customerParty)
+  );
   const [storeParty, setStoreParty] = useState<StoreParty>(persisted?.storeParty ?? emptyStore);
 
   const { customer, loading: customerAuthLoading } = useCustomerAuth();
@@ -139,12 +167,15 @@ export function IapShopProvider({ children }: { children: ReactNode }) {
     if (lastSyncedCustomerId.current === customer.id) return;
     lastSyncedCustomerId.current = customer.id;
     setLinkedCustomerId(customer.id);
-    setCustomerParty({
+    const city = (customer as { address_2?: string }).address_2 ?? '';
+    setCustomerParty((prev) => ({
+      ...normalizeCustomerParty(prev),
+      customerId: customer.id,
       fullName: customer.name || '',
+      prefecture: customer.address ?? '',
+      city,
       phone: customer.phone ?? '',
-      address: customer.address ?? '',
-      customerCode: customer.customer_code ?? '',
-    });
+    }));
   }, [customerAuthLoading, customer]);
 
   useEffect(() => {
